@@ -5,4 +5,7 @@ export const MAX_THROW_SPEED = 2600;
 /** altura da barra de construção no rodapé (px) */
 export const BAR_H = 130;
 export const START_COINS = 100;
+/** dano de cada clique num inimigo: base + bônus por nível do centro da vila */
+export const CLICK_DAMAGE = 8;
+export const CLICK_DAMAGE_PER_CASTLE_LEVEL = 4;
 export const COLORS = { grass: 0xcfe8a8, grassTile: 0xb9d98e };

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BAR_H, COLORS, MAX_THROW_SPEED, SOLDIER_H } from '../config';
+import { BAR_H, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, MAX_THROW_SPEED, SOLDIER_H } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -81,6 +81,8 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       this.mouse.set(p.x, p.y);
+      // mira quando está sobre um inimigo
+      this.input.setDefaultCursor(!this.held && !this.placing && this.orcAt(p.x, p.y) ? 'crosshair' : 'default');
       if (this.held) {
         this.samples.push({ x: p.x, y: p.y, t: performance.now() });
         if (this.samples.length > 8) this.samples.shift();
@@ -239,6 +241,25 @@ export class GameScene extends Phaser.Scene {
 
   /* ---------- mouse ---------- */
 
+  /** Inimigo vivo mais à frente sob o ponto (px, py). */
+  private orcAt(px: number, py: number): Orc | null {
+    let best: Orc | null = null;
+    for (const o of this.orcs) {
+      if (!o.alive) continue;
+      const hgt = o.stats.height;
+      if (Math.abs(px - o.x) < hgt * 0.38 && py < o.y + 6 && py > o.y - hgt && (!best || o.y > best.y)) best = o;
+    }
+    return best;
+  }
+
+  /** Clique que bate no inimigo. */
+  private clickHit(o: Orc, x: number, y: number) {
+    o.takeDamage(CLICK_DAMAGE + this.castle.level * CLICK_DAMAGE_PER_CASTLE_LEVEL, x, y);
+    this.fx.burst(x, y, 7, 0xffe28a);
+    const ring = this.add.ellipse(x, y, 16, 16).setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
+    this.tweens.add({ targets: ring, scale: 3, alpha: 0, duration: 220, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+  }
+
   private onDown(p: Phaser.Input.Pointer) {
     this.mouse.set(p.x, p.y);
     if (this.placing) {
@@ -258,6 +279,9 @@ export class GameScene extends Phaser.Scene {
       bus.emit(Evt.Hint, null);
       return;
     }
+    // inimigo: o clique bate nele
+    const foe = this.orcAt(p.x, p.y);
+    if (foe) { this.clickHit(foe, p.x, p.y); return; }
     const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(p.x, p.y))
       ?? (this.castle.contains(p.x, p.y) ? this.castle : null);
     this.select(hit === this.selected ? null : hit);
@@ -307,7 +331,7 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.shake(600, 0.01);
       bus.emit(Evt.Hint, `CUIDADO! Onda ${this.wave}: o Rei Orc chegou!`);
     } else {
-      bus.emit(Evt.Hint, `Onda ${this.wave}! ${n} orcs a caminho!`);
+      bus.emit(Evt.Hint, `Onda ${this.wave}! ${n} orcs a caminho!` + (this.wave === 1 ? ' Clique neles para bater!' : ''));
     }
     this.time.delayedCall(4500, () => bus.emit(Evt.Hint, null));
   }
