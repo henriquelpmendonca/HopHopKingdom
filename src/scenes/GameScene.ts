@@ -16,7 +16,7 @@ import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state } from '../state';
-import { MAGIC_CASTLE_LEVEL } from '../data/castle';
+import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
 
 export class GameScene extends Phaser.Scene {
@@ -335,13 +335,27 @@ export class GameScene extends Phaser.Scene {
     this.emitSelect();
   }
 
+  /** Até que nível esta construção pode evoluir com o Centro da Vila de agora. */
+  private hutCap(def: HutDef) {
+    const lv = this.castle.level + 1;
+    return Math.min(this.castle.hutMax, def.maxLevelByCastle?.(lv) ?? Infinity);
+  }
+
+  /** Menor nível do Centro da Vila que libera o nível `target` desta construção. */
+  private castleNeeded(def: HutDef, target: number) {
+    for (let c = this.castle.level + 2; c <= CASTLE_LEVELS.length; c++) {
+      if (Math.min(CASTLE_LEVELS[c - 1].hutMax, def.maxLevelByCastle?.(c) ?? Infinity) >= target) return c;
+    }
+    return CASTLE_LEVELS.length;
+  }
+
   private emitSelect() {
     const h = this.selected;
     if (!h) { bus.emit(Evt.Select, null); return; }
     const nx = h.next;
     // cabana: o próximo nível só abre se o centro da vila deixar
     let lock: string | undefined;
-    if (h instanceof Hut && nx && h.level + 2 > this.castle.hutMax) lock = `Centro Nv ${this.castle.level + 2}`;
+    if (h instanceof Hut && nx && h.level + 2 > this.hutCap(h.def)) lock = `Centro Nv ${this.castleNeeded(h.def, h.level + 2)}`;
     // o centro da vila também espera você chegar a uma onda
     if (h instanceof Castle && h.next && this.wave < h.next.minWave) lock = `Onda ${h.next.minWave}`;
     const info: SelectInfo = {
@@ -363,9 +377,9 @@ export class GameScene extends Phaser.Scene {
   private upgradeSelected() {
     const h = this.selected, nx = h?.next;
     if (!h || !nx) return;
-    if (h instanceof Hut && h.level + 2 > this.castle.hutMax) {
+    if (h instanceof Hut && h.level + 2 > this.hutCap(h.def)) {
       bus.emit(Evt.Broke, 'upgrade');
-      bus.emit(Evt.Hint, 'Evolua o Centro da Vila para liberar cabanas de nível ' + (h.level + 2) + '!');
+      bus.emit(Evt.Hint, `Evolua o Centro da Vila para o nível ${this.castleNeeded(h.def, h.level + 2)} para liberar o nível ${h.level + 2}!`);
       this.time.delayedCall(3000, () => bus.emit(Evt.Hint, null));
       return;
     }

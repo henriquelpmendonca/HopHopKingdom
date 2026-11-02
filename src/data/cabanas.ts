@@ -53,6 +53,8 @@ export interface HutDef {
   currency?: 'mana';
   /** só aparece na barra depois que o Centro da Vila chega a este nível */
   needCastle?: number;
+  /** até que nível dá para evoluir, conforme o nível do Centro da Vila (padrão: o limite do próprio centro) */
+  maxLevelByCastle?: (castleLevel: number) => number;
 }
 
 /** Preço de construir mais uma deste tipo, sabendo quantas você já tem. */
@@ -180,6 +182,8 @@ export const CABANA_MAGO: HutDef = {
   nome: 'Cabana do Mago',
   currency: 'mana',
   needCastle: MAGIC_CASTLE_LEVEL,
+  // o terceiro visual (grão-mago, do nível 10 em diante) só com o Centro da Vila nível 5
+  maxLevelByCastle: lv => (lv >= 5 ? MAX_LEVEL : 9),
   costGrowth: 1.15,
   levels: troopLevels(MAGO_TIERS, { first: 90, step: 60, hp0: 170, countBase: 2, countCap: 10 }),
 };
