@@ -2,7 +2,7 @@ import { START_COINS } from './config';
 import { bus, Evt } from './events';
 
 /** Atalho de teste: ?moedas=2000 */
-const qs = new URLSearchParams(location.search);
+const qs = new URLSearchParams(import.meta.env.DEV ? location.search : '');
 
 export const state = {
   coins: Number(qs.get('moedas')) || START_COINS,

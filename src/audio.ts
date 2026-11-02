@@ -4,6 +4,8 @@
  * - `music.set(...)`: música em loop que troca conforme o que está acontecendo
  * O navegador só deixa tocar depois do primeiro clique, então tudo começa em `unlockAudio()`.
  */
+import { store } from './store';
+
 const mf = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 type Wave = OscillatorType;
@@ -97,11 +99,16 @@ class AudioEngine {
   private timer = 0;
   private switching = false;
 
-  constructor() {
-    try {
-      this.musicOn = localStorage.getItem('hhk_music') !== '0';
-      this.sfxOn = localStorage.getItem('hhk_sfx') !== '0';
-    } catch { /* sem armazenamento: segue com o padrão */ }
+  /** Lê música/efeitos ligados ou desligados (depois que o SDK iniciou, para pegar o armazenamento certo). */
+  loadPrefs() {
+    this.musicOn = store.get('hhk_music') !== '0';
+    this.sfxOn = store.get('hhk_sfx') !== '0';
+  }
+
+  /** Anúncio rodando: silencia tudo e volta depois. */
+  duck(on: boolean) {
+    if (!this.ctx) return;
+    this.master.gain.setTargetAtTime(on ? 0 : 0.8, this.ctx.currentTime, 0.02);
   }
 
   /** Cria o áudio (só pode depois de um clique/tecla) e começa a música. */
@@ -137,13 +144,13 @@ class AudioEngine {
 
   setMusic(on: boolean) {
     this.musicOn = on;
-    try { localStorage.setItem('hhk_music', on ? '1' : '0'); } catch { /* ignora */ }
+    store.set('hhk_music', on ? '1' : '0');
     if (this.ctx) this.musicGain.gain.setTargetAtTime(on ? 0.5 : 0, this.ctx.currentTime, 0.05);
   }
 
   setSfx(on: boolean) {
     this.sfxOn = on;
-    try { localStorage.setItem('hhk_sfx', on ? '1' : '0'); } catch { /* ignora */ }
+    store.set('hhk_sfx', on ? '1' : '0');
     if (this.ctx) this.sfxGain.gain.setTargetAtTime(on ? 0.9 : 0, this.ctx.currentTime, 0.05);
   }
 

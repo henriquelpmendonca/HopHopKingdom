@@ -1,8 +1,6 @@
-/**
- * Salvamento do progresso. Hoje usa o localStorage do navegador.
- * Quando o SDK do CrazyGames entrar, é só trocar as três funções abaixo
- * pelo armazenamento de dados deles; o resto do jogo não muda.
- */
+import { store } from './store';
+
+/** Salvamento do progresso. Usa o armazenamento do SDK do CrazyGames, ou o do navegador fora dele. */
 const KEY = 'hophopkingdom_save';
 const VERSION = 1;
 
@@ -31,7 +29,7 @@ export interface SaveData {
 
 export function loadGame(): SaveData | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = store.get(KEY);
     if (!raw) return null;
     const d = JSON.parse(raw) as SaveData;
     if (d.v !== VERSION || !Array.isArray(d.huts)) return null;
@@ -43,7 +41,7 @@ export function loadGame(): SaveData | null {
 
 export function saveGame(d: Omit<SaveData, 'v'>) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ v: VERSION, ...d }));
+    store.set(KEY, JSON.stringify({ v: VERSION, ...d }));
   } catch {
     // sem espaço ou bloqueado: o jogo segue sem salvar
   }
@@ -51,7 +49,7 @@ export function saveGame(d: Omit<SaveData, 'v'>) {
 
 export function clearSave() {
   try {
-    localStorage.removeItem(KEY);
+    store.remove(KEY);
   } catch {
     // ignora
   }

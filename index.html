@@ -1,23 +1,25 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Hop Hop Kingdom</title>
 <link rel="stylesheet" href="/src/style.css">
+<!-- SDK do CrazyGames: se não carregar (offline, outro site), o jogo funciona igual, sem anúncios -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 <body>
 <div id="game"></div>
 <div id="stats">
   <div id="coins"><i class="coin"></i><span id="coinN">0</span><small id="incomeN"></small></div>
-  <div id="wave"><i class="flag">⚔️</i><span id="waveN">0</span><small>onda</small></div>
+  <div id="wave"><i class="flag">⚔️</i><span id="waveN">0</span><small data-i18n="ui.wave_label">wave</small></div>
   <div id="mana" hidden><i class="gem"></i><span id="manaN">0</span><small id="manaInc"></small></div>
 </div>
 <button id="upgrade" class="slot green" hidden></button>
-<div id="audio"><button id="musicBtn" title="Música">🎵</button><button id="sfxBtn" title="Efeitos sonoros">🔊</button></div>
+<div id="audio"><button id="musicBtn" data-i18n-title="ui.music" title="Music">🎵</button><button id="sfxBtn" data-i18n-title="ui.sfx" title="Sound effects">🔊</button><button id="gift" data-i18n-title="ui.gift_title" title="Watch an ad for free coins">🎁</button></div>
 <div id="bar"></div>
 <div id="hint"></div>
-<div id="over" hidden><div id="overbox" class="slot-like"><h1>A cidade caiu!</h1><p id="overTxt">Os orcs destruíram o centro da cidade.</p><button id="rebuild">Reerguer a cidade</button><button id="again" class="link">Começar do zero</button></div></div>
+<div id="over" hidden><div id="overbox" class="slot-like"><h1 data-i18n="ui.over_title">The city has fallen!</h1><p id="overTxt" data-i18n="ui.over_default">The orcs destroyed the Town Center.</p><button id="rebuild" data-i18n="ui.rebuild">Rebuild the city</button><button id="rebuildFree" class="alt" data-i18n="ui.rebuild_free">Rebuild for free (watch an ad)</button><button id="again" class="link" data-i18n="ui.restart">Start over</button></div></div>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

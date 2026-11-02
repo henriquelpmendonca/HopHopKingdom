@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { audio, sfx } from '../audio';
+import { t } from '../i18n';
+import { sdk } from '../sdk';
 import { CameraRig } from '../camera';
 import { Radar } from '../ui/Radar';
 import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_WAVES_BACK, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
@@ -17,6 +19,7 @@ import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state } from '../state';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
+import type { Key } from '../i18n';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
 
 export class GameScene extends Phaser.Scene {
@@ -41,15 +44,16 @@ export class GameScene extends Phaser.Scene {
   private radar!: Radar;
   private proj!: Projectiles;
   /** o primeiro chefe morreu: magos entram nas ondas */
-  private magos = new URLSearchParams(location.search).has('magos');
+  private magos = new URLSearchParams(import.meta.env.DEV ? location.search : '').has('magos');
   private orcs: Orc[] = [];
   private wave = 0;
   private waveTimer = -1;
   private over = false;
+  isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
-  private persist = !['onda', 'moedas', 'magos', 'espada'].some(k => new URLSearchParams(location.search).has(k));
+  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
   /** atalho de teste: ?onda=5 começa na onda 5 */
-  private debugWave = Number(new URLSearchParams(location.search).get('onda')) || 0;
+  private debugWave = Number(new URLSearchParams(import.meta.env.DEV ? location.search : '').get('onda')) || 0;
 
   constructor() { super('Game'); }
 
@@ -85,7 +89,9 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.UpgradeSword, this.upgradeSword, this);
     bus.on(Evt.Rebuild, this.rebuild, this);
     bus.on(Evt.Power, this.usePower, this);
+    bus.on(Evt.Gift, this.gift, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.Gift, this.gift, this);
       bus.off(Evt.Power, this.usePower, this);
       bus.off(Evt.Rebuild, this.rebuild, this);
       bus.off(Evt.UpgradeSword, this.upgradeSword, this);
@@ -97,9 +103,11 @@ export class GameScene extends Phaser.Scene {
     const fresh = this.huts.length === 0;
     this.waveTimer = this.debugWave ? 4 : fresh ? WAVE.firstDelay : 10;
     if (fresh) {
-      bus.emit(Evt.Hint, 'Construa uma cabana de soldado na barra de baixo: os orcs já estão a caminho!');
+      bus.emit(Evt.Hint, t('hint.build_first'));
       this.time.delayedCall(9000, () => bus.emit(Evt.Hint, null));
     }
+    sdk.loadingStop();
+    sdk.setPlaying(true);
     bus.emit(Evt.Coins, state.coins);
     this.onCastleLevel(false);
     this.emitCosts();
@@ -153,7 +161,7 @@ export class GameScene extends Phaser.Scene {
       this.huts.push(hut);
     }
     if (this.huts.length > 0) this.waveTimer = 10;
-    bus.emit(Evt.Hint, 'Bem-vindo de volta! Seu reino foi carregado.');
+    bus.emit(Evt.Hint, t('hint.welcome_back'));
     this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
   }
 
@@ -164,8 +172,8 @@ export class GameScene extends Phaser.Scene {
     if (justUpgraded && this.castle.level + 1 === MAGIC_CASTLE_LEVEL) {
       addMana(MANA_GIFT);
       this.emitMana();
-      floatText(this, this.castle.x, this.castle.y - this.castle.h - 20, `Mana liberada! +${MANA_GIFT}`, '#7ad0ff');
-      bus.emit(Evt.Hint, 'Mana liberada! Use na Mina de Mana e nos poderes ao lado.');
+      floatText(this, this.castle.x, this.castle.y - this.castle.h - 20, t('fl.mana_unlocked', { n: MANA_GIFT }), '#7ad0ff');
+      bus.emit(Evt.Hint, t('hint.mana_unlocked'));
       this.time.delayedCall(6000, () => bus.emit(Evt.Hint, null));
     }
   }
@@ -188,13 +196,13 @@ export class GameScene extends Phaser.Scene {
     if ((this.powerReady[id] ?? 0) > now) { sfx.error(); return; }
     const alive = this.orcs.filter(o => o.alive);
     if (id !== 'curar' && alive.length === 0) {
-      bus.emit(Evt.Hint, 'Não há inimigos agora!');
+      bus.emit(Evt.Hint, t('hint.no_enemies'));
       this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
       return;
     }
     if (!spendMana(def.cost)) {
       bus.emit(Evt.Broke, 'power:' + id);
-      bus.emit(Evt.Hint, 'Falta mana!');
+      bus.emit(Evt.Hint, t('hint.no_mana'));
       this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
       return;
     }
@@ -216,11 +224,11 @@ export class GameScene extends Phaser.Scene {
         }, true);
       });
       sfx.strikeCharge(0.8);
-      bus.emit(Evt.Hint, 'Chuva de meteoros!');
+      bus.emit(Evt.Hint, t('hint.meteors'));
     } else if (id === 'congelar') {
       for (const o of alive) o.freeze(POWER_FREEZE_SECONDS);
       sfx.magic();
-      bus.emit(Evt.Hint, `Inimigos congelados por ${POWER_FREEZE_SECONDS} segundos!`);
+      bus.emit(Evt.Hint, t('hint.frozen', { n: POWER_FREEZE_SECONDS }));
     } else {
       for (const h of this.huts) {
         h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.5);
@@ -230,7 +238,7 @@ export class GameScene extends Phaser.Scene {
       this.castle.hp = Math.min(this.castle.maxHp, this.castle.hp + this.castle.maxHp * 0.4);
       this.fx.burst(this.castle.x, this.castle.y - this.castle.h * 0.5, 24, 0x6dff9a, true);
       sfx.upgrade();
-      bus.emit(Evt.Hint, 'Todos curados!');
+      bus.emit(Evt.Hint, t('hint.healed'));
     }
     this.time.delayedCall(2500, () => bus.emit(Evt.Hint, null));
     this.save();
@@ -255,20 +263,20 @@ export class GameScene extends Phaser.Scene {
     const def = hutDef(id);
     if (def.maxCount && this.huts.filter(h => h.def === def).length >= def.maxCount) {
       bus.emit(Evt.Broke, id);
-      bus.emit(Evt.Hint, `Limite de ${def.maxCount} construções: ${def.nome}`);
+      bus.emit(Evt.Hint, t('hint.limit', { n: def.maxCount, name: t(`name.${def.id}` as Key) }));
       this.time.delayedCall(2200, () => !this.placing && bus.emit(Evt.Hint, null));
       return;
     }
     if (this.placing === def) { this.stopPlacing(); return; }
     if (def.needCastle && this.castle.level + 1 < def.needCastle) {
       bus.emit(Evt.Broke, id);
-      bus.emit(Evt.Hint, `Libera com o Centro da Vila nível ${def.needCastle}`);
+      bus.emit(Evt.Hint, t('hint.needs_castle', { n: def.needCastle }));
       this.time.delayedCall(2200, () => !this.placing && bus.emit(Evt.Hint, null));
       return;
     }
     if ((def.currency === 'mana' ? state.mana : state.coins) < this.costOf(def)) {
       bus.emit(Evt.Broke, id);
-      bus.emit(Evt.Hint, def.currency === 'mana' ? 'Falta mana!' : 'Faltam moedas!');
+      bus.emit(Evt.Hint, def.currency === 'mana' ? t('hint.no_mana') : t('hint.no_coins'));
       this.time.delayedCall(1800, () => !this.placing && bus.emit(Evt.Hint, null));
       return;
     }
@@ -282,8 +290,8 @@ export class GameScene extends Phaser.Scene {
     this.ghost.setTexture(lv.art).setDisplaySize(lv.width, lv.width * tex.height / tex.width).setVisible(true);
     bus.emit(Evt.Placing, id);
     bus.emit(Evt.Hint, this.rig.touch
-      ? 'Arraste o dedo e solte onde quer construir (toque na carta de novo cancela)'
-      : 'Clique no mapa para construir (Esc ou botão direito cancela)');
+      ? t('hint.place_touch')
+      : t('hint.place_mouse'));
   }
 
   private stopPlacing() {
@@ -311,7 +319,7 @@ export class GameScene extends Phaser.Scene {
 
   private placeHut(def: HutDef) {
     const b = this.ghostBuilding();
-    if (!this.canPlace(b)) { bus.emit(Evt.Hint, 'Aqui não cabe!'); return; }
+    if (!this.canPlace(b)) { bus.emit(Evt.Hint, t('hint.no_room')); return; }
     if (!(def.currency === 'mana' ? spendMana(this.costOf(def)) : spend(this.costOf(def)))) return;
     this.emitMana();
     const hut = new Hut(this, def, b.x, b.y, this.fx, h => this.onHutDestroyed(h));
@@ -322,7 +330,7 @@ export class GameScene extends Phaser.Scene {
     this.stopPlacing();
     this.select(hut);
     this.save();
-    bus.emit(Evt.Hint, def.levels[0].soldiers.length ? 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!' : (def.currency === 'mana' ? 'A mina de mana rende mana! Mas ela não tem soldados: proteja-a!' : 'A mina rende moedas! Mas ela não tem soldados: proteja-a!'));
+    bus.emit(Evt.Hint, def.levels[0].soldiers.length ? t('hint.built_troops') : (def.currency === 'mana' ? t('hint.built_mana_mine') : t('hint.built_mine')));
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
 
@@ -355,9 +363,9 @@ export class GameScene extends Phaser.Scene {
     const nx = h.next;
     // cabana: o próximo nível só abre se o centro da vila deixar
     let lock: string | undefined;
-    if (h instanceof Hut && nx && h.level + 2 > this.hutCap(h.def)) lock = `Centro Nv ${this.castleNeeded(h.def, h.level + 2)}`;
+    if (h instanceof Hut && nx && h.level + 2 > this.hutCap(h.def)) lock = t('ui.lock_castle', { n: this.castleNeeded(h.def, h.level + 2) });
     // o centro da vila também espera você chegar a uma onda
-    if (h instanceof Castle && h.next && this.wave < h.next.minWave) lock = `Onda ${h.next.minWave}`;
+    if (h instanceof Castle && h.next && this.wave < h.next.minWave) lock = t('ui.lock_wave', { n: h.next.minWave });
     const info: SelectInfo = {
       x: h.x, y: h.y - h.h - 26,
       next: nx ? { art: nx.art, cost: nx.cost, lock, mana: h instanceof Hut && h.def.currency === 'mana' } : null,
@@ -379,13 +387,13 @@ export class GameScene extends Phaser.Scene {
     if (!h || !nx) return;
     if (h instanceof Hut && h.level + 2 > this.hutCap(h.def)) {
       bus.emit(Evt.Broke, 'upgrade');
-      bus.emit(Evt.Hint, `Evolua o Centro da Vila para o nível ${this.castleNeeded(h.def, h.level + 2)} para liberar o nível ${h.level + 2}!`);
+      bus.emit(Evt.Hint, t('hint.needs_town', { n: this.castleNeeded(h.def, h.level + 2), l: h.level + 2 }));
       this.time.delayedCall(3000, () => bus.emit(Evt.Hint, null));
       return;
     }
     if (h instanceof Castle && this.wave < (h.next?.minWave ?? 0)) {
       bus.emit(Evt.Broke, 'upgrade');
-      bus.emit(Evt.Hint, `Sobreviva até a onda ${h.next?.minWave} para evoluir o Centro da Vila!`);
+      bus.emit(Evt.Hint, t('hint.survive_wave', { n: h.next?.minWave ?? 0 }));
       this.time.delayedCall(3000, () => bus.emit(Evt.Hint, null));
       return;
     }
@@ -396,7 +404,7 @@ export class GameScene extends Phaser.Scene {
     h.upgrade();
     // quando o visual da construção muda (de 5 em 5 níveis) a comemoração é maior
     const novoVisual = h instanceof Hut && h.def.levels[h.level].art !== artBefore;
-    floatText(this, h.x, h.y - h.h - 10, novoVisual ? 'NOVO VISUAL!' : 'EVOLUIU!', '#7CFF6B');
+    floatText(this, h.x, h.y - h.h - 10, novoVisual ? t('fl.new_look') : t('fl.upgraded'), '#7CFF6B');
     if (novoVisual) { this.fx.burst(h.x, h.y - h.h * 0.5, 36, 0xffd84a, true); this.cameras.main.shake(200, 0.005); }
     sfx.upgrade(h instanceof Castle);
     if (h instanceof Castle) this.onCastleLevel(true);
@@ -409,7 +417,7 @@ export class GameScene extends Phaser.Scene {
     if (state.sword >= SWORD_MAX) return;
     if (!spend(swordCost(state.sword))) {
       bus.emit(Evt.Broke, 'sword');
-      bus.emit(Evt.Hint, 'Faltam moedas para evoluir a espada!');
+      bus.emit(Evt.Hint, t('hint.sword_coins'));
       this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
       return;
     }
@@ -419,7 +427,7 @@ export class GameScene extends Phaser.Scene {
     const mw = this.mouse;
     const novoVisual = swordTier(state.sword).art !== before;
     sfx.upgrade(novoVisual);
-    floatText(this, mw.x, mw.y - 30, novoVisual ? 'ESPADA NOVA!' : `Espada Nv ${state.sword}`, '#7CFF6B');
+    floatText(this, mw.x, mw.y - 30, novoVisual ? t('fl.new_sword') : t('fl.sword_lv', { n: state.sword }), '#7CFF6B');
     this.fx.burst(mw.x, mw.y, novoVisual ? 28 : 10, 0xffe28a, novoVisual);
     if (novoVisual) this.cameras.main.shake(180, 0.004);
     this.save();
@@ -597,9 +605,9 @@ export class GameScene extends Phaser.Scene {
       const bp = around(1300);
       this.orcs.push(new Orc(this, bp.x, bp.y, 'boss', this.wave, this.fx, o => this.onOrcDie(o)));
       this.cameras.main.shake(600, 0.01);
-      bus.emit(Evt.Hint, `CUIDADO! Onda ${this.wave}: o Rei Orc chegou!`);
+      bus.emit(Evt.Hint, t('hint.boss', { w: this.wave }));
     } else {
-      bus.emit(Evt.Hint, `Onda ${this.wave}! ${n} orcs a caminho!` + (this.wave === 1 ? ' Clique neles para bater!' : ''));
+      bus.emit(Evt.Hint, t('hint.wave', { w: this.wave, n }) + (this.wave === 1 ? t('hint.click_them') : ''));
     }
     this.time.delayedCall(4500, () => bus.emit(Evt.Hint, null));
   }
@@ -609,14 +617,14 @@ export class GameScene extends Phaser.Scene {
     this.emitCosts();
     this.save();
     if (this.selected === h) { this.selected = null; this.emitSelect(); }
-    floatText(this, h.x, h.y - h.h * 0.6, 'Cabana destruída!', '#ff5a4d');
+    floatText(this, h.x, h.y - h.h * 0.6, t('fl.hut_destroyed'), '#ff5a4d');
     this.cameras.main.shake(180, 0.004);
   }
 
   private onOrcDie(o: Orc) {
     if (o.stats.boss && !this.magos) {
       this.magos = true;
-      bus.emit(Evt.Hint, 'O Rei Orc caiu! Mas magos sombrios estão chegando...');
+      bus.emit(Evt.Hint, t('hint.boss_dead'));
       this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
     }
     const reward = Math.max(1, Math.round(o.stats.coins * KILL_COIN_MULT));
@@ -625,16 +633,32 @@ export class GameScene extends Phaser.Scene {
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
   }
 
+  /** Moedas de presente por assistir a um anúncio: uns 90 segundos de renda, no mínimo 400. */
+  private gift() {
+    let inc = this.castle.income;
+    for (const h of this.huts) inc += h.income;
+    const n = Math.max(400, Math.round(inc * 90));
+    addCoins(n);
+    sfx.upgrade(true);
+    this.fx.burst(this.castle.x, this.castle.y - this.castle.h * 0.5, 30, 0xffd84a, true);
+    bus.emit(Evt.Hint, t('hint.ad_reward', { n }));
+    this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
+    this.save();
+  }
+
   /** Perder não apaga tudo: a cidade é reerguida com um custo pequeno. */
-  private rebuild() {
+  private rebuild(opts?: { free?: boolean }) {
     if (!this.over) return;
+    const free = !!opts?.free;
     this.over = false;
+    sdk.setPlaying(true);
     for (const o of this.orcs) o.vanish();
     this.orcs = [];
     this.proj.clear();
-    state.coins = Math.floor(state.coins * REBUILD_COIN_KEEP);
+    // com anúncio com recompensa, reerguer não custa nada
+    if (!free) state.coins = Math.floor(state.coins * REBUILD_COIN_KEEP);
     bus.emit(Evt.Coins, state.coins);
-    this.wave = Math.max(0, this.wave - REBUILD_WAVES_BACK);
+    this.wave = free ? this.wave : Math.max(0, this.wave - REBUILD_WAVES_BACK);
     bus.emit(Evt.Wave, this.wave);
     this.waveTimer = 16;
     this.castle.hp = this.castle.maxHp;
@@ -646,7 +670,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.shake(250, 0.006);
     sfx.upgrade(true);
     audio.set('calma');
-    bus.emit(Evt.Hint, `Cidade reerguida! Você perdeu ${Math.round((1 - REBUILD_COIN_KEEP) * 100)}% das moedas e voltou ${REBUILD_WAVES_BACK} ondas.`);
+    bus.emit(Evt.Hint, free ? t('hint.ad_free_rebuild') : t('hint.rebuilt', { p: Math.round((1 - REBUILD_COIN_KEEP) * 100), w: REBUILD_WAVES_BACK }));
     this.time.delayedCall(6000, () => bus.emit(Evt.Hint, null));
     this.save();
   }
@@ -654,6 +678,7 @@ export class GameScene extends Phaser.Scene {
   private lose() {
     this.over = true;
     this.held = null;
+    sdk.setPlaying(false);
     sfx.gameOver();
     audio.set('calma');
     bus.emit(Evt.GameOver, { wave: this.wave });

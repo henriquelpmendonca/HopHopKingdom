@@ -190,3 +190,12 @@ html, html *{cursor:none !important}
   .slot.weapon .lv{font-size:11px}
   .slot.power{width:58px;height:58px;padding:3px 3px 14px}
 }
+
+/* botão do presente de moedas (anúncio) e "reerguer de graça" */
+#gift{position:relative;width:48px;height:48px;border:4px solid #5a3418;border-radius:50%;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 5px 0 #5a3418;font-size:22px;line-height:1;padding:0;cursor:pointer;animation:idle 2.2s ease-in-out infinite}
+#gift[hidden]{display:none}
+#gift:disabled{opacity:.6;animation:none;box-shadow:0 1px 0 #5a3418}
+#gift.cooling{filter:grayscale(.8)}
+#rebuildFree{display:block;width:100%;padding:10px 16px;margin:0 0 12px;border:4px solid #7a4a00;border-radius:26px;background:linear-gradient(#ffe27a,#ffb300);color:#fff;font:900 18px "Trebuchet MS",Verdana,sans-serif;text-shadow:0 2px 0 #7a4a00;box-shadow:0 5px 0 #7a4a00;cursor:pointer}
+#rebuildFree[hidden]{display:none}
+@media (max-width:640px){#gift{width:40px;height:40px;font-size:18px;border-width:3px}}

@@ -1,9 +1,11 @@
 import { audio, sfx } from '../audio';
+import { t, type Key } from '../i18n';
+import { sdk } from '../sdk';
 import { REBUILD_COIN_KEEP, REBUILD_WAVES_BACK } from '../config';
 import { clearSave } from '../save';
 import { BUILDABLES } from '../data/cabanas';
 import { MAGIC_CASTLE_LEVEL } from '../data/castle';
-import { POWERS } from '../data/powers';
+import { POWERS, POWER_FREEZE_SECONDS } from '../data/powers';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
 
@@ -34,7 +36,7 @@ export function setupHud() {
   for (const def of BUILDABLES) {
     const el = document.createElement('button');
     el.className = 'slot';
-    el.title = def.nome;
+    el.title = t(`name.${def.id}` as Key);
     const mana = def.currency === 'mana';
     el.innerHTML = `<img src="assets/${def.levels[0].art}.png" alt=""><span class="cost">${mana ? gemHtml : coinHtml}${def.levels[0].cost}</span>`;
     el.addEventListener('click', () => { boing(el); sfx.ui(); bus.emit(Evt.Build, def.id); });
@@ -50,16 +52,16 @@ export function setupHud() {
   bar.appendChild(gap);
   const sw = document.createElement('button');
   sw.className = 'slot weapon';
-  sw.title = 'Evoluir a espada do clique';
+  sw.title = t('ui.sword_upgrade');
   bar.appendChild(sw);
   let swordLevel = 1;
   function drawSword() {
-    const t = swordTier(swordLevel);
+    const tier = swordTier(swordLevel);
     const max = swordLevel >= SWORD_MAX;
-    sw.innerHTML = `<img src="assets/${t.art}.png" alt=""><b class="lv">Nv ${swordLevel}</b>`
-      + (max ? '<span class="cost">MAX</span>'
+    sw.innerHTML = `<img src="assets/${tier.art}.png" alt=""><b class="lv">${t('ui.level', { n: swordLevel })}</b>`
+      + (max ? `<span class="cost">${t('ui.max')}</span>`
         : `<b class="arrow">⬆</b><span class="cost">${coinHtml}${swordCost(swordLevel)}</span>`);
-    sw.title = `Espada do clique: ${swordDamage(swordLevel)} de dano`;
+    sw.title = t('ui.sword_info', { n: swordDamage(swordLevel) });
   }
   drawSword();
   sw.addEventListener('click', () => { boing(sw); sfx.ui(); bus.emit(Evt.UpgradeSword); });
@@ -103,7 +105,7 @@ export function setupHud() {
     const b = document.createElement('button');
     // cartas dos poderes ficam na barra, ao lado da espada; só aparecem com o Centro da Vila nível 4
     b.className = 'slot power hide';
-    b.title = `${p.nome} (tecla ${keys[i]}): ${p.desc}`;
+    b.title = t('power.key', { name: t(`power.${p.id}.name` as Key), k: keys[i], desc: t(`power.${p.id}.desc` as Key, { n: POWER_FREEZE_SECONDS }) });
     b.innerHTML = `<img src="assets/${p.art}.png" alt=""><b class="key">${keys[i]}</b><span class="cost">${gemHtml}${p.cost}</span>`;
     b.addEventListener('click', () => { boing(b); sfx.ui(); bus.emit(Evt.Power, p.id); });
     bar.appendChild(b);
@@ -173,20 +175,45 @@ export function setupHud() {
     } else {
       up.classList.add('max');
       up.classList.remove('poor');
-      up.innerHTML = '<span class="maxtxt">MAX</span>';
+      up.innerHTML = `<span class="maxtxt">${t('ui.max')}</span>`;
     }
     boing(up, 'pop-in');
     refresh();
   });
 
   bus.on(Evt.GameOver, (info: { wave: number }) => {
-    $('overTxt').textContent = `Você chegou à onda ${info.wave}. Reerguendo, você mantém suas construções, `
-      + `mas perde ${Math.round((1 - REBUILD_COIN_KEEP) * 100)}% das moedas e volta ${REBUILD_WAVES_BACK} ondas.`;
+    $('overTxt').textContent = t('ui.over_txt', { w: info.wave, p: Math.round((1 - REBUILD_COIN_KEEP) * 100), n: REBUILD_WAVES_BACK });
+    // reerguer de graça só aparece se houver anúncio com recompensa disponível
+    $('rebuildFree').hidden = !sdk.adsAvailable;
     $('over').hidden = false;
     boing($('overbox'), 'pop-in');
   });
-  $('rebuild').addEventListener('click', () => { sfx.ui(); $('over').hidden = true; bus.emit(Evt.Rebuild); });
-  $('again').addEventListener('click', () => { clearSave(); location.reload(); });
+  // anúncio entre a derrota e a próxima parte (o SDK ignora se for cedo demais)
+  $('rebuild').addEventListener('click', () => {
+    sfx.ui();
+    $('over').hidden = true;
+    sdk.midgame(() => bus.emit(Evt.Rebuild, { free: false }));
+  });
+  $('rebuildFree').addEventListener('click', () => {
+    sfx.ui();
+    sdk.rewarded(() => { $('over').hidden = true; bus.emit(Evt.Rebuild, { free: true }); }, () => {
+      if ($('over').hidden === false) { bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); }
+    });
+  });
+  $('again').addEventListener('click', () => { clearSave(); sdk.midgame(() => location.reload()); });
+
+  // presente de moedas por anúncio (só onde há anúncios), com espera de 3 minutos
+  const gift = $('gift') as HTMLButtonElement;
+  gift.hidden = !sdk.adsAvailable;
+  gift.addEventListener('click', () => {
+    sfx.ui();
+    gift.disabled = true;
+    sdk.rewarded(() => {
+      bus.emit(Evt.Gift);
+      gift.classList.add('cooling');
+      window.setTimeout(() => { gift.classList.remove('cooling'); gift.disabled = false; }, 180000);
+    }, () => { gift.disabled = false; bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); });
+  });
 
   up.addEventListener('click', () => {
     if (!sel?.next) return;

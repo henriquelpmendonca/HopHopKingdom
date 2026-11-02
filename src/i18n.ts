@@ -1,0 +1,165 @@
+/**
+ * Idiomas: inglês (padrão e obrigatório no CrazyGames) e português.
+ * O idioma vem do SDK do CrazyGames (ou do navegador); se não for português, usa inglês.
+ */
+export type Lang = 'en' | 'pt';
+
+const EN = {
+  // nomes das construções
+  'name.cabana_soldado': 'Soldier Hut',
+  'name.cabana_arqueiro': 'Archer Hut',
+  'name.mina_ouro': 'Gold Mine',
+  'name.mina_mana': 'Mana Mine',
+  'name.cabana_mago': 'Wizard Hut',
+  // poderes
+  'power.meteoros.name': 'Meteor Shower',
+  'power.meteoros.desc': 'Meteors fall on the enemies closest to the city',
+  'power.congelar.name': 'Freeze',
+  'power.congelar.desc': 'Freezes all enemies for {n} seconds',
+  'power.curar.name': 'Heal',
+  'power.curar.desc': 'Heals soldiers and buildings and revives the fallen',
+  'power.key': '{name} (key {k}): {desc}',
+  // dicas
+  'hint.build_first': 'Build a Soldier Hut in the bottom bar: the orcs are already on their way!',
+  'hint.welcome_back': 'Welcome back! Your kingdom has been loaded.',
+  'hint.mana_unlocked': 'Mana unlocked! Use it on the Mana Mine and on the powers next to the sword.',
+  'hint.no_enemies': 'No enemies right now!',
+  'hint.no_mana': 'Not enough mana!',
+  'hint.no_coins': 'Not enough coins!',
+  'hint.meteors': 'Meteor shower!',
+  'hint.frozen': 'Enemies frozen for {n} seconds!',
+  'hint.healed': 'Everyone healed!',
+  'hint.limit': 'Limit of {n} buildings: {name}',
+  'hint.needs_castle': 'Unlocks with Town Center level {n}',
+  'hint.place_touch': 'Drag your finger and release where you want to build (tap the card again to cancel)',
+  'hint.place_mouse': 'Click on the map to build (Esc or right-click cancels)',
+  'hint.no_room': 'No room here!',
+  'hint.built_troops': 'Click the hut to upgrade it! Orcs are coming: throw your little soldiers at them!',
+  'hint.built_mana_mine': 'The mana mine earns mana! But it has no soldiers: protect it!',
+  'hint.built_mine': 'The mine earns coins! But it has no soldiers: protect it!',
+  'hint.needs_town': 'Upgrade the Town Center to level {n} to unlock level {l}!',
+  'hint.survive_wave': 'Survive until wave {n} to upgrade the Town Center!',
+  'hint.sword_coins': 'Not enough coins to upgrade the sword!',
+  'hint.boss': 'WATCH OUT! Wave {w}: the Orc King has arrived!',
+  'hint.wave': 'Wave {w}! {n} orcs incoming!',
+  'hint.click_them': ' Click them to hit!',
+  'hint.boss_dead': 'The Orc King has fallen! But dark mages are coming...',
+  'hint.rebuilt': 'City rebuilt! You lost {p}% of your coins and went back {w} waves.',
+  'hint.ad_reward': 'Thanks for watching! +{n} coins',
+  'hint.ad_free_rebuild': 'City rebuilt for free!',
+  'hint.ad_unavailable': 'No ad available right now. Try again later!',
+  // textos que sobem
+  'fl.mana_unlocked': 'Mana unlocked! +{n}',
+  'fl.new_look': 'NEW LOOK!',
+  'fl.upgraded': 'UPGRADED!',
+  'fl.new_sword': 'NEW SWORD!',
+  'fl.sword_lv': 'Sword Lv {n}',
+  'fl.hut_destroyed': 'Hut destroyed!',
+  // interface
+  'ui.sword_upgrade': 'Upgrade the click sword',
+  'ui.sword_info': 'Click sword: {n} damage',
+  'ui.lock_castle': 'Town Center Lv {n}',
+  'ui.lock_wave': 'Wave {n}',
+  'ui.max': 'MAX',
+  'ui.level': 'Lv {n}',
+  'ui.wave_label': 'wave',
+  'ui.music': 'Music',
+  'ui.sfx': 'Sound effects',
+  'ui.gift_title': 'Watch an ad for free coins',
+  'ui.over_title': 'The city has fallen!',
+  'ui.over_default': 'The orcs destroyed the Town Center.',
+  'ui.over_txt': 'You reached wave {w}. If you rebuild, you keep your buildings, but lose {p}% of your coins and go back {n} waves.',
+  'ui.rebuild': 'Rebuild the city',
+  'ui.rebuild_free': 'Rebuild for free (watch an ad)',
+  'ui.restart': 'Start over',
+} as const;
+
+export type Key = keyof typeof EN;
+
+const PT: Record<Key, string> = {
+  'name.cabana_soldado': 'Cabana de Soldado',
+  'name.cabana_arqueiro': 'Cabana de Arqueiros',
+  'name.mina_ouro': 'Mina de Ouro',
+  'name.mina_mana': 'Mina de Mana',
+  'name.cabana_mago': 'Cabana do Mago',
+  'power.meteoros.name': 'Chuva de Meteoros',
+  'power.meteoros.desc': 'Meteoros caem sobre os inimigos mais perto da cidade',
+  'power.congelar.name': 'Congelar',
+  'power.congelar.desc': 'Congela todos os inimigos por {n} segundos',
+  'power.curar.name': 'Cura',
+  'power.curar.desc': 'Cura soldados e construções e levanta quem caiu',
+  'power.key': '{name} (tecla {k}): {desc}',
+  'hint.build_first': 'Construa uma cabana de soldado na barra de baixo: os orcs já estão a caminho!',
+  'hint.welcome_back': 'Bem-vindo de volta! Seu reino foi carregado.',
+  'hint.mana_unlocked': 'Mana liberada! Use na Mina de Mana e nos poderes ao lado da espada.',
+  'hint.no_enemies': 'Não há inimigos agora!',
+  'hint.no_mana': 'Falta mana!',
+  'hint.no_coins': 'Faltam moedas!',
+  'hint.meteors': 'Chuva de meteoros!',
+  'hint.frozen': 'Inimigos congelados por {n} segundos!',
+  'hint.healed': 'Todos curados!',
+  'hint.limit': 'Limite de {n} construções: {name}',
+  'hint.needs_castle': 'Libera com o Centro da Vila nível {n}',
+  'hint.place_touch': 'Arraste o dedo e solte onde quer construir (toque na carta de novo cancela)',
+  'hint.place_mouse': 'Clique no mapa para construir (Esc ou botão direito cancela)',
+  'hint.no_room': 'Aqui não cabe!',
+  'hint.built_troops': 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!',
+  'hint.built_mana_mine': 'A mina de mana rende mana! Mas ela não tem soldados: proteja-a!',
+  'hint.built_mine': 'A mina rende moedas! Mas ela não tem soldados: proteja-a!',
+  'hint.needs_town': 'Evolua o Centro da Vila para o nível {n} para liberar o nível {l}!',
+  'hint.survive_wave': 'Sobreviva até a onda {n} para evoluir o Centro da Vila!',
+  'hint.sword_coins': 'Faltam moedas para evoluir a espada!',
+  'hint.boss': 'CUIDADO! Onda {w}: o Rei Orc chegou!',
+  'hint.wave': 'Onda {w}! {n} orcs a caminho!',
+  'hint.click_them': ' Clique neles para bater!',
+  'hint.boss_dead': 'O Rei Orc caiu! Mas magos sombrios estão chegando...',
+  'hint.rebuilt': 'Cidade reerguida! Você perdeu {p}% das moedas e voltou {w} ondas.',
+  'hint.ad_reward': 'Obrigado por assistir! +{n} moedas',
+  'hint.ad_free_rebuild': 'Cidade reerguida de graça!',
+  'hint.ad_unavailable': 'Nenhum anúncio disponível agora. Tente de novo mais tarde!',
+  'fl.mana_unlocked': 'Mana liberada! +{n}',
+  'fl.new_look': 'NOVO VISUAL!',
+  'fl.upgraded': 'EVOLUIU!',
+  'fl.new_sword': 'ESPADA NOVA!',
+  'fl.sword_lv': 'Espada Nv {n}',
+  'fl.hut_destroyed': 'Cabana destruída!',
+  'ui.sword_upgrade': 'Evoluir a espada do clique',
+  'ui.sword_info': 'Espada do clique: {n} de dano',
+  'ui.lock_castle': 'Centro Nv {n}',
+  'ui.lock_wave': 'Onda {n}',
+  'ui.max': 'MAX',
+  'ui.level': 'Nv {n}',
+  'ui.wave_label': 'onda',
+  'ui.music': 'Música',
+  'ui.sfx': 'Efeitos sonoros',
+  'ui.gift_title': 'Assista a um anúncio e ganhe moedas',
+  'ui.over_title': 'A cidade caiu!',
+  'ui.over_default': 'Os orcs destruíram o centro da cidade.',
+  'ui.over_txt': 'Você chegou à onda {w}. Reerguendo, você mantém suas construções, mas perde {p}% das moedas e volta {n} ondas.',
+  'ui.rebuild': 'Reerguer a cidade',
+  'ui.rebuild_free': 'Reerguer de graça (assistir anúncio)',
+  'ui.restart': 'Começar do zero',
+};
+
+const DICT: Record<Lang, Record<Key, string>> = { en: EN as unknown as Record<Key, string>, pt: PT };
+
+export let lang: Lang = 'en';
+
+/** Escolhe o idioma a partir de um código como "pt-BR" ou "en-US". */
+export function setLocale(code: string | undefined) {
+  lang = (code ?? '').toLowerCase().startsWith('pt') ? 'pt' : 'en';
+  document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+}
+
+export function t(key: Key, vars?: Record<string, string | number>): string {
+  let s = DICT[lang][key] ?? DICT.en[key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
+  return s;
+}
+
+/** Troca os textos fixos do HTML (marcados com data-i18n e data-i18n-title). */
+export function applyStaticTexts() {
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n as Key); });
+  document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle as Key); });
+  document.title = 'Hop Hop Kingdom';
+}

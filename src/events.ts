@@ -40,6 +40,8 @@ export const Evt = {
   GameOver: 'gameover',
   /** UI -> jogo: o jogador quer reerguer a cidade */
   Rebuild: 'rebuild',
+  /** UI -> jogo: o jogador assistiu a um anúncio e ganha moedas */
+  Gift: 'gift',
 } as const;
 
 export interface SelectInfo {
