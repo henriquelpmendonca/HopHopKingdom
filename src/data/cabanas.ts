@@ -25,12 +25,16 @@ export interface HutLevel {
   width: number;
   /** soldados que moram nela neste nível */
   soldiers: SoldierSpec[];
+  /** moedas por segundo que ela rende (minas) */
+  income?: number;
 }
 
 export interface HutDef {
   id: string;
   nome: string;
   levels: HutLevel[];
+  /** quantas dá para ter ao mesmo tempo (sem limite se faltar) */
+  maxCount?: number;
 }
 
 export const CABANA_SOLDADO: HutDef = {
@@ -45,8 +49,17 @@ export const CABANA_SOLDADO: HutDef = {
   ],
 };
 
-/** O que aparece na barra de construção. Novas cabanas entram aqui. */
-export const BUILDABLES: HutDef[] = [CABANA_SOLDADO];
+export const MINA_OURO: HutDef = {
+  id: 'mina_ouro',
+  nome: 'Mina de Ouro',
+  maxCount: 4,
+  levels: [
+    { cost: 100, art: 'mina_ouro_1', hp: 260, width: 190, soldiers: [], income: 6 },
+  ],
+};
+
+/** O que aparece na barra de construção. Novas construções entram aqui. */
+export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, MINA_OURO];
 
 export function hutDef(id: string): HutDef {
   const d = BUILDABLES.find(b => b.id === id);

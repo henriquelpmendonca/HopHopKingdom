@@ -131,6 +131,12 @@ export class GameScene extends Phaser.Scene {
 
   private startPlacing(id: string) {
     const def = hutDef(id);
+    if (def.maxCount && this.huts.filter(h => h.def === def).length >= def.maxCount) {
+      bus.emit(Evt.Broke, id);
+      bus.emit(Evt.Hint, `Limite de ${def.maxCount} construções: ${def.nome}`);
+      this.time.delayedCall(2200, () => !this.placing && bus.emit(Evt.Hint, null));
+      return;
+    }
     if (this.placing === def) { this.stopPlacing(); return; }
     if (state.coins < def.levels[0].cost) {
       bus.emit(Evt.Broke, id);
@@ -180,7 +186,7 @@ export class GameScene extends Phaser.Scene {
     this.select(hut);
     this.save();
     if (this.waveTimer < 0) this.waveTimer = this.debugWave ? 4 : WAVE.firstDelay;
-    bus.emit(Evt.Hint, 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!');
+    bus.emit(Evt.Hint, def.levels[0].soldiers.length ? 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!' : 'A mina rende moedas! Mas ela não tem soldados: proteja-a!');
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
 
@@ -342,6 +348,16 @@ export class GameScene extends Phaser.Scene {
       this.incomeTimer -= 1;
       addCoins(this.castle.income);
       floatText(this, this.castle.x + (Math.random() - 0.5) * 60, this.castle.y - this.castle.h * 0.6, '+' + this.castle.income);
+      let total = this.castle.income;
+      // cada mina rende e mostra a moedinha subindo
+      for (const h of this.huts) {
+        const inc = h.income;
+        if (inc <= 0) continue;
+        total += inc;
+        addCoins(inc);
+        floatText(this, h.x + (Math.random() - 0.5) * 30, h.y - h.h * 0.8, '+' + inc);
+      }
+      bus.emit(Evt.Income, total);
     }
 
     if (this.placing) {

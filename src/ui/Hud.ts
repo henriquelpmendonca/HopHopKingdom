@@ -39,6 +39,8 @@ export function setupHud() {
     refresh();
   });
 
+  bus.on(Evt.Income, (n: number) => { $('incomeN').textContent = '+' + n + '/s'; });
+
   bus.on(Evt.Placing, (id: string | null) => {
     for (const [k, s] of slots) s.el.classList.toggle('active', k === id);
   });

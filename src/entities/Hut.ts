@@ -71,6 +71,9 @@ export class Hut implements Structure {
     if (this.alive && this.hp < this.maxHp) bars.draw(this.x, this.y - this.h - 22, this.hp / this.maxHp, 70, 0x4cd137);
   }
 
+  /** moedas por segundo (só as minas rendem) */
+  get income() { return this.alive ? this.def.levels[this.level].income ?? 0 : 0; }
+
   get maxed() { return this.level >= this.def.levels.length - 1; }
   get next() { return this.maxed ? null : this.def.levels[this.level + 1]; }
 

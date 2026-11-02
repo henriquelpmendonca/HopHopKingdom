@@ -78,3 +78,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:#cfe8a8;font-family:"T
 .slot.green.locked img{filter:grayscale(1);opacity:.7}
 .slot.green.locked .cost{border-color:#4a4a4a;color:#4a4a4a;font-size:13px}
 .slot.green .arrow.lock{background:#777;border-color:#4a4a4a;font-size:16px;animation:none}
+
+/* renda por segundo ao lado do contador */
+#coins small{margin-left:10px;font:800 15px "Trebuchet MS",Verdana,sans-serif;color:#3a9a2a}

@@ -10,6 +10,8 @@ export const Evt = {
   Placing: 'placing',
   Hint: 'hint',
   Coins: 'coins',
+  /** jogo -> UI: moedas por segundo no total */
+  Income: 'income',
   /** jogo -> UI: cabana selecionada (SelectInfo) ou null */
   Select: 'select',
   /** UI -> jogo: clicou no botão verde de upgrade */
