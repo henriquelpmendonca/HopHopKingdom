@@ -52,7 +52,7 @@ export const CABANA_SOLDADO: HutDef = {
 export const MINA_OURO: HutDef = {
   id: 'mina_ouro',
   nome: 'Mina de Ouro',
-  maxCount: 4,
+  maxCount: 8,
   levels: [
     { cost: 100, art: 'mina_ouro_1', hp: 260, width: 190, soldiers: [], income: 6 },
     { cost: 250, art: 'mina_ouro_2', hp: 450, width: 215, soldiers: [], income: 14 },
