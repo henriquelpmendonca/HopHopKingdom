@@ -18,6 +18,18 @@ export const CLICK_DAMAGE_PER_CASTLE_LEVEL = 4;
 /** o clique também machuca quem está pertinho (raio em px do mapa) com esta fração do dano */
 export const CLICK_AOE_RADIUS = 60;
 export const CLICK_AOE_MULT = 0.6;
-/** cursor de espada sobre os inimigos (a ponta da espada é o ponto 11,11) */
-export const SWORD_CURSOR = 'url(assets/espada_cursor.png) 11 11, crosshair';
+/**
+ * Cursor de espada sobre os inimigos. O navegador não anima cursor, então são 4 imagens:
+ * 0 = parada, 1 a 3 = a espada girando em volta da mão, como num golpe.
+ * O ponto do clique (21,21) é onde a ponta fica quando a espada está parada.
+ */
+export const SWORD_CURSORS = [0, 1, 2, 3].map(i => `url(assets/espada_cursor_${i}.png) 21 21, crosshair`);
+/** quadro do cursor segundo o tempo (s) desde o clique */
+export function swordFrame(t: number) {
+  if (t < 0.04) return 1;
+  if (t < 0.09) return 2;
+  if (t < 0.17) return 3;
+  if (t < 0.24) return 1;
+  return 0;
+}
 export const COLORS = { grass: 0xcfe8a8, grassTile: 0xb9d98e };
