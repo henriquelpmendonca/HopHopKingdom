@@ -276,8 +276,8 @@ export class GameScene extends Phaser.Scene {
     const ring = this.add.ellipse(x, y, CLICK_AOE_RADIUS * 0.8, CLICK_AOE_RADIUS * 0.5)
       .setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
     this.tweens.add({ targets: ring, scale: 2.2, alpha: 0, duration: 240, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
-    // no celular não existe cursor: a espada aparece dando o golpe; no computador o cursor gira
-    if (touch) this.swordSwing(x, y); else this.swingAt = performance.now();
+    // no celular não existe cursor: a espada aparece dando o golpe
+    if (touch) this.swordSwing(x, y);
   }
 
   /** Espada que desce cortando o ponto tocado (só quando o golpe acerta alguém). */
@@ -303,6 +303,7 @@ export class GameScene extends Phaser.Scene {
 
   private onDown(p: Phaser.Input.Pointer) {
     this.rig.setMouse(p.x, p.y);
+    if (!p.wasTouch) this.swingAt = performance.now();
     const wp = this.rig.toWorld(p.x, p.y);
     this.mouse.set(wp.x, wp.y);
     if (this.placing) {
@@ -413,11 +414,9 @@ export class GameScene extends Phaser.Scene {
     this.rig.update(dt);
     const mw = this.rig.mouseWorld();
     this.mouse.set(mw.x, mw.y);
-    let cursor = 'default';
-    if (!this.held && !this.placing && this.orcAt(mw.x, mw.y)) {
-      const t = this.swingAt < 0 ? 99 : (performance.now() - this.swingAt) / 1000;
-      cursor = SWORD_CURSORS[swordFrame(t)];
-    }
+    // o cursor é sempre a espada; ao clicar ela gira como um golpe
+    const t = this.swingAt < 0 ? 99 : (performance.now() - this.swingAt) / 1000;
+    const cursor = SWORD_CURSORS[swordFrame(t)];
     if (cursor !== this.cursorNow) { this.cursorNow = cursor; this.input.setDefaultCursor(cursor); }
     if (this.held) {
       this.samples.push({ x: mw.x, y: mw.y, t: performance.now() });
