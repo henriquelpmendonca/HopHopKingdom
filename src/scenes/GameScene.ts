@@ -16,6 +16,7 @@ import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state } from '../state';
+import { MAGIC_CASTLE_LEVEL } from '../data/castle';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
 
 export class GameScene extends Phaser.Scene {
@@ -156,11 +157,11 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
   }
 
-  /** Avisa a tela do nível do Centro da Vila e da mana. No nível 3 a cidade dá mana de presente. */
+  /** Avisa a tela do nível do Centro da Vila e da mana. No nível 4 a cidade dá mana de presente. */
   private onCastleLevel(justUpgraded: boolean) {
     bus.emit(Evt.Castle, this.castle.level + 1);
     this.emitMana();
-    if (justUpgraded && this.castle.level === 2) {
+    if (justUpgraded && this.castle.level + 1 === MAGIC_CASTLE_LEVEL) {
       addMana(MANA_GIFT);
       this.emitMana();
       floatText(this, this.castle.x, this.castle.y - this.castle.h - 20, `Mana liberada! +${MANA_GIFT}`, '#7ad0ff');
@@ -172,7 +173,7 @@ export class GameScene extends Phaser.Scene {
   private emitMana(perSec?: number) {
     let inc = perSec;
     if (inc === undefined) {
-      inc = this.castle.level >= 2 ? CASTLE_MANA_INCOME : 0;
+      inc = this.castle.level + 1 >= MAGIC_CASTLE_LEVEL ? CASTLE_MANA_INCOME : 0;
       for (const h of this.huts) inc += h.manaIncome;
     }
     bus.emit(Evt.Mana, state.mana, inc);
@@ -182,7 +183,7 @@ export class GameScene extends Phaser.Scene {
 
   private usePower(id: string) {
     const def = POWERS.find(p => p.id === id);
-    if (!def || this.over || this.castle.level < 2) return;
+    if (!def || this.over || this.castle.level + 1 < MAGIC_CASTLE_LEVEL) return;
     const now = performance.now();
     if ((this.powerReady[id] ?? 0) > now) { sfx.error(); return; }
     const alive = this.orcs.filter(o => o.alive);
@@ -676,8 +677,8 @@ export class GameScene extends Phaser.Scene {
         floatText(this, h.x + (Math.random() - 0.5) * 30, h.y - h.h * 0.8, '+' + inc);
       }
       bus.emit(Evt.Income, total);
-      // mana: só depois do Centro da Vila nível 3
-      if (this.castle.level >= 2) {
+      // mana: só depois do Centro da Vila nível 4
+      if (this.castle.level + 1 >= MAGIC_CASTLE_LEVEL) {
         let mana = CASTLE_MANA_INCOME;
         for (const h of this.huts) mana += h.manaIncome;
         addMana(mana);

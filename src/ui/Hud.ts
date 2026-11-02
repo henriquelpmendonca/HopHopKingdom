@@ -2,6 +2,7 @@ import { audio, sfx } from '../audio';
 import { REBUILD_COIN_KEEP, REBUILD_WAVES_BACK } from '../config';
 import { clearSave } from '../save';
 import { BUILDABLES } from '../data/cabanas';
+import { MAGIC_CASTLE_LEVEL } from '../data/castle';
 import { POWERS } from '../data/powers';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
@@ -96,11 +97,11 @@ export function setupHud() {
     refresh();
   });
 
-  // mana e poderes: aparecem quando o Centro da Vila chega ao nível 3
+  // mana e poderes: aparecem quando o Centro da Vila chega ao nível 4
   const keys = ['1', '2', '3'];
   POWERS.forEach((p, i) => {
     const b = document.createElement('button');
-    // cartas dos poderes ficam na barra, ao lado da espada; só aparecem com o Centro da Vila nível 3
+    // cartas dos poderes ficam na barra, ao lado da espada; só aparecem com o Centro da Vila nível 4
     b.className = 'slot power hide';
     b.title = `${p.nome} (tecla ${keys[i]}): ${p.desc}`;
     b.innerHTML = `<img src="assets/${p.art}.png" alt=""><b class="key">${keys[i]}</b><span class="cost">${gemHtml}${p.cost}</span>`;
@@ -120,8 +121,8 @@ export function setupHud() {
   bus.on(Evt.Castle, (lv: number) => {
     castleLv = lv;
     for (const s of slots.values()) if (s.need) s.el.classList.toggle('hide', castleLv < s.need);
-    $('mana').hidden = castleLv < 3;
-    for (const b of powerBtns.values()) b.classList.toggle('hide', castleLv < 3);
+    $('mana').hidden = castleLv < MAGIC_CASTLE_LEVEL;
+    for (const b of powerBtns.values()) b.classList.toggle('hide', castleLv < MAGIC_CASTLE_LEVEL);
   });
   bus.on(Evt.Mana, (n: number, inc: number) => {
     manaNow = n;

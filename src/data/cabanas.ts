@@ -1,3 +1,5 @@
+import { MAGIC_CASTLE_LEVEL } from './castle';
+
 /** Cada tipo de soldado tem o seu desenho. Se o PNG ainda não existir, usa o soldado de espada. */
 export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro' | 'arqueiro2' | 'arqueiro3' | 'magoA1' | 'magoA2' | 'magoA3';
 
@@ -158,7 +160,7 @@ export const MINA_OURO: HutDef = {
 };
 
 /**
- * Cabana do Mago: só se compra com mana (Centro da Vila nível 3). Os magos aliados atiram bolas de magia azuis
+ * Cabana do Mago: só se compra com mana (Centro da Vila nível 4). Os magos aliados atiram bolas de magia azuis
  * de longe: 1-4 mago simples, 5-9 mago de armadura, 10-14 grão-mago. O 15 é o mesmo, em fúria.
  */
 const MAGO_TIERS: (Tier & { unit: SoldierUnit })[] = [
@@ -171,13 +173,13 @@ export const CABANA_MAGO: HutDef = {
   id: 'cabana_mago',
   nome: 'Cabana do Mago',
   currency: 'mana',
-  needCastle: 3,
+  needCastle: MAGIC_CASTLE_LEVEL,
   costGrowth: 1.15,
   levels: troopLevels(MAGO_TIERS, { first: 90, step: 60, hp0: 170, countBase: 2, countCap: 10 }),
 };
 
 /**
- * Mina de mana: só aparece com o Centro da Vila nível 3 e custa mana (o nível 3 já dá um pouco de mana
+ * Mina de mana: só aparece com o Centro da Vila nível 4 e custa mana (o nível 4 já dá um pouco de mana
  * para comprar a primeira). Rende mana por segundo, que paga os poderes. Só há o desenho do nível 1;
  * o visual muda no 5 e no 10.
  */
@@ -206,7 +208,7 @@ export const MINA_MANA: HutDef = {
   id: 'mina_mana',
   nome: 'Mina de Mana',
   currency: 'mana',
-  needCastle: 3,
+  needCastle: MAGIC_CASTLE_LEVEL,
   costGrowth: 1.15,
   levels: manaLevels(),
 };

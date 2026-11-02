@@ -1,4 +1,4 @@
-/** Poderes que o jogador ativa gastando mana. Liberados com o Centro da Vila nível 3. */
+/** Poderes que o jogador ativa gastando mana. Liberados com o Centro da Vila nível 4. */
 export interface PowerDef {
   id: 'meteoros' | 'congelar' | 'curar';
   nome: string;
@@ -21,7 +21,7 @@ export const POWER_FREEZE_SECONDS = 5;
 export const POWER_METEOR_COUNT = 6;
 /** dano de cada meteoro: base + por onda */
 export const meteorDamage = (wave: number) => 80 + wave * 10;
-/** mana que o Centro da Vila nível 3 dá de presente, para comprar a primeira mina de mana */
+/** mana que o Centro da Vila nível 4 dá de presente, para comprar a primeira mina de mana */
 export const MANA_GIFT = 120;
-/** mana por segundo que o Centro da Vila nível 3 gera sozinho (para nunca ficar sem saída) */
+/** mana por segundo que o Centro da Vila nível 4 gera sozinho (para nunca ficar sem saída) */
 export const CASTLE_MANA_INCOME = 1;

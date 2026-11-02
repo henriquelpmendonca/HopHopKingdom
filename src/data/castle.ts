@@ -14,8 +14,19 @@ export interface CastleLevel {
   hutMax: number;
 }
 
+/**
+ * 5 níveis. Os dois primeiros visuais novos (vermelhos) são o crescimento normal da cidade.
+ * Os dois últimos (roxos) são a cidade que começou a prosperar na magia: liberam a mana, a Cabana do Mago e
+ * os poderes, e custam muito mais caro de conseguir.
+ */
 export const CASTLE_LEVELS: CastleLevel[] = [
-  { cost: 0,    art: 'castelo',   width: 420, hp: 800,  minWave: 0,  income: 5,  hutMax: 5 },
-  { cost: 1200, art: 'castelo_2', width: 440, hp: 1500, minWave: 4,  income: 12, hutMax: 10 },
-  { cost: 5000, art: 'castelo_3', width: 480, hp: 2800, minWave: 10, income: 25, hutMax: 15 },
+  { cost: 0,     art: 'castelo',   width: 420, hp: 800,  minWave: 0,  income: 5,  hutMax: 5 },
+  { cost: 1200,  art: 'castelo_2', width: 440, hp: 1500, minWave: 4,  income: 12, hutMax: 9 },
+  { cost: 3500,  art: 'castelo_3', width: 470, hp: 2200, minWave: 8,  income: 20, hutMax: 12 },
+  // a partir daqui: magia (mana, Cabana do Mago e poderes)
+  { cost: 14000, art: 'castelo_4', width: 480, hp: 3300, minWave: 14, income: 32, hutMax: 15 },
+  { cost: 45000, art: 'castelo_5', width: 500, hp: 4800, minWave: 22, income: 50, hutMax: 15 },
 ];
+
+/** nível do Centro da Vila que libera a mana, a Cabana do Mago e os poderes */
+export const MAGIC_CASTLE_LEVEL = 4;
