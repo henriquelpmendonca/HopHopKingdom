@@ -97,7 +97,8 @@ export class Soldier implements Combatant {
     this.baseScale = SOLDIER_H / tex.height;
     this.sprite.setTexture(art);
     // unidades melhores são um pouco maiores
-    const unitSize = { espada: 1, lanca: 1.1, alabarda: 1.2, arqueiro: 1.4 }[spec.unit];
+    // o soldado de espada e o arqueiro têm o mesmo tamanho; lança e alabarda continuam um pouco maiores
+    const unitSize = { espada: 1.4, lanca: 1.5, alabarda: 1.6, arqueiro: 1.4 }[spec.unit];
     this.size = unitSize * (spec.furia ? 1.1 : 1);
     this.hopSpeed = this.hopBase * (spec.furia ? 1.35 : 1);
     this.glow = spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
