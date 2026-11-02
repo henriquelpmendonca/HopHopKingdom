@@ -98,7 +98,7 @@ export class Soldier implements Combatant {
     this.sprite.setTexture(art);
     // unidades melhores são um pouco maiores
     // os soldados de corpo a corpo são maiores que o arqueiro; lança e alabarda crescem junto
-    const unitSize = { espada: 1.7, lanca: 1.8, alabarda: 1.9, arqueiro: 1.4, arqueiro2: 1.5 }[spec.unit];
+    const unitSize = { espada: 1.7, lanca: 1.8, alabarda: 1.9, arqueiro: 1.4, arqueiro2: 1.5, arqueiro3: 1.6 }[spec.unit];
     this.size = unitSize * (spec.furia ? 1.1 : 1);
     this.hopSpeed = this.hopBase * (spec.furia ? 1.35 : 1);
     this.glow = spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;

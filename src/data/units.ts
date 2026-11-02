@@ -20,6 +20,7 @@ export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
   // frágil, mas bate de longe e sem se machucar
   arqueiro: { hp: 38, dmg: 9, reach: 30, cd: 1.0, range: 300, aggro: 560 },
   arqueiro2: { hp: 55, dmg: 13, reach: 30, cd: 0.95, range: 330, aggro: 600 },
+  arqueiro3: { hp: 80, dmg: 19, reach: 30, cd: 0.9, range: 360, aggro: 640 },
 };
 
 /** Fúria: mais vida, golpes mais fortes e mais rápidos. */
