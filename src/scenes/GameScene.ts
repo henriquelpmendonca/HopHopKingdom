@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CameraRig } from '../camera';
-import { BAR_H, CLICK_AOE_MULT, CLICK_AOE_RADIUS, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, SWORD_CURSORS, swordFrame, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { BAR_H, CLICK_AOE_MULT, CLICK_AOE_RADIUS, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -25,9 +25,6 @@ export class GameScene extends Phaser.Scene {
   private samples: { x: number; y: number; t: number }[] = [];
   private mouse = new Phaser.Math.Vector2();
   private incomeTimer = 0;
-  /** quando foi o último golpe de clique (para girar o cursor de espada) */
-  private swingAt = -1;
-  private cursorNow = '';
   private bars!: Bars;
   private rig!: CameraRig;
   private proj!: Projectiles;
@@ -81,12 +78,6 @@ export class GameScene extends Phaser.Scene {
     const flush = () => this.save();
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
-
-    // carrega os quadros do cursor antes, para não piscar na hora do golpe
-    for (let i = 0; i < SWORD_CURSORS.length; i++) new Image().src = `assets/espada_cursor_${i}.png`;
-
-    // o golpe vale para qualquer clique na página, inclusive nos botões
-    window.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') this.swingAt = performance.now(); });
 
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
@@ -416,11 +407,6 @@ export class GameScene extends Phaser.Scene {
     this.rig.update(dt);
     const mw = this.rig.mouseWorld();
     this.mouse.set(mw.x, mw.y);
-    // o cursor é sempre a espada; ao clicar ela gira como um golpe
-    const t = this.swingAt < 0 ? 99 : (performance.now() - this.swingAt) / 1000;
-    const cursor = SWORD_CURSORS[swordFrame(t)];
-    // vale para a página toda, inclusive os botões da barra e o de evoluir (ver style.css)
-    if (cursor !== this.cursorNow) { this.cursorNow = cursor; document.documentElement.style.setProperty('--sword', cursor); }
     if (this.held) {
       this.samples.push({ x: mw.x, y: mw.y, t: performance.now() });
       if (this.samples.length > 8) this.samples.shift();

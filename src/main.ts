@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { setupHud } from './ui/Hud';
+import { setupSwordCursor } from './ui/SwordCursor';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -12,6 +13,7 @@ const game = new Phaser.Game({
 });
 
 setupHud();
+setupSwordCursor();
 
 // só no modo de desenvolvimento: ajuda a inspecionar o jogo pelo console
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;

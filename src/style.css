@@ -82,5 +82,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:#cfe8a8;font-family:"T
 /* renda por segundo ao lado do contador */
 #coins small{margin-left:10px;font:800 15px "Trebuchet MS",Verdana,sans-serif;color:#3a9a2a}
 
-/* a espada é o cursor em tudo: mapa, cartas de compra, botão de evoluir... */
-html, html *{cursor:var(--sword, auto) !important}
+/* o cursor do sistema some: a espada (ui/SwordCursor.ts) segue o mouse em tudo */
+html, html *{cursor:none !important}
+@media (pointer:coarse){html, html *{cursor:auto !important}}
