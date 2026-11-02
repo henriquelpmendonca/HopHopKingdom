@@ -18,6 +18,8 @@ export interface SaveData {
   v: number;
   coins: number;
   castleLevel: number;
+  /** nível da espada do clique */
+  sword?: number;
   /** última onda que começou */
   wave: number;
   /** o primeiro chefe já morreu (magos liberados) */

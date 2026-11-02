@@ -12,6 +12,10 @@ export const Evt = {
   Coins: 'coins',
   /** jogo -> UI: moedas por segundo no total */
   Income: 'income',
+  /** jogo -> UI: nível da espada do clique mudou */
+  Sword: 'sword',
+  /** UI -> jogo: clicou na carta de evoluir a espada */
+  UpgradeSword: 'upgradeSword',
   /** jogo -> UI: onde (na tela) fica o botão de upgrade; muda quando a câmera anda */
   SelPos: 'selpos',
   /** jogo -> UI: cabana selecionada (SelectInfo) ou null */

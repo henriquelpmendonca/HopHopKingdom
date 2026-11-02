@@ -1,4 +1,5 @@
 import { BUILDABLES } from '../data/cabanas';
+import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -27,8 +28,36 @@ export function setupHud() {
     slots.set(def.id, { el, cost: def.levels[0].cost });
   }
 
+  // carta da espada do clique, separada das construções por um espaço
+  const gap = document.createElement('div');
+  gap.className = 'gap';
+  bar.appendChild(gap);
+  const sw = document.createElement('button');
+  sw.className = 'slot weapon';
+  sw.title = 'Evoluir a espada do clique';
+  bar.appendChild(sw);
+  let swordLevel = 1;
+  function drawSword() {
+    const t = swordTier(swordLevel);
+    const max = swordLevel >= SWORD_MAX;
+    sw.innerHTML = `<img src="assets/${t.art}.png" alt=""><b class="lv">Nv ${swordLevel}</b>`
+      + (max ? '<span class="cost">MAX</span>'
+        : `<b class="arrow">⬆</b><span class="cost">${coinHtml}${swordCost(swordLevel)}</span>`);
+    sw.title = `Espada do clique: ${swordDamage(swordLevel)} de dano`;
+  }
+  drawSword();
+  sw.addEventListener('click', () => { boing(sw); bus.emit(Evt.UpgradeSword); });
+  bus.on(Evt.Sword, (lv: number) => {
+    const up = lv > swordLevel;
+    swordLevel = lv;
+    drawSword();
+    refresh();
+    if (up) boing(sw, 'pop-in');
+  });
+
   function refresh() {
     for (const s of slots.values()) s.el.classList.toggle('poor', coinsNow < s.cost);
+    sw.classList.toggle('poor', swordLevel < SWORD_MAX && coinsNow < swordCost(swordLevel));
     if (sel?.next) up.classList.toggle('poor', !sel.next.lock && coinsNow < sel.next.cost);
   }
 
@@ -56,7 +85,7 @@ export function setupHud() {
   });
 
   bus.on(Evt.Broke, (id: string) => {
-    const el = id === 'upgrade' ? up : slots.get(id)?.el;
+    const el = id === 'upgrade' ? up : id === 'sword' ? sw : slots.get(id)?.el;
     if (el) boing(el, 'shake');
     boing($('coins'), 'shake');
   });

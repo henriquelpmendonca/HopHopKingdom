@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CameraRig } from '../camera';
-import { BAR_H, CLICK_AOE_MULT, CLICK_AOE_RADIUS, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { BAR_H, CLICK_AOE_MULT, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -9,6 +9,7 @@ import { Orc } from '../entities/Orc';
 import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
 import { HutDef, hutDef } from '../data/cabanas';
+import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
 import { BOSS_EVERY, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { clearSave, loadGame, saveGame } from '../save';
@@ -35,7 +36,7 @@ export class GameScene extends Phaser.Scene {
   private waveTimer = -1;
   private over = false;
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
-  private persist = !['onda', 'moedas', 'magos'].some(k => new URLSearchParams(location.search).has(k));
+  private persist = !['onda', 'moedas', 'magos', 'espada'].some(k => new URLSearchParams(location.search).has(k));
   /** atalho de teste: ?onda=5 começa na onda 5 */
   private debugWave = Number(new URLSearchParams(location.search).get('onda')) || 0;
 
@@ -68,12 +69,15 @@ export class GameScene extends Phaser.Scene {
 
     bus.on(Evt.Build, this.startPlacing, this);
     bus.on(Evt.Upgrade, this.upgradeSelected, this);
+    bus.on(Evt.UpgradeSword, this.upgradeSword, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.UpgradeSword, this.upgradeSword, this);
       bus.off(Evt.Build, this.startPlacing, this);
       bus.off(Evt.Upgrade, this.upgradeSelected, this);
     });
     this.loadProgress();
     bus.emit(Evt.Coins, state.coins);
+    bus.emit(Evt.Sword, state.sword);
     this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
     const flush = () => this.save();
     window.addEventListener('pagehide', flush);
@@ -95,6 +99,7 @@ export class GameScene extends Phaser.Scene {
       castleLevel: this.castle.level,
       wave: this.wave,
       magos: this.magos,
+      sword: state.sword,
       huts: this.huts.map(h => ({ id: h.def.id, dx: Math.round(h.x - this.castle.x), dy: Math.round(h.y - this.castle.y), level: h.level })),
     });
   }
@@ -104,6 +109,7 @@ export class GameScene extends Phaser.Scene {
     const d = loadGame();
     if (!d) return;
     state.coins = d.coins;
+    if (d.sword) state.sword = Math.min(SWORD_MAX, d.sword);
     this.wave = d.wave;
     this.magos = this.magos || d.magos;
     this.castle.restore(d.castleLevel);
@@ -242,6 +248,26 @@ export class GameScene extends Phaser.Scene {
     this.emitSelect();
   }
 
+  /** Evolui a espada do clique (carta na barra de baixo). */
+  private upgradeSword() {
+    if (state.sword >= SWORD_MAX) return;
+    if (!spend(swordCost(state.sword))) {
+      bus.emit(Evt.Broke, 'sword');
+      bus.emit(Evt.Hint, 'Faltam moedas para evoluir a espada!');
+      this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    const before = swordTier(state.sword).art;
+    state.sword++;
+    bus.emit(Evt.Sword, state.sword);
+    const mw = this.mouse;
+    const novoVisual = swordTier(state.sword).art !== before;
+    floatText(this, mw.x, mw.y - 30, novoVisual ? 'ESPADA NOVA!' : `Espada Nv ${state.sword}`, '#7CFF6B');
+    this.fx.burst(mw.x, mw.y, novoVisual ? 28 : 10, 0xffe28a, novoVisual);
+    if (novoVisual) this.cameras.main.shake(180, 0.004);
+    this.save();
+  }
+
   /* ---------- mouse ---------- */
 
   /** Inimigo vivo mais à frente sob o ponto (px, py). */
@@ -257,17 +283,18 @@ export class GameScene extends Phaser.Scene {
 
   /** Clique que bate no inimigo e, mais fraco, em quem está pertinho. */
   private clickHit(o: Orc, x: number, y: number, touch: boolean) {
-    const dmg = CLICK_DAMAGE + this.castle.level * CLICK_DAMAGE_PER_CASTLE_LEVEL;
+    const dmg = swordDamage(state.sword);
+    const radius = swordRadius(state.sword);
     o.takeDamage(dmg, x, y);
     for (const other of this.orcs) {
       if (other === o || !other.alive) continue;
       // distância até o meio do corpo do outro inimigo
-      if (Math.hypot(other.x - x, other.y - other.stats.height * 0.4 - y) < CLICK_AOE_RADIUS) {
+      if (Math.hypot(other.x - x, other.y - other.stats.height * 0.4 - y) < radius) {
         other.takeDamage(Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
       }
     }
     this.fx.burst(x, y, 7, 0xffe28a);
-    const ring = this.add.ellipse(x, y, CLICK_AOE_RADIUS * 0.8, CLICK_AOE_RADIUS * 0.5)
+    const ring = this.add.ellipse(x, y, radius * 0.8, radius * 0.5)
       .setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
     this.tweens.add({ targets: ring, scale: 2.2, alpha: 0, duration: 240, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
     // no celular não existe cursor: a espada aparece dando o golpe
@@ -277,7 +304,7 @@ export class GameScene extends Phaser.Scene {
   /** Espada que desce cortando o ponto tocado (só quando o golpe acerta alguém). */
   private swordSwing(x: number, y: number) {
     const z = this.rig.zoom;
-    const sword = this.add.image(x + 26 / z, y + 34 / z, 'espada')
+    const sword = this.add.image(x + 26 / z, y + 34 / z, swordTier(state.sword).art)
       .setOrigin(0.5, 0.92).setDepth(900_001).setAlpha(0)
       .setScale(0.45 / z).setRotation(-1.15);
     // rastro branco do corte

@@ -12,11 +12,7 @@ export const ZOOM_MAX = 1.6;
 export const EDGE_SCROLL_PX = 26;
 export const SCROLL_SPEED = 950;
 export const START_COINS = 100;
-/** dano de cada clique num inimigo: base + bônus por nível do centro da vila */
-export const CLICK_DAMAGE = 8;
-export const CLICK_DAMAGE_PER_CASTLE_LEVEL = 4;
-/** o clique também machuca quem está pertinho (raio em px do mapa) com esta fração do dano */
-export const CLICK_AOE_RADIUS = 60;
+/** o clique também machuca quem está pertinho, com esta fração do dano (dano e raio vêm da espada: data/sword.ts) */
 export const CLICK_AOE_MULT = 0.6;
 
 export const COLORS = { grass: 0xcfe8a8, grassTile: 0xb9d98e };

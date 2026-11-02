@@ -85,3 +85,12 @@ html,body{margin:0;height:100%;overflow:hidden;background:#cfe8a8;font-family:"T
 /* o cursor do sistema some: a espada (ui/SwordCursor.ts) segue o mouse em tudo */
 html, html *{cursor:none !important}
 @media (pointer:coarse){html, html *{cursor:auto !important}}
+
+/* carta da espada do clique */
+#bar .gap{width:34px;height:70%;border-left:4px dashed rgba(255,240,200,.35);margin:0 6px}
+.slot.weapon{background:linear-gradient(#e8f3ff,#9fc4ee);border-color:#2f4f7a;box-shadow:0 7px 0 #2f4f7a,0 12px 14px rgba(0,0,0,.25)}
+.slot.weapon:active{box-shadow:0 1px 0 #2f4f7a}
+.slot.weapon img{max-height:92%}
+.slot.weapon .cost{border-color:#2f4f7a;color:#2f4f7a}
+.slot.weapon .lv{position:absolute;top:-12px;left:-10px;padding:1px 8px;border:3px solid #2f4f7a;border-radius:12px;background:#fff6dc;color:#2f4f7a;font:900 14px "Trebuchet MS",Verdana,sans-serif}
+.slot.weapon .arrow{position:absolute;top:-16px;right:-14px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#3fc13a;border:4px solid #1f5a18;color:#fff;font-size:19px;text-shadow:0 2px 0 #1f5a18;animation:arrow .6s ease-in-out infinite}

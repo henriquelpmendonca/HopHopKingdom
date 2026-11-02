@@ -1,37 +1,55 @@
+import { bus, Evt } from '../events';
+import { swordTier } from '../data/sword';
+
 /**
  * A espada é o cursor da página inteira.
  *
  * Em vez de usar o cursor do navegador (que some perto das bordas da janela quando a imagem é
  * grande, justo em cima da barra de construção), a espada é uma imagem que segue o mouse.
  * Assim ela pode ser de qualquer tamanho e girar de verdade em volta do cabo ao clicar.
+ * O desenho muda conforme o nível da espada (data/sword.ts).
  */
-const H = 60;                      // altura da espada na tela (px)
-const W = Math.round(H * 148 / 320);
-const L = Math.round(H * 0.78);    // do cabo (onde a mão segura) até a ponta
 const REST = -45;                  // graus: ponta para cima e para a esquerda
-// o cabo fica deslocado da ponta, para que a ponta seja o ponto do clique
-const OFFSET = L * Math.SQRT1_2;
 
 export function setupSwordCursor() {
+  let H = 60, W = 28, L = 47;      // tamanho, largura e distância cabo-ponta da espada atual
+  let offset = L * Math.SQRT1_2;   // o cabo fica deslocado da ponta, para a ponta ser o ponto do clique
+
   const wrap = document.createElement('div');
   Object.assign(wrap.style, {
     position: 'fixed', left: '0', top: '0', pointerEvents: 'none', zIndex: '1000', display: 'none', willChange: 'transform',
   });
   const img = document.createElement('img');
-  img.src = 'assets/espada.png';
   img.draggable = false;
-  Object.assign(img.style, {
-    position: 'absolute', left: `${-W / 2}px`, top: `${-L}px`, width: `${W}px`, height: `${H}px`,
-    transformOrigin: `${W / 2}px ${L}px`, transform: `rotate(${REST}deg)`, filter: 'drop-shadow(0 3px 2px rgba(0,0,0,.35))',
-  });
+  img.style.position = 'absolute';
+  img.style.filter = 'drop-shadow(0 3px 2px rgba(0,0,0,.35))';
   wrap.appendChild(img);
   document.body.appendChild(wrap);
 
+  function apply(level: number) {
+    const t = swordTier(level);
+    H = t.height;
+    W = Math.round(H * t.aspect);
+    L = Math.round(H * t.pivot);
+    offset = L * Math.SQRT1_2;
+    img.src = `assets/${t.art}.png`;
+    Object.assign(img.style, {
+      left: `${-W / 2}px`, top: `${-L}px`, width: `${W}px`, height: `${H}px`,
+      transformOrigin: `${W / 2}px ${L}px`, transform: `rotate(${REST}deg)`,
+    });
+  }
+  apply(1);
+  bus.on(Evt.Sword, (level: number) => apply(level));
+
+  let lastX = 0, lastY = 0;
+  const place = () => { wrap.style.transform = `translate(${lastX + offset}px, ${lastY + offset}px)`; };
   const move = (e: PointerEvent) => {
     // no celular não existe cursor: o golpe aparece direto no mapa
     if (e.pointerType === 'touch') { wrap.style.display = 'none'; return; }
     wrap.style.display = 'block';
-    wrap.style.transform = `translate(${e.clientX + OFFSET}px, ${e.clientY + OFFSET}px)`;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    place();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerdown', e => {
