@@ -28,6 +28,8 @@ interface Strike {
   hit: boolean;
   flash: number;
   onImpact: (x: number, y: number, r: number) => void;
+  /** meteoro: cores de fogo em vez de roxo */
+  fire: boolean;
 }
 
 const FLASH_TIME = 0.4;
@@ -54,8 +56,8 @@ export class Projectiles {
   }
 
   /** Raio sombrio: avisa no chão e, depois de `delay` segundos, cai com dano em área. */
-  strike(x: number, y: number, r: number, delay: number, onImpact: (x: number, y: number, r: number) => void) {
-    this.strikes.push({ x, y, r, t: 0, delay, hit: false, flash: 0, onImpact });
+  strike(x: number, y: number, r: number, delay: number, onImpact: (x: number, y: number, r: number) => void, fire = false) {
+    this.strikes.push({ x, y, r, t: 0, delay, hit: false, flash: 0, onImpact, fire });
   }
 
   private updateStrikes(dt: number) {
@@ -67,26 +69,26 @@ export class Projectiles {
         s.t += dt;
         const p = Math.min(1, s.t / s.delay);
         // aviso: círculo que enche e anel que fecha
-        gr.fillStyle(0x8a2be2, 0.12 + 0.2 * p).fillEllipse(s.x, s.y, s.r * 2, s.r);
-        gr.lineStyle(3, 0xd070ff, 0.9).strokeEllipse(s.x, s.y, s.r * 2, s.r);
+        gr.fillStyle(s.fire ? 0xff5a1f : 0x8a2be2, 0.12 + 0.2 * p).fillEllipse(s.x, s.y, s.r * 2, s.r);
+        gr.lineStyle(3, s.fire ? 0xffb347 : 0xd070ff, 0.9).strokeEllipse(s.x, s.y, s.r * 2, s.r);
         gr.lineStyle(3, 0xf6dcff, 0.9).strokeEllipse(s.x, s.y, s.r * 2 * (1 - p * 0.8), s.r * (1 - p * 0.8));
         if (s.t >= s.delay) {
           s.hit = true;
           s.onImpact(s.x, s.y, s.r);
           sfx.strikeImpact();
-          this.fx.burst(s.x, s.y, 26, 0xb04cff, true);
-          this.fx.burst(s.x, s.y, 10, 0xf6dcff, true);
+          this.fx.burst(s.x, s.y, 26, s.fire ? 0xff7a1f : 0xb04cff, true);
+          this.fx.burst(s.x, s.y, 10, s.fire ? 0xfff0b0 : 0xf6dcff, true);
           this.scene.cameras.main.shake(110, 0.005);
         }
       } else {
         s.flash += dt;
         const k = 1 - s.flash / FLASH_TIME;
         if (k <= 0) { this.strikes.splice(i, 1); continue; }
-        gr.fillStyle(0xb04cff, 0.35 * k).fillEllipse(s.x, s.y, s.r * 2 * (2 - k), s.r * (2 - k));
+        gr.fillStyle(s.fire ? 0xff7a1f : 0xb04cff, 0.35 * k).fillEllipse(s.x, s.y, s.r * 2 * (2 - k), s.r * (2 - k));
         // coluna de energia caindo do céu
         const w = s.r * 0.9 * k + 6;
-        this.g.fillStyle(0x9b30ff, 0.55 * k).fillRect(s.x - w * 0.8, s.y - 520, w * 1.6, 520);
-        this.g.fillStyle(0xf6dcff, 0.9 * k).fillRect(s.x - w * 0.35, s.y - 520, w * 0.7, 520);
+        this.g.fillStyle(s.fire ? 0xff4a00 : 0x9b30ff, 0.55 * k).fillRect(s.x - w * 0.8, s.y - 520, w * 1.6, 520);
+        this.g.fillStyle(s.fire ? 0xfff2c0 : 0xf6dcff, 0.9 * k).fillRect(s.x - w * 0.35, s.y - 520, w * 0.7, 520);
       }
     }
   }

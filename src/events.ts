@@ -10,6 +10,14 @@ export const Evt = {
   Placing: 'placing',
   Hint: 'hint',
   Coins: 'coins',
+  /** jogo -> UI: mana atual e mana por segundo */
+  Mana: 'mana',
+  /** jogo -> UI: nível do Centro da Vila (libera a mana e os poderes) */
+  Castle: 'castle',
+  /** UI -> jogo: clicou num poder */
+  Power: 'power',
+  /** jogo -> UI: poder usado, com o tempo de espera em segundos */
+  PowerCd: 'powerCd',
   /** jogo -> UI: preço atual de construir cada tipo (id -> moedas) */
   BuildCosts: 'buildCosts',
   /** jogo -> UI: número da onda atual */
@@ -39,5 +47,5 @@ export interface SelectInfo {
   x: number;
   y: number;
   /** próximo nível; null = já no máximo */
-  next: { art: string; cost: number; /** motivo de estar bloqueado (ex.: nível do centro da vila) */ lock?: string } | null;
+  next: { art: string; cost: number; /** custa mana em vez de moedas */ mana?: boolean; /** motivo de estar bloqueado (ex.: nível do centro da vila) */ lock?: string } | null;
 }

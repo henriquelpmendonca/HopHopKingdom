@@ -32,6 +32,8 @@ export interface HutLevel {
   soldiers: SoldierSpec[];
   /** moedas por segundo que ela rende (minas) */
   income?: number;
+  /** mana por segundo que ela rende (minas de mana) */
+  mana?: number;
 }
 
 export interface HutDef {
@@ -42,6 +44,10 @@ export interface HutDef {
   maxCount?: number;
   /** cada construção a mais deste tipo custa mais: o preço é multiplicado por isto a cada uma que você já tem */
   costGrowth?: number;
+  /** se for 'mana', construir e evoluir custa mana em vez de moedas */
+  currency?: 'mana';
+  /** só aparece na barra depois que o Centro da Vila chega a este nível */
+  needCastle?: number;
 }
 
 /** Preço de construir mais uma deste tipo, sabendo quantas você já tem. */
@@ -148,8 +154,43 @@ export const MINA_OURO: HutDef = {
   levels: minaLevels(),
 };
 
+/**
+ * Mina de mana: só aparece com o Centro da Vila nível 3 e custa mana (o nível 3 já dá um pouco de mana
+ * para comprar a primeira). Rende mana por segundo, que paga os poderes. Só há o desenho do nível 1;
+ * os outros visuais entram nos tiers quando estiverem prontos.
+ */
+const MANA_TIERS: Tier[] = [
+  { from: 1,  art: 'mina_mana_1', width: 190 },
+  { from: 5,  art: 'mina_mana_1', width: 215 },
+  { from: 10, art: 'mina_mana_1', width: 245 },
+];
+
+function manaLevels(): HutLevel[] {
+  return Array.from({ length: MAX_LEVEL }, (_, i) => {
+    const lv = i + 1;
+    const t = tierOf(MANA_TIERS, lv);
+    return {
+      cost: reach(60, 45, lv),
+      art: t.art,
+      hp: 240 + (lv - 1) * 40,
+      width: t.width + (lv - t.from) * 3,
+      soldiers: [],
+      mana: Math.round((1.5 + (lv - 1) * 0.6) * 10) / 10,
+    };
+  });
+}
+
+export const MINA_MANA: HutDef = {
+  id: 'mina_mana',
+  nome: 'Mina de Mana',
+  currency: 'mana',
+  needCastle: 3,
+  costGrowth: 1.15,
+  levels: manaLevels(),
+};
+
 /** O que aparece na barra de construção. Novas construções entram aqui. */
-export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO];
+export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO, MINA_MANA];
 
 export function hutDef(id: string): HutDef {
   const d = BUILDABLES.find(b => b.id === id);

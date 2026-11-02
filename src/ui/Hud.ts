@@ -2,11 +2,13 @@ import { audio, sfx } from '../audio';
 import { REBUILD_COIN_KEEP, REBUILD_WAVES_BACK } from '../config';
 import { clearSave } from '../save';
 import { BUILDABLES } from '../data/cabanas';
+import { POWERS } from '../data/powers';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const coinHtml = '<i class="coin"></i>';
+const gemHtml = '<i class="gem"></i>';
 
 function boing(el: HTMLElement, cls = 'boing') {
   el.classList.remove(cls);
@@ -22,17 +24,23 @@ export function setupHud() {
   window.addEventListener('resize', syncBar);
   window.addEventListener('orientationchange', syncBar);
   let coinsNow = 0;
+  let manaNow = 0;
+  let castleLv = 1;
   let sel: SelectInfo | null = null;
-  const slots = new Map<string, { el: HTMLButtonElement; cost: number }>();
+  const slots = new Map<string, { el: HTMLButtonElement; cost: number; mana: boolean; need: number }>();
+  const powerBtns = new Map<string, HTMLButtonElement>();
 
   for (const def of BUILDABLES) {
     const el = document.createElement('button');
     el.className = 'slot';
     el.title = def.nome;
-    el.innerHTML = `<img src="assets/${def.levels[0].art}.png" alt=""><span class="cost">${coinHtml}${def.levels[0].cost}</span>`;
+    const mana = def.currency === 'mana';
+    el.innerHTML = `<img src="assets/${def.levels[0].art}.png" alt=""><span class="cost">${mana ? gemHtml : coinHtml}${def.levels[0].cost}</span>`;
     el.addEventListener('click', () => { boing(el); sfx.ui(); bus.emit(Evt.Build, def.id); });
+    // construções que dependem do Centro da Vila ficam escondidas até ele chegar lá
+    if (def.needCastle) el.classList.add('hide');
     bar.appendChild(el);
-    slots.set(def.id, { el, cost: def.levels[0].cost });
+    slots.set(def.id, { el, cost: def.levels[0].cost, mana, need: def.needCastle ?? 0 });
   }
 
   // carta da espada do clique, separada das construções por um espaço
@@ -63,9 +71,10 @@ export function setupHud() {
   });
 
   function refresh() {
-    for (const s of slots.values()) s.el.classList.toggle('poor', coinsNow < s.cost);
+    for (const s of slots.values()) s.el.classList.toggle('poor', (s.mana ? manaNow : coinsNow) < s.cost);
+    for (const [pid, b] of powerBtns) b.classList.toggle('poor', manaNow < (POWERS.find(p => p.id === pid)?.cost ?? 0));
     sw.classList.toggle('poor', swordLevel < SWORD_MAX && coinsNow < swordCost(swordLevel));
-    if (sel?.next) up.classList.toggle('poor', !sel.next.lock && coinsNow < sel.next.cost);
+    if (sel?.next) up.classList.toggle('poor', !sel.next.lock && (sel.next.mana ? manaNow : coinsNow) < sel.next.cost);
   }
 
   bus.on(Evt.Coins, (n: number) => {
@@ -82,8 +91,41 @@ export function setupHud() {
       if (!s) continue;
       s.cost = cost;
       const label = s.el.querySelector('.cost');
-      if (label) label.innerHTML = coinHtml + cost;
+      if (label) label.innerHTML = (s.mana ? gemHtml : coinHtml) + cost;
     }
+    refresh();
+  });
+
+  // mana e poderes: aparecem quando o Centro da Vila chega ao nível 3
+  const keys = ['1', '2', '3'];
+  POWERS.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'power';
+    b.title = `${p.nome} (tecla ${keys[i]}): ${p.desc}`;
+    b.innerHTML = `<span class="ico">${p.icone}</span><span class="cost">${gemHtml}${p.cost}</span>`;
+    b.addEventListener('click', () => { boing(b); sfx.ui(); bus.emit(Evt.Power, p.id); });
+    $('powers').appendChild(b);
+    powerBtns.set(p.id, b);
+  });
+  bus.on(Evt.PowerCd, (id: string, sec: number) => {
+    const b = powerBtns.get(id);
+    if (!b) return;
+    b.style.setProperty('--cd', sec + 's');
+    b.classList.remove('cooling');
+    void b.offsetWidth;
+    b.classList.add('cooling');
+    window.setTimeout(() => b.classList.remove('cooling'), sec * 1000);
+  });
+  bus.on(Evt.Castle, (lv: number) => {
+    castleLv = lv;
+    for (const s of slots.values()) if (s.need) s.el.classList.toggle('hide', castleLv < s.need);
+    $('mana').hidden = castleLv < 3;
+    $('powers').hidden = castleLv < 3;
+  });
+  bus.on(Evt.Mana, (n: number, inc: number) => {
+    manaNow = n;
+    $('manaN').textContent = String(Math.floor(n));
+    $('manaInc').textContent = inc > 0 ? '+' + (Math.round(inc * 10) / 10) + '/s' : '';
     refresh();
   });
 
@@ -110,7 +152,7 @@ export function setupHud() {
   });
 
   bus.on(Evt.Broke, (id: string) => {
-    const el = id === 'upgrade' ? up : id === 'sword' ? sw : slots.get(id)?.el;
+    const el = id === 'upgrade' ? up : id === 'sword' ? sw : id.startsWith('power:') ? powerBtns.get(id.slice(6)) : slots.get(id)?.el;
     if (el) boing(el, 'shake');
     sfx.error();
     boing($('coins'), 'shake');
@@ -125,7 +167,7 @@ export function setupHud() {
       up.classList.remove('max');
       up.innerHTML = info.next.lock
         ? `<img src="assets/${info.next.art}.png" alt=""><b class="arrow lock">🔒</b><span class="cost">${info.next.lock}</span>`
-        : `<img src="assets/${info.next.art}.png" alt=""><b class="arrow">⬆</b><span class="cost">${coinHtml}${info.next.cost}</span>`;
+        : `<img src="assets/${info.next.art}.png" alt=""><b class="arrow">⬆</b><span class="cost">${info.next.mana ? gemHtml : coinHtml}${info.next.cost}</span>`;
     } else {
       up.classList.add('max');
       up.classList.remove('poor');

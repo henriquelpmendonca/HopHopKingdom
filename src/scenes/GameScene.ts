@@ -15,7 +15,8 @@ import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../da
 import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
-import { addCoins, spend, state } from '../state';
+import { addCoins, addMana, spend, spendMana, state } from '../state';
+import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
 
 export class GameScene extends Phaser.Scene {
   private castle!: Castle;
@@ -28,6 +29,8 @@ export class GameScene extends Phaser.Scene {
   private samples: { x: number; y: number; t: number }[] = [];
   private mouse = new Phaser.Math.Vector2();
   private incomeTimer = 0;
+  /** quando (ms) cada poder volta a poder ser usado */
+  private powerReady: Record<string, number> = {};
   /** arrastando o mapa com um dedo (começou em chão vazio) */
   private pan: { x: number; y: number; moved: boolean } | null = null;
   /** há quanto tempo não há inimigos (para a música voltar à calma) */
@@ -80,7 +83,9 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Upgrade, this.upgradeSelected, this);
     bus.on(Evt.UpgradeSword, this.upgradeSword, this);
     bus.on(Evt.Rebuild, this.rebuild, this);
+    bus.on(Evt.Power, this.usePower, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.Power, this.usePower, this);
       bus.off(Evt.Rebuild, this.rebuild, this);
       bus.off(Evt.UpgradeSword, this.upgradeSword, this);
       bus.off(Evt.Build, this.startPlacing, this);
@@ -95,6 +100,7 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(9000, () => bus.emit(Evt.Hint, null));
     }
     bus.emit(Evt.Coins, state.coins);
+    this.onCastleLevel(false);
     this.emitCosts();
     bus.emit(Evt.Wave, this.wave);
     bus.emit(Evt.Sword, state.sword);
@@ -105,6 +111,8 @@ export class GameScene extends Phaser.Scene {
 
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
+    // atalhos dos poderes: 1, 2 e 3
+    POWERS.forEach((p, i) => this.input.keyboard?.on('keydown-' + ['ONE', 'TWO', 'THREE'][i], () => this.usePower(p.id)));
     this.input.on('pointermove', this.onMove, this);
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);
@@ -121,6 +129,7 @@ export class GameScene extends Phaser.Scene {
       wave: this.wave,
       magos: this.magos,
       sword: state.sword,
+      mana: Math.floor(state.mana),
       huts: this.huts.map(h => ({ id: h.def.id, dx: Math.round(h.x - this.castle.x), dy: Math.round(h.y - this.castle.y), level: h.level })),
     });
   }
@@ -130,6 +139,7 @@ export class GameScene extends Phaser.Scene {
     const d = loadGame();
     if (!d) return;
     state.coins = d.coins;
+    if (d.mana) state.mana = d.mana;
     if (d.sword) state.sword = Math.min(SWORD_MAX, d.sword);
     this.wave = d.wave;
     this.magos = this.magos || d.magos;
@@ -144,6 +154,85 @@ export class GameScene extends Phaser.Scene {
     if (this.huts.length > 0) this.waveTimer = 10;
     bus.emit(Evt.Hint, 'Bem-vindo de volta! Seu reino foi carregado.');
     this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
+  }
+
+  /** Avisa a tela do nível do Centro da Vila e da mana. No nível 3 a cidade dá mana de presente. */
+  private onCastleLevel(justUpgraded: boolean) {
+    bus.emit(Evt.Castle, this.castle.level + 1);
+    this.emitMana();
+    if (justUpgraded && this.castle.level === 2) {
+      addMana(MANA_GIFT);
+      this.emitMana();
+      floatText(this, this.castle.x, this.castle.y - this.castle.h - 20, `Mana liberada! +${MANA_GIFT}`, '#7ad0ff');
+      bus.emit(Evt.Hint, 'Mana liberada! Use na Mina de Mana e nos poderes ao lado.');
+      this.time.delayedCall(6000, () => bus.emit(Evt.Hint, null));
+    }
+  }
+
+  private emitMana(perSec?: number) {
+    let inc = perSec;
+    if (inc === undefined) {
+      inc = this.castle.level >= 2 ? CASTLE_MANA_INCOME : 0;
+      for (const h of this.huts) inc += h.manaIncome;
+    }
+    bus.emit(Evt.Mana, state.mana, inc);
+  }
+
+  /* ---------- poderes ---------- */
+
+  private usePower(id: string) {
+    const def = POWERS.find(p => p.id === id);
+    if (!def || this.over || this.castle.level < 2) return;
+    const now = performance.now();
+    if ((this.powerReady[id] ?? 0) > now) { sfx.error(); return; }
+    const alive = this.orcs.filter(o => o.alive);
+    if (id !== 'curar' && alive.length === 0) {
+      bus.emit(Evt.Hint, 'Não há inimigos agora!');
+      this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    if (!spendMana(def.cost)) {
+      bus.emit(Evt.Broke, 'power:' + id);
+      bus.emit(Evt.Hint, 'Falta mana!');
+      this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    this.powerReady[id] = now + def.cd * 1000;
+    bus.emit(Evt.PowerCd, id, def.cd);
+    this.emitMana();
+
+    if (id === 'meteoros') {
+      // os inimigos mais perto da cidade levam os meteoros primeiro
+      const targets = [...alive].sort((a, b) =>
+        Math.hypot(a.x - this.castle.x, a.y - this.castle.y) - Math.hypot(b.x - this.castle.x, b.y - this.castle.y))
+        .slice(0, POWER_METEOR_COUNT);
+      const dmg = meteorDamage(this.wave);
+      targets.forEach((o, i) => {
+        this.proj.strike(o.x, o.y, 100, 0.7 + i * 0.12, (x, y, r) => {
+          for (const e of this.orcs) {
+            if (e.alive && Math.hypot(e.x - x, (e.y - y) * 2) < r) e.takeDamage(dmg, x, y);
+          }
+        }, true);
+      });
+      sfx.strikeCharge(0.8);
+      bus.emit(Evt.Hint, 'Chuva de meteoros!');
+    } else if (id === 'congelar') {
+      for (const o of alive) o.freeze(POWER_FREEZE_SECONDS);
+      sfx.magic();
+      bus.emit(Evt.Hint, `Inimigos congelados por ${POWER_FREEZE_SECONDS} segundos!`);
+    } else {
+      for (const h of this.huts) {
+        h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.5);
+        for (const s of h.soldiers) s.renew();
+        this.fx.burst(h.x, h.y - h.h * 0.5, 14, 0x6dff9a);
+      }
+      this.castle.hp = Math.min(this.castle.maxHp, this.castle.hp + this.castle.maxHp * 0.4);
+      this.fx.burst(this.castle.x, this.castle.y - this.castle.h * 0.5, 24, 0x6dff9a, true);
+      sfx.upgrade();
+      bus.emit(Evt.Hint, 'Todos curados!');
+    }
+    this.time.delayedCall(2500, () => bus.emit(Evt.Hint, null));
+    this.save();
   }
 
   /** Preço de construir mais uma deste tipo (sobe com quantas você já tem). */
@@ -170,9 +259,15 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (this.placing === def) { this.stopPlacing(); return; }
-    if (state.coins < this.costOf(def)) {
+    if (def.needCastle && this.castle.level + 1 < def.needCastle) {
       bus.emit(Evt.Broke, id);
-      bus.emit(Evt.Hint, 'Faltam moedas!');
+      bus.emit(Evt.Hint, `Libera com o Centro da Vila nível ${def.needCastle}`);
+      this.time.delayedCall(2200, () => !this.placing && bus.emit(Evt.Hint, null));
+      return;
+    }
+    if ((def.currency === 'mana' ? state.mana : state.coins) < this.costOf(def)) {
+      bus.emit(Evt.Broke, id);
+      bus.emit(Evt.Hint, def.currency === 'mana' ? 'Falta mana!' : 'Faltam moedas!');
       this.time.delayedCall(1800, () => !this.placing && bus.emit(Evt.Hint, null));
       return;
     }
@@ -216,7 +311,8 @@ export class GameScene extends Phaser.Scene {
   private placeHut(def: HutDef) {
     const b = this.ghostBuilding();
     if (!this.canPlace(b)) { bus.emit(Evt.Hint, 'Aqui não cabe!'); return; }
-    if (!spend(this.costOf(def))) return;
+    if (!(def.currency === 'mana' ? spendMana(this.costOf(def)) : spend(this.costOf(def)))) return;
+    this.emitMana();
     const hut = new Hut(this, def, b.x, b.y, this.fx, h => this.onHutDestroyed(h));
     this.huts.push(hut);
     this.fx.burst(b.x, b.y, 24, 0xe8d9b8, true);
@@ -225,7 +321,7 @@ export class GameScene extends Phaser.Scene {
     this.stopPlacing();
     this.select(hut);
     this.save();
-    bus.emit(Evt.Hint, def.levels[0].soldiers.length ? 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!' : 'A mina rende moedas! Mas ela não tem soldados: proteja-a!');
+    bus.emit(Evt.Hint, def.levels[0].soldiers.length ? 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!' : (def.currency === 'mana' ? 'A mina de mana rende mana! Mas ela não tem soldados: proteja-a!' : 'A mina rende moedas! Mas ela não tem soldados: proteja-a!'));
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
 
@@ -249,7 +345,7 @@ export class GameScene extends Phaser.Scene {
     if (h instanceof Castle && h.next && this.wave < h.next.minWave) lock = `Onda ${h.next.minWave}`;
     const info: SelectInfo = {
       x: h.x, y: h.y - h.h - 26,
-      next: nx ? { art: nx.art, cost: nx.cost, lock } : null,
+      next: nx ? { art: nx.art, cost: nx.cost, lock, mana: h instanceof Hut && h.def.currency === 'mana' } : null,
     };
     bus.emit(Evt.Select, info);
     this.emitSelPos();
@@ -278,7 +374,9 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(3000, () => bus.emit(Evt.Hint, null));
       return;
     }
-    if (!spend(nx.cost)) { bus.emit(Evt.Broke, 'upgrade'); return; }
+    const useMana = h instanceof Hut && h.def.currency === 'mana';
+    if (!(useMana ? spendMana(nx.cost) : spend(nx.cost))) { bus.emit(Evt.Broke, 'upgrade'); return; }
+    if (useMana) this.emitMana();
     const artBefore = h instanceof Hut ? h.def.levels[h.level].art : '';
     h.upgrade();
     // quando o visual da construção muda (de 5 em 5 níveis) a comemoração é maior
@@ -286,6 +384,7 @@ export class GameScene extends Phaser.Scene {
     floatText(this, h.x, h.y - h.h - 10, novoVisual ? 'NOVO VISUAL!' : 'EVOLUIU!', '#7CFF6B');
     if (novoVisual) { this.fx.burst(h.x, h.y - h.h * 0.5, 36, 0xffd84a, true); this.cameras.main.shake(200, 0.005); }
     sfx.upgrade(h instanceof Castle);
+    if (h instanceof Castle) this.onCastleLevel(true);
     this.save();
     this.emitSelect();
   }
@@ -577,6 +676,13 @@ export class GameScene extends Phaser.Scene {
         floatText(this, h.x + (Math.random() - 0.5) * 30, h.y - h.h * 0.8, '+' + inc);
       }
       bus.emit(Evt.Income, total);
+      // mana: só depois do Centro da Vila nível 3
+      if (this.castle.level >= 2) {
+        let mana = CASTLE_MANA_INCOME;
+        for (const h of this.huts) mana += h.manaIncome;
+        addMana(mana);
+        this.emitMana(mana);
+      }
     }
 
     if (this.placing) {

@@ -33,6 +33,8 @@ export class Orc implements Combatant {
   private minions: Orc[] = [];
   private pending: { kind: OrcKind; x: number; y: number }[] = [];
   private summonT = Infinity;
+  /** segundos de gelo que faltam (parado, sem atacar) */
+  private frozen = 0;
   private ox = 0;
   private oy = 0;
 
@@ -70,6 +72,14 @@ export class Orc implements Combatant {
   }
 
   adopt(m: Orc) { this.minions.push(m); }
+
+  /** Poder de congelar: fica parado e azulado por `sec` segundos. */
+  freeze(sec: number) {
+    if (!this.alive) return;
+    this.frozen = Math.max(this.frozen, sec);
+    this.sprite.setTint(0x9fd8ff);
+    this.fx.burst(this.x, this.y - this.stats.height * 0.5, 8, 0xbfe9ff);
+  }
 
   /** Some na hora, sem recompensa nem efeito (cidade reerguida). */
   vanish() {
@@ -151,6 +161,12 @@ export class Orc implements Combatant {
     }
 
     this.age += dt;
+    if (this.frozen > 0) {
+      this.frozen -= dt;
+      if (this.frozen <= 0) this.sprite.clearTint();
+      this.render(bars);
+      return;
+    }
     this.cdT -= dt;
     this.trySummon(dt);
     this.hitT = Math.max(0, this.hitT - dt);

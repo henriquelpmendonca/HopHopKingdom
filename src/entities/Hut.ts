@@ -77,6 +77,9 @@ export class Hut implements Structure {
   /** moedas por segundo (só as minas rendem) */
   get income() { return this.alive ? this.def.levels[this.level].income ?? 0 : 0; }
 
+  /** mana por segundo (só as minas de mana rendem) */
+  get manaIncome() { return this.alive ? this.def.levels[this.level].mana ?? 0 : 0; }
+
   get maxed() { return this.level >= this.def.levels.length - 1; }
   get next() { return this.maxed ? null : this.def.levels[this.level + 1]; }
 
