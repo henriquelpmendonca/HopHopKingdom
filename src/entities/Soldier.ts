@@ -108,6 +108,18 @@ export class Soldier implements Combatant {
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
   }
 
+  /** Cidade reerguida: todo mundo volta inteiro para perto da cabana. */
+  renew() {
+    if (this.state === 'dead') { this.revive(); return; }
+    this.hp = this.maxHp;
+    if (this.state !== 'held') {
+      this.state = 'orbit';
+      this.target = null;
+      this.atkT = 0;
+      this.ox = this.oy = 0;
+    }
+  }
+
   /** Distância até o centro do corpo na tela, para detectar o clique. */
   hitDistance(px: number, py: number) {
     return Math.hypot(px - this.x, py - (this.y - this.z - SOLDIER_H / 2));

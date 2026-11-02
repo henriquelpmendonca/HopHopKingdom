@@ -43,6 +43,14 @@ export class Projectiles {
     this.ground = scene.add.graphics().setDepth(-400_000);
   }
 
+  /** Some com tudo que está no ar (cidade reerguida). */
+  clear() {
+    this.list = [];
+    this.strikes = [];
+    this.g.clear();
+    this.ground.clear();
+  }
+
   /** Raio sombrio: avisa no chão e, depois de `delay` segundos, cai com dano em área. */
   strike(x: number, y: number, r: number, delay: number, onImpact: (x: number, y: number, r: number) => void) {
     this.strikes.push({ x, y, r, t: 0, delay, hit: false, flash: 0, onImpact });

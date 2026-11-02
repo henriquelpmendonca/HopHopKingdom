@@ -68,6 +68,14 @@ export class Orc implements Combatant {
 
   adopt(m: Orc) { this.minions.push(m); }
 
+  /** Some na hora, sem recompensa nem efeito (cidade reerguida). */
+  vanish() {
+    this.hp = 0;
+    this.deadT = 99;
+    this.sprite.destroy();
+    this.shadow.destroy();
+  }
+
   private trySummon(dt: number) {
     const sm = this.stats.summon;
     if (!sm || !this.target) return;

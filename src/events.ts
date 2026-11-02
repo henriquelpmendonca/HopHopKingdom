@@ -26,6 +26,8 @@ export const Evt = {
   Broke: 'broke',
   /** jogo -> UI: o castelo caiu */
   GameOver: 'gameover',
+  /** UI -> jogo: o jogador quer reerguer a cidade */
+  Rebuild: 'rebuild',
 } as const;
 
 export interface SelectInfo {

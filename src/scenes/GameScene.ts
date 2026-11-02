@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { audio, sfx } from '../audio';
 import { CameraRig } from '../camera';
-import { barH, CLICK_AOE_MULT, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { barH, CLICK_AOE_MULT, REBUILD_COIN_KEEP, REBUILD_WAVES_BACK, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -13,7 +13,7 @@ import { HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
 import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
-import { clearSave, loadGame, saveGame } from '../save';
+import { loadGame, saveGame } from '../save';
 import { addCoins, spend, state } from '../state';
 
 export class GameScene extends Phaser.Scene {
@@ -76,7 +76,9 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Build, this.startPlacing, this);
     bus.on(Evt.Upgrade, this.upgradeSelected, this);
     bus.on(Evt.UpgradeSword, this.upgradeSword, this);
+    bus.on(Evt.Rebuild, this.rebuild, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.Rebuild, this.rebuild, this);
       bus.off(Evt.UpgradeSword, this.upgradeSword, this);
       bus.off(Evt.Build, this.startPlacing, this);
       bus.off(Evt.Upgrade, this.upgradeSelected, this);
@@ -474,14 +476,37 @@ export class GameScene extends Phaser.Scene {
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + o.stats.coins);
   }
 
+  /** Perder não apaga tudo: a cidade é reerguida com um custo pequeno. */
+  private rebuild() {
+    if (!this.over) return;
+    this.over = false;
+    for (const o of this.orcs) o.vanish();
+    this.orcs = [];
+    this.proj.clear();
+    state.coins = Math.floor(state.coins * REBUILD_COIN_KEEP);
+    bus.emit(Evt.Coins, state.coins);
+    this.wave = Math.max(0, this.wave - REBUILD_WAVES_BACK);
+    this.waveTimer = 16;
+    this.castle.hp = this.castle.maxHp;
+    for (const h of this.huts) {
+      h.hp = h.maxHp;
+      for (const s of h.soldiers) s.renew();
+    }
+    this.fx.burst(this.castle.x, this.castle.y - this.castle.h * 0.5, 40, 0xffd84a, true);
+    this.cameras.main.shake(250, 0.006);
+    sfx.upgrade(true);
+    audio.set('calma');
+    bus.emit(Evt.Hint, `Cidade reerguida! Você perdeu ${Math.round((1 - REBUILD_COIN_KEEP) * 100)}% das moedas e voltou ${REBUILD_WAVES_BACK} ondas.`);
+    this.time.delayedCall(6000, () => bus.emit(Evt.Hint, null));
+    this.save();
+  }
+
   private lose() {
     this.over = true;
-    // acabou: a próxima partida começa do zero
-    if (this.persist) clearSave();
     this.held = null;
     sfx.gameOver();
     audio.set('calma');
-    bus.emit(Evt.GameOver);
+    bus.emit(Evt.GameOver, { wave: this.wave });
   }
 
   update(time: number, delta: number) {

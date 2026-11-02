@@ -1,4 +1,6 @@
 import { audio, sfx } from '../audio';
+import { REBUILD_COIN_KEEP, REBUILD_WAVES_BACK } from '../config';
+import { clearSave } from '../save';
 import { BUILDABLES } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
@@ -115,8 +117,14 @@ export function setupHud() {
     refresh();
   });
 
-  bus.on(Evt.GameOver, () => { $('over').hidden = false; boing($('overbox'), 'pop-in'); });
-  $('again').addEventListener('click', () => location.reload());
+  bus.on(Evt.GameOver, (info: { wave: number }) => {
+    $('overTxt').textContent = `Você chegou à onda ${info.wave}. Reerguendo, você mantém suas construções, `
+      + `mas perde ${Math.round((1 - REBUILD_COIN_KEEP) * 100)}% das moedas e volta ${REBUILD_WAVES_BACK} ondas.`;
+    $('over').hidden = false;
+    boing($('overbox'), 'pop-in');
+  });
+  $('rebuild').addEventListener('click', () => { sfx.ui(); $('over').hidden = true; bus.emit(Evt.Rebuild); });
+  $('again').addEventListener('click', () => { clearSave(); location.reload(); });
 
   up.addEventListener('click', () => {
     if (!sel?.next) return;
