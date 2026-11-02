@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { audio, sfx } from '../audio';
 import { CameraRig } from '../camera';
+import { Radar } from '../ui/Radar';
 import { barH, CLICK_AOE_MULT, REBUILD_COIN_KEEP, REBUILD_WAVES_BACK, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
   private calmT = 0;
   private bars!: Bars;
   private rig!: CameraRig;
+  private radar!: Radar;
   private proj!: Projectiles;
   /** o primeiro chefe morreu: magos entram nas ondas */
   private magos = new URLSearchParams(location.search).has('magos');
@@ -65,6 +67,7 @@ export class GameScene extends Phaser.Scene {
     const ch = 420 * tex.height / tex.width;
     this.castle = new Castle(this, WORLD_W / 2, WORLD_H / 2 + ch / 2, this.fx);
     this.rig = new CameraRig(this);
+    this.radar = new Radar();
     this.rig.onMulti = () => this.cancelHeld();
     this.rig.centerOn(this.castle.x, this.castle.y - this.castle.h * 0.4);
     this.bars = new Bars(this);
@@ -460,12 +463,16 @@ export class GameScene extends Phaser.Scene {
     const n = WAVE.count(this.wave);
     sfx.horn();
     if (boss) sfx.bossRoar();
-    const W = WORLD_W, floor = WORLD_H;
+    // entram de longe, num círculo em volta da cidade (o mapa é grande: nas bordas demorariam demais)
+    const around = (dist: number) => {
+      const a = Math.random() * Math.PI * 2;
+      return {
+        x: Phaser.Math.Clamp(this.castle.x + Math.cos(a) * dist, 40, WORLD_W - 40),
+        y: Phaser.Math.Clamp(this.castle.y + Math.sin(a) * dist * 0.8, 60, WORLD_H - 40),
+      };
+    };
     for (let i = 0; i < n; i++) {
-      // entram pelas bordas do mapa: em cima, à esquerda ou à direita
-      const side = Phaser.Math.Between(0, 2);
-      const x = side === 0 ? Phaser.Math.Between(40, W - 40) : side === 1 ? -50 : W + 50;
-      const y = side === 0 ? 40 : Phaser.Math.Between(120, floor - 40);
+      const { x, y } = around(1100 + Math.random() * 300);
       this.time.delayedCall(i * 450, () => {
         if (this.over) return;
         const kind = pickOrcKind(this.wave, this.magos);
@@ -473,7 +480,8 @@ export class GameScene extends Phaser.Scene {
       });
     }
     if (boss) {
-      this.orcs.push(new Orc(this, W / 2, 20, 'boss', this.wave, this.fx, o => this.onOrcDie(o)));
+      const bp = around(1300);
+      this.orcs.push(new Orc(this, bp.x, bp.y, 'boss', this.wave, this.fx, o => this.onOrcDie(o)));
       this.cameras.main.shake(600, 0.01);
       bus.emit(Evt.Hint, `CUIDADO! Onda ${this.wave}: o Rei Orc chegou!`);
     } else {
@@ -628,6 +636,11 @@ export class GameScene extends Phaser.Scene {
       this.castle.hp = Math.min(this.castle.maxHp, this.castle.hp + 6 * dt);
       for (const h of this.huts) h.heal(4 * dt);
     }
+    // setas na borda da tela apontando os inimigos que estão fora de vista
+    this.radar.draw(alive.map(o => {
+      const p = this.rig.toScreen(o.x, o.y - o.stats.height * 0.5);
+      return { x: p.x, y: p.y, hot: o.hittingBuilding, boss: !!o.stats.boss };
+    }), this.scale.width, this.scale.height, barH());
     this.castle.drawBar(this.bars);
     for (const h of this.huts) h.drawBar(this.bars);
     if (!this.castle.alive) this.lose();

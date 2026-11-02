@@ -9,6 +9,8 @@ export interface UnitStats {
   cd: number;
   /** atira de longe: distância (px) a que ele para para atirar */
   range?: number;
+  /** distância da cabana em que ele nota inimigos (px); padrão AGGRO_RANGE */
+  aggro?: number;
 }
 
 export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
@@ -16,7 +18,7 @@ export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
   lanca:    { hp: 60,  dmg: 11, reach: 42, cd: 1.0 },
   alabarda: { hp: 100, dmg: 18, reach: 48, cd: 1.1 },
   // frágil, mas bate de longe e sem se machucar
-  arqueiro: { hp: 38, dmg: 9, reach: 30, cd: 1.0, range: 260 },
+  arqueiro: { hp: 38, dmg: 9, reach: 30, cd: 1.0, range: 300, aggro: 560 },
 };
 
 /** Fúria: mais vida, golpes mais fortes e mais rápidos. */

@@ -31,6 +31,9 @@ export class Soldier implements Combatant {
   private reach = 30;
   /** arqueiro: atira desta distância */
   private range = 0;
+  /** distância da cabana em que nota inimigos, e até onde vai atrás deles */
+  private aggro = AGGRO_RANGE;
+  private leash = LEASH_RANGE;
   private cd = 1;
   private runSpeed = SOLDIER_RUN_SPEED;
   /** recarga para o dano de arremesso */
@@ -109,6 +112,8 @@ export class Soldier implements Combatant {
     this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1));
     this.reach = st.reach;
     this.range = st.range ?? 0;
+    this.aggro = st.aggro ?? AGGRO_RANGE;
+    this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
   }
@@ -214,7 +219,7 @@ export class Soldier implements Combatant {
   }
 
   private nearestFoe(foes: Orc[]) {
-    let best: Orc | null = null, bd = AGGRO_RANGE;
+    let best: Orc | null = null, bd = this.aggro;
     for (const o of foes) {
       if (!o.alive) continue;
       const d = Math.hypot(o.x - this.home.x, o.y - this.home.y);
@@ -328,7 +333,7 @@ export class Soldier implements Combatant {
     }
     const tg = this.target;
     // longe demais da cabana: desiste e volta
-    if (Math.hypot(this.x - this.home.x, this.y - this.home.y) > LEASH_RANGE) {
+    if (Math.hypot(this.x - this.home.x, this.y - this.home.y) > this.leash) {
       this.target = null;
       this.state = 'return';
       this.phase = 0;

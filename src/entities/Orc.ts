@@ -59,6 +59,9 @@ export class Orc implements Combatant {
 
   get alive() { return this.hp > 0; }
 
+  /** está batendo numa construção agora (o radar destaca esses) */
+  get hittingBuilding() { return !!this.target && 'nearestPoint' in this.target; }
+
   /** Entrega os esqueletos que o mago acabou de invocar (a cena cria eles). */
   takeSummons() {
     const out = this.pending;
