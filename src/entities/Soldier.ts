@@ -55,9 +55,12 @@ export class Soldier implements Combatant {
   private respawnT = 0;
 
   readonly sprite: Phaser.GameObjects.Image;
-  private shadow: Phaser.GameObjects.Ellipse;
-  private aura: Phaser.GameObjects.Ellipse;
-  private stars: Phaser.GameObjects.Text;
+  private shadow: Phaser.GameObjects.Image;
+  private aura: Phaser.GameObjects.Image;
+  /** as estrelinhas de tonto só são criadas na primeira vez que precisam */
+  private stars?: Phaser.GameObjects.Text;
+  private shadowBase: [number, number] = [1, 1];
+  private auraBase: [number, number] = [1, 1];
   private baseScale: number;
   private glow = 0;
 
@@ -68,10 +71,11 @@ export class Soldier implements Combatant {
     const tex = scene.textures.get('soldado').getSourceImage();
     this.baseScale = SOLDIER_H / tex.height;
     const w = tex.width * this.baseScale;
-    this.aura = scene.add.ellipse(this.x, this.y, w * 1.5, w * 0.5, 0xffd84a, 0.35).setVisible(false);
-    this.shadow = scene.add.ellipse(this.x, this.y, w * 0.8, w * 0.24, 0x000000, 0.22);
+    this.auraBase = [w * 1.9 / 64, w * 0.7 / 64];
+    this.shadowBase = [w * 1.1 / 64, w * 0.34 / 64];
+    this.aura = scene.add.image(this.x, this.y, 'soft').setTint(0xffd84a).setAlpha(0.55).setVisible(false);
+    this.shadow = scene.add.image(this.x, this.y, 'soft').setTint(0x000000).setAlpha(0.32).setScale(...this.shadowBase);
     this.sprite = scene.add.image(this.x, this.y, 'soldado').setOrigin(0.5, 1).setScale(this.baseScale);
-    this.stars = scene.add.text(0, 0, '★ ★ ★', { fontSize: '14px', color: '#f2b705' }).setOrigin(0.5).setVisible(false);
     this.setSpec(spec);
   }
 
@@ -91,7 +95,7 @@ export class Soldier implements Combatant {
     this.hopSpeed = this.hopBase * (spec.furia ? 1.35 : 1);
     this.glow = spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
     this.aura.setVisible(this.glow !== 0 && this.alive);
-    if (this.glow) this.aura.setFillStyle(this.glow, 0.38);
+    if (this.glow) this.aura.setTint(this.glow);
     if (spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
 
     const st = UNIT_STATS[spec.unit];
@@ -174,14 +178,14 @@ export class Soldier implements Combatant {
     this.sprite.destroy();
     this.shadow.destroy();
     this.aura.destroy();
-    this.stars.destroy();
+    this.stars?.destroy();
   }
 
   private setVisible(on: boolean) {
     this.sprite.setVisible(on);
     this.shadow.setVisible(on);
     this.aura.setVisible(on && this.glow !== 0);
-    if (!on) this.stars.setVisible(false);
+    if (!on) this.stars?.setVisible(false);
   }
 
   private orbitPoint() {
@@ -369,9 +373,10 @@ export class Soldier implements Combatant {
 
     const px = this.x + this.ox + this.rx, py = this.y + this.oy + this.ry;
     const k = Math.max(0.4, 1 - this.z / 160);
-    this.shadow.setPosition(px, py).setScale(k).setDepth(py - 1);
+    this.shadow.setPosition(px, py).setScale(this.shadowBase[0] * k, this.shadowBase[1] * k).setDepth(py - 1);
     if (this.aura.visible) {
-      this.aura.setPosition(px, py).setScale(k * (1 + Math.sin(this.t * 6) * 0.12)).setDepth(py - 2);
+      const pulse = k * (1 + Math.sin(this.t * 6) * 0.12);
+      this.aura.setPosition(px, py).setScale(this.auraBase[0] * pulse, this.auraBase[1] * pulse).setDepth(py - 2);
     }
 
     const lean = (hopping || running) ? Math.sin(this.phase) * 0.12 * this.face : 0;
@@ -381,9 +386,12 @@ export class Soldier implements Combatant {
       .setDepth(this.state === 'held' ? 500_000 : py);
 
     const dizzy = this.state === 'dizzy';
-    this.stars.setVisible(dizzy);
     if (dizzy) {
-      this.stars.setPosition(px + Math.cos(this.t * 8) * 10, py - SOLDIER_H - 4).setDepth(500_001);
+      // as estrelinhas só nascem na primeira vez que o soldado fica tonto
+      this.stars ??= this.scene.add.text(0, 0, '★ ★ ★', { fontSize: '14px', color: '#f2b705' }).setOrigin(0.5);
+      this.stars.setVisible(true).setPosition(px + Math.cos(this.t * 8) * 10, py - SOLDIER_H - 4).setDepth(500_001);
+    } else if (this.stars?.visible) {
+      this.stars.setVisible(false);
     }
     if (this.hp < this.maxHp && this.state !== 'held') {
       bars.draw(px, py - this.z - SOLDIER_H * this.size - 14, this.hp / this.maxHp, 30, 0x4cd137);

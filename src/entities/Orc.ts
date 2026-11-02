@@ -37,7 +37,7 @@ export class Orc implements Combatant {
   private oy = 0;
 
   private sprite: Phaser.GameObjects.Image;
-  private shadow: Phaser.GameObjects.Ellipse;
+  private shadow: Phaser.GameObjects.Image;
   private baseScale: number;
 
   /** onDie é chamado uma vez, quando o orc morre */
@@ -53,7 +53,7 @@ export class Orc implements Combatant {
     const tex = scene.textures.get(this.stats.art).getSourceImage();
     this.baseScale = this.stats.height / tex.height;
     const w = tex.width * this.baseScale;
-    this.shadow = scene.add.ellipse(x, y, w * 0.7, w * 0.2, 0x000000, 0.25);
+    this.shadow = scene.add.image(x, y, 'soft').setTint(0x000000).setAlpha(0.32).setScale(w * 0.95 / 64, w * 0.3 / 64);
     this.sprite = scene.add.image(x, y, this.stats.art).setOrigin(0.5, 1).setScale(this.baseScale);
   }
 
@@ -134,7 +134,7 @@ export class Orc implements Combatant {
       this.deadT += dt * 2.2;
       const k = Math.max(0, 1 - this.deadT);
       this.sprite.setScale(this.baseScale * (1 + this.deadT * 0.4) * this.face, this.baseScale * k).setAlpha(k);
-      this.shadow.setAlpha(0.25 * k);
+      this.shadow.setAlpha(0.32 * k);
       if (this.gone) { this.sprite.destroy(); this.shadow.destroy(); }
       return;
     }
