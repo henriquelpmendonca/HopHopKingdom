@@ -157,12 +157,12 @@ export const MINA_OURO: HutDef = {
 /**
  * Mina de mana: só aparece com o Centro da Vila nível 3 e custa mana (o nível 3 já dá um pouco de mana
  * para comprar a primeira). Rende mana por segundo, que paga os poderes. Só há o desenho do nível 1;
- * os outros visuais entram nos tiers quando estiverem prontos.
+ * o visual do nível 10 ainda usa o do 5 e entra aqui quando estiver pronto.
  */
 const MANA_TIERS: Tier[] = [
   { from: 1,  art: 'mina_mana_1', width: 190 },
-  { from: 5,  art: 'mina_mana_1', width: 215 },
-  { from: 10, art: 'mina_mana_1', width: 245 },
+  { from: 5,  art: 'mina_mana_2', width: 215 },
+  { from: 10, art: 'mina_mana_2', width: 245 },
 ];
 
 function manaLevels(): HutLevel[] {
