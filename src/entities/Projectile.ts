@@ -17,7 +17,14 @@ interface Shot {
   size: number;
   /** magia roxa (magos) ou flecha (arqueiros) */
   style: 'magic' | 'arrow';
+  /** cores da magia: roxa dos inimigos ou azul dos magos aliados */
+  pal: Palette;
 }
+
+interface Palette { trailA: number; trailB: number; glow: number; core: number; hi: number; spark: number }
+
+export const PURPLE: Palette = { trailA: 0x7a1fd1, trailB: 0xd070ff, glow: 0xb04cff, core: 0xd070ff, hi: 0xf6dcff, spark: 0x9b30ff };
+export const BLUE: Palette = { trailA: 0x1f7ad1, trailB: 0x70c0ff, glow: 0x4aa8ff, core: 0x70c0ff, hi: 0xdcf0ff, spark: 0x309bff };
 
 interface Strike {
   x: number;
@@ -93,9 +100,9 @@ export class Projectiles {
     }
   }
 
-  fire(x: number, y: number, target: Combatant, aim: () => { x: number; y: number }, dmg: number, speed: number, size = 1, style: 'magic' | 'arrow' = 'magic') {
-    this.list.push({ x, y, target, aim, dmg, speed, trail: [], sparkT: 0, age: 0, size, style });
-    if (style === 'arrow') sfx.arrow(); else this.fx.burst(x, y, 6, 0xb04cff);
+  fire(x: number, y: number, target: Combatant, aim: () => { x: number; y: number }, dmg: number, speed: number, size = 1, style: 'magic' | 'arrow' = 'magic', pal: Palette = PURPLE) {
+    this.list.push({ x, y, target, aim, dmg, speed, trail: [], sparkT: 0, age: 0, size, style, pal });
+    if (style === 'arrow') sfx.arrow(); else this.fx.burst(x, y, 6, pal.glow);
   }
 
   update(dt: number) {
@@ -112,9 +119,9 @@ export class Projectiles {
         if (s.style === 'arrow') {
           this.fx.burst(a.x, a.y, 4, 0xe8d9b8);
         } else {
-          this.fx.burst(a.x, a.y, 12, 0xb04cff, true);
+          this.fx.burst(a.x, a.y, 12, s.pal.glow, true);
           sfx.magicHit();
-          this.fx.burst(a.x, a.y, 5, 0xf0c8ff);
+          this.fx.burst(a.x, a.y, 5, s.pal.hi);
         }
         this.list.splice(i, 1);
         continue;
@@ -132,17 +139,17 @@ export class Projectiles {
       s.trail.push({ x: s.x, y: s.y });
       if (s.trail.length > 16) s.trail.shift();
       s.sparkT -= dt;
-      if (s.sparkT <= 0) { s.sparkT = 0.04; this.fx.burst(s.x, s.y, 1, 0x9b30ff); }
+      if (s.sparkT <= 0) { s.sparkT = 0.04; this.fx.burst(s.x, s.y, 1, s.pal.spark); }
 
       // rastro roxo que afina e some
       const n = s.trail.length;
       for (let k = 0; k < n; k++) {
         const t = (k + 1) / n;
-        this.g.fillStyle(k % 2 ? 0xd070ff : 0x7a1fd1, t * 0.7).fillCircle(s.trail[k].x, s.trail[k].y, (2 + t * 7) * s.size);
+        this.g.fillStyle(k % 2 ? s.pal.trailB : s.pal.trailA, t * 0.7).fillCircle(s.trail[k].x, s.trail[k].y, (2 + t * 7) * s.size);
       }
-      this.g.fillStyle(0xb04cff, 0.3).fillCircle(s.x, s.y, 16 * s.size);
-      this.g.fillStyle(0xd070ff, 1).fillCircle(s.x, s.y, 9 * s.size);
-      this.g.fillStyle(0xf6dcff, 1).fillCircle(s.x - 2 * s.size, s.y - 2 * s.size, 4 * s.size);
+      this.g.fillStyle(s.pal.glow, 0.3).fillCircle(s.x, s.y, 16 * s.size);
+      this.g.fillStyle(s.pal.core, 1).fillCircle(s.x, s.y, 9 * s.size);
+      this.g.fillStyle(s.pal.hi, 1).fillCircle(s.x - 2 * s.size, s.y - 2 * s.size, 4 * s.size);
     }
   }
 }

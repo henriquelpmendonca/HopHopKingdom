@@ -7,7 +7,7 @@ import { Bars, Particles, popDamage } from '../fx';
 import { Building } from './Building';
 import { Combatant } from './Combatant';
 import type { Orc } from './Orc';
-import type { Projectiles } from './Projectile';
+import { BLUE, type Projectiles } from './Projectile';
 
 export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead';
 
@@ -31,6 +31,8 @@ export class Soldier implements Combatant {
   private reach = 30;
   /** arqueiro: atira desta distância */
   private range = 0;
+  /** mago: atira magia azul em vez de flecha */
+  private bolt = false;
   /** distância da cabana em que nota inimigos, e até onde vai atrás deles */
   private aggro = AGGRO_RANGE;
   private leash = LEASH_RANGE;
@@ -98,13 +100,16 @@ export class Soldier implements Combatant {
     this.sprite.setTexture(art);
     // unidades melhores são um pouco maiores
     // os soldados de corpo a corpo são maiores que o arqueiro; lança e alabarda crescem junto
-    const unitSize = { espada: 1.7, lanca: 1.8, alabarda: 1.9, arqueiro: 1.4, arqueiro2: 1.5, arqueiro3: 1.6 }[spec.unit];
+    const unitSize = { espada: 1.7, lanca: 1.8, alabarda: 1.9, arqueiro: 1.4, arqueiro2: 1.5, arqueiro3: 1.6, magoA1: 1.5, magoA2: 1.6, magoA3: 1.8 }[spec.unit];
     this.size = unitSize * (spec.furia ? 1.1 : 1);
     this.hopSpeed = this.hopBase * (spec.furia ? 1.35 : 1);
     this.glow = spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
     this.aura.setVisible(this.glow !== 0 && this.alive);
     if (this.glow) this.aura.setTint(this.glow);
-    if (spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
+    // os magos aliados usam, por enquanto, os desenhos dos magos inimigos: pintados de azul para não confundir
+    if (spec.furia) this.sprite.setTint(0xff9a9a);
+    else if (UNIT_STATS[spec.unit].bolt) this.sprite.setTint(0x8fc4ff);
+    else this.sprite.clearTint();
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
@@ -114,6 +119,7 @@ export class Soldier implements Combatant {
     this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1));
     this.reach = st.reach;
     this.range = st.range ?? 0;
+    this.bolt = !!st.bolt;
     this.aggro = st.aggro ?? AGGRO_RANGE;
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
@@ -351,7 +357,9 @@ export class Soldier implements Combatant {
         this.atkHit = true;
         if (this.range > 0) {
           // arqueiro: solta uma flecha em direção ao inimigo
-          proj.fire(this.x + this.face * 10, this.y - SOLDIER_H * 0.65, tg, () => ({ x: tg.x, y: tg.y - tg.stats.height * 0.5 }), this.dmg, 560, 1, 'arrow');
+          const aim = () => ({ x: tg.x, y: tg.y - tg.stats.height * 0.5 });
+          if (this.bolt) proj.fire(this.x + this.face * 10, this.y - SOLDIER_H * 0.7, tg, aim, this.dmg, 420, 0.9, 'magic', BLUE);
+          else proj.fire(this.x + this.face * 10, this.y - SOLDIER_H * 0.65, tg, aim, this.dmg, 560, 1, 'arrow');
         } else {
           tg.takeDamage(this.dmg, this.x, this.y);
         }

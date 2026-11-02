@@ -11,6 +11,8 @@ export interface UnitStats {
   range?: number;
   /** distância da cabana em que ele nota inimigos (px); padrão AGGRO_RANGE */
   aggro?: number;
+  /** atira bolas de magia (azuis) em vez de flechas */
+  bolt?: boolean;
 }
 
 export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
@@ -21,6 +23,10 @@ export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
   arqueiro: { hp: 38, dmg: 9, reach: 30, cd: 1.0, range: 300, aggro: 560 },
   arqueiro2: { hp: 55, dmg: 13, reach: 30, cd: 0.95, range: 330, aggro: 600 },
   arqueiro3: { hp: 80, dmg: 19, reach: 30, cd: 0.9, range: 360, aggro: 640 },
+  // magos aliados: magia mais forte que a flecha, mas mais frágeis
+  magoA1: { hp: 42, dmg: 17, reach: 30, cd: 1.5, range: 290, aggro: 540, bolt: true },
+  magoA2: { hp: 58, dmg: 26, reach: 30, cd: 1.4, range: 320, aggro: 580, bolt: true },
+  magoA3: { hp: 80, dmg: 38, reach: 30, cd: 1.3, range: 350, aggro: 620, bolt: true },
 };
 
 /** Fúria: mais vida, golpes mais fortes e mais rápidos. */

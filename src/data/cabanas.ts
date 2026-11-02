@@ -1,5 +1,5 @@
 /** Cada tipo de soldado tem o seu desenho. Se o PNG ainda não existir, usa o soldado de espada. */
-export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro' | 'arqueiro2' | 'arqueiro3';
+export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro' | 'arqueiro2' | 'arqueiro3' | 'magoA1' | 'magoA2' | 'magoA3';
 
 export const UNIT_ART: Record<SoldierUnit, string> = {
   espada: 'soldado',
@@ -8,6 +8,10 @@ export const UNIT_ART: Record<SoldierUnit, string> = {
   arqueiro: 'arqueiro',
   arqueiro2: 'arqueiro_2',
   arqueiro3: 'arqueiro_3',
+  // enquanto não há desenhos dos magos aliados, usam os dos magos inimigos pintados de azul
+  magoA1: 'mago',
+  magoA2: 'mago2',
+  magoA3: 'mago3',
 };
 
 export interface SoldierSpec {
@@ -155,6 +159,25 @@ export const MINA_OURO: HutDef = {
 };
 
 /**
+ * Cabana do Mago: só se compra com mana (Centro da Vila nível 3). Os magos aliados atiram bolas de magia azuis
+ * de longe: 1-4 mago simples, 5-9 mago de armadura, 10-14 grão-mago. O 15 é o mesmo, em fúria.
+ */
+const MAGO_TIERS: (Tier & { unit: SoldierUnit })[] = [
+  { from: 1,  art: 'cabana_mago_1', width: 150, unit: 'magoA1' },
+  { from: 5,  art: 'cabana_mago_2', width: 175, unit: 'magoA2' },
+  { from: 10, art: 'cabana_mago_3', width: 205, unit: 'magoA3' },
+];
+
+export const CABANA_MAGO: HutDef = {
+  id: 'cabana_mago',
+  nome: 'Cabana do Mago',
+  currency: 'mana',
+  needCastle: 3,
+  costGrowth: 1.15,
+  levels: troopLevels(MAGO_TIERS, { first: 90, step: 60, hp0: 170, countBase: 2, countCap: 10 }),
+};
+
+/**
  * Mina de mana: só aparece com o Centro da Vila nível 3 e custa mana (o nível 3 já dá um pouco de mana
  * para comprar a primeira). Rende mana por segundo, que paga os poderes. Só há o desenho do nível 1;
  * o visual muda no 5 e no 10.
@@ -190,7 +213,7 @@ export const MINA_MANA: HutDef = {
 };
 
 /** O que aparece na barra de construção. Novas construções entram aqui. */
-export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO, MINA_MANA];
+export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO, MINA_MANA, CABANA_MAGO];
 
 export function hutDef(id: string): HutDef {
   const d = BUILDABLES.find(b => b.id === id);
