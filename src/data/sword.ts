@@ -19,8 +19,8 @@ export interface SwordTier {
  * Os desenhos do nível 10 e do 15 entram aqui quando estiverem prontos.
  */
 export const SWORD_TIERS: SwordTier[] = [
-  { from: 1, art: 'espada',   aspect: 148 / 320, height: 60, pivot: 0.78 },
-  { from: 5, art: 'espada_2', aspect: 212 / 380, height: 66, pivot: 0.74 },
+  { from: 1, art: 'espada',   aspect: 148 / 320, height: 74, pivot: 0.78 },
+  { from: 5, art: 'espada_2', aspect: 212 / 380, height: 82, pivot: 0.74 },
 ];
 
 export function swordTier(level: number): SwordTier {
