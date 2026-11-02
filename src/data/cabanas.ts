@@ -55,6 +55,7 @@ export const MINA_OURO: HutDef = {
   maxCount: 4,
   levels: [
     { cost: 100, art: 'mina_ouro_1', hp: 260, width: 190, soldiers: [], income: 6 },
+    { cost: 250, art: 'mina_ouro_2', hp: 450, width: 215, soldiers: [], income: 14 },
   ],
 };
 
