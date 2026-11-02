@@ -32,6 +32,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('cabana_arqueiro_2', 'assets/cabana_arqueiro_2.png');
     this.load.image('mina_ouro_1', 'assets/mina_ouro_1.png');
     this.load.image('mina_ouro_2', 'assets/mina_ouro_2.png');
+    this.load.image('mina_ouro_3', 'assets/mina_ouro_3.png');
     for (let i = 1; i <= 3; i++) this.load.image('cabana_soldado_' + i, `assets/cabana_soldado_${i}.png`);
   }
 

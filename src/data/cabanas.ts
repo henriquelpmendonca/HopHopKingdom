@@ -116,13 +116,13 @@ export const CABANA_ARQUEIRO: HutDef = {
 };
 
 /**
- * Mina de ouro: 15 níveis, a renda sobe a cada um. O visual do nível 10 ainda usa o do 5;
- * quando houver desenho novo, é só trocar a arte desse tier.
+ * Mina de ouro: 15 níveis, a renda sobe a cada um. O visual muda no 5 e no 10;
+ * um desenho próprio para o nível 15 entra aqui quando estiver pronto.
  */
 const MINA_TIERS: Tier[] = [
   { from: 1,  art: 'mina_ouro_1', width: 190 },
   { from: 5,  art: 'mina_ouro_2', width: 215 },
-  { from: 10, art: 'mina_ouro_2', width: 245 },
+  { from: 10, art: 'mina_ouro_3', width: 265 },
 ];
 
 function minaLevels(): HutLevel[] {
