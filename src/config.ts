@@ -2,8 +2,8 @@ export const CASTLE_W = 420;
 export const SOLDIER_H = 46;
 export const GRAVITY = 1500;
 export const MAX_THROW_SPEED = 2600;
-/** altura da barra de construção no rodapé (px) */
-export const BAR_H = 130;
+/** altura da barra de construção no rodapé (px); muda no celular, por isso lê da própria barra */
+export const barH = () => document.getElementById('bar')?.offsetHeight ?? 130;
 /** tamanho do mapa (px); a tela mostra só um pedaço, como no Warcraft 3 */
 export const WORLD_W = 2400;
 export const WORLD_H = 1500;

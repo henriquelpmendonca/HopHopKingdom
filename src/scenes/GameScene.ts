@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { audio, sfx } from '../audio';
 import { CameraRig } from '../camera';
-import { BAR_H, CLICK_AOE_MULT, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { barH, CLICK_AOE_MULT, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -27,6 +27,8 @@ export class GameScene extends Phaser.Scene {
   private samples: { x: number; y: number; t: number }[] = [];
   private mouse = new Phaser.Math.Vector2();
   private incomeTimer = 0;
+  /** arrastando o mapa com um dedo (começou em chão vazio) */
+  private pan: { x: number; y: number; moved: boolean } | null = null;
   /** há quanto tempo não há inimigos (para a música voltar à calma) */
   private calmT = 0;
   private bars!: Bars;
@@ -53,7 +55,7 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(COLORS.grassTile, 0.5).fillRect(0, 0, 80, 80).fillRect(80, 80, 80, 80);
     g.generateTexture('grama', 160, 160);
     g.destroy();
-    this.add.tileSprite(0, 0, WORLD_W, WORLD_H + BAR_H, 'grama')
+    this.add.tileSprite(0, 0, WORLD_W, WORLD_H + 200, 'grama')
       .setOrigin(0).setDepth(-1e6);
 
     this.fx = new Particles(this);
@@ -63,6 +65,7 @@ export class GameScene extends Phaser.Scene {
     const ch = 420 * tex.height / tex.width;
     this.castle = new Castle(this, WORLD_W / 2, WORLD_H / 2 + ch / 2, this.fx);
     this.rig = new CameraRig(this);
+    this.rig.onMulti = () => this.cancelHeld();
     this.rig.centerOn(this.castle.x, this.castle.y - this.castle.h * 0.4);
     this.bars = new Bars(this);
     this.proj = new Projectiles(this, this.fx);
@@ -88,6 +91,7 @@ export class GameScene extends Phaser.Scene {
 
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
+    this.input.on('pointermove', this.onMove, this);
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
@@ -150,11 +154,15 @@ export class GameScene extends Phaser.Scene {
     this.held = null;
     this.select(null);
     this.placing = def;
+    // no celular a construção aparece no meio da tela, para você arrastar e soltar
+    if (this.rig.touch) this.rig.setMouse(this.scale.width / 2, (this.scale.height - barH()) * 0.45);
     const lv = def.levels[0];
     const tex = this.textures.get(lv.art).getSourceImage();
     this.ghost.setTexture(lv.art).setDisplaySize(lv.width, lv.width * tex.height / tex.width).setVisible(true);
     bus.emit(Evt.Placing, id);
-    bus.emit(Evt.Hint, 'Clique no mapa para construir (Esc ou botão direito cancela)');
+    bus.emit(Evt.Hint, this.rig.touch
+      ? 'Arraste o dedo e solte onde quer construir (toque na carta de novo cancela)'
+      : 'Clique no mapa para construir (Esc ou botão direito cancela)');
   }
 
   private stopPlacing() {
@@ -175,7 +183,7 @@ export class GameScene extends Phaser.Scene {
     if (b.y > WORLD_H - 6 || b.y - b.h < 70) return false;
     if (b.x - b.w / 2 < 0 || b.x + b.w / 2 > WORLD_W) return false;
     // não dá para construir por baixo da barra de construção
-    if (this.rig.toScreen(b.x, b.y).y > this.scale.height - BAR_H - 4) return false;
+    if (this.rig.toScreen(b.x, b.y).y > this.scale.height - barH() - 4) return false;
     if (overlaps(b, this.castle)) return false;
     return !this.huts.some(h => overlaps(b, h));
   }
@@ -331,12 +339,31 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Um segundo dedo entrou (pinça): larga o soldado que o primeiro dedo segurava. */
+  private cancelHeld() {
+    this.pan = null;
+    if (this.held) { this.held.throwWith(0, 0); this.held = null; }
+  }
+
+  /** Dedo arrastando em chão vazio move o mapa. */
+  private onMove(p: Phaser.Input.Pointer) {
+    if (!this.pan || !p.isDown || this.rig.multi) return;
+    const dx = p.x - this.pan.x, dy = p.y - this.pan.y;
+    if (!this.pan.moved && Math.hypot(dx, dy) < 10) return;
+    this.pan.moved = true;
+    this.rig.panBy(dx, dy);
+    this.pan.x = p.x;
+    this.pan.y = p.y;
+  }
+
   private onDown(p: Phaser.Input.Pointer) {
+    if (this.rig.multi) return;
     this.rig.setMouse(p.x, p.y);
     const wp = this.rig.toWorld(p.x, p.y);
     this.mouse.set(wp.x, wp.y);
     if (this.placing) {
-      if (p.rightButtonDown()) this.stopPlacing(); else this.placeHut(this.placing);
+      // no celular o dedo arrasta a construção e ela é colocada ao soltar
+      if (p.rightButtonDown()) this.stopPlacing(); else if (!p.wasTouch) this.placeHut(this.placing);
       return;
     }
     // soldado mais da frente sob o mouse
@@ -358,10 +385,26 @@ export class GameScene extends Phaser.Scene {
     if (foes.length) { this.clickHit(foes, wp.x, wp.y, p.wasTouch); return; }
     const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(wp.x, wp.y))
       ?? (this.castle.contains(wp.x, wp.y) ? this.castle : null);
+    // dedo em chão vazio: arrasta o mapa (e, se nem mexeu, é só um toque que desmarca)
+    if (p.wasTouch && !hit) { this.pan = { x: p.x, y: p.y, moved: false }; return; }
     this.select(hit === this.selected ? null : hit);
   }
 
-  private onUp() {
+  private onUp(p: Phaser.Input.Pointer) {
+    if (this.pan) {
+      if (!this.pan.moved && !this.rig.multi) this.select(null);
+      this.pan = null;
+      return;
+    }
+    // celular: a construção é colocada onde o dedo soltou
+    if (this.placing && p.wasTouch) {
+      if (!this.rig.multi) {
+        const mw = this.rig.mouseWorld();
+        this.mouse.set(mw.x, mw.y);
+        this.placeHut(this.placing);
+      }
+      return;
+    }
     const s = this.held;
     if (!s) return;
     this.held = null;
@@ -446,6 +489,8 @@ export class GameScene extends Phaser.Scene {
     if (this.over) return;
 
     // câmera: zoom, bordas e teclas; o mouse passa a valer em coordenadas do mapa
+    // no celular a coisa fica acima do dedo, para o dedo não cobrir
+    this.rig.fingerOffset = this.rig.touch && this.rig.down && (this.placing || this.held) ? 70 : 0;
     this.rig.update(dt);
     const mw = this.rig.mouseWorld();
     this.mouse.set(mw.x, mw.y);

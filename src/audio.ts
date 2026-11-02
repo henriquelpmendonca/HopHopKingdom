@@ -434,4 +434,7 @@ export function unlockAudio() {
   const go = () => audio.unlock();
   window.addEventListener('pointerdown', go, { once: false });
   window.addEventListener('keydown', go, { once: false });
+  // iPhone: o som só libera dentro de um toque que termina ou de um clique
+  window.addEventListener('touchend', go, { once: false });
+  window.addEventListener('click', go, { once: false });
 }

@@ -15,6 +15,10 @@ function boing(el: HTMLElement, cls = 'boing') {
 /** Barra de construção, contador de moedas, botão verde de upgrade e dica. */
 export function setupHud() {
   const bar = $('bar'), coins = $('coinN'), hint = $('hint'), up = $('upgrade');
+  // a barra muda de altura no celular: a dica sobe junto
+  const syncBar = () => document.documentElement.style.setProperty('--bar', bar.offsetHeight + 'px');
+  window.addEventListener('resize', syncBar);
+  window.addEventListener('orientationchange', syncBar);
   let coinsNow = 0;
   let sel: SelectInfo | null = null;
   const slots = new Map<string, { el: HTMLButtonElement; cost: number }>();
@@ -120,6 +124,7 @@ export function setupHud() {
     sfx.ui();
     bus.emit(Evt.Upgrade);
   });
+  syncBar();
   // botões de música e de efeitos sonoros
   const musicBtn = $('musicBtn'), sfxBtn = $('sfxBtn');
   const paintAudio = () => {
