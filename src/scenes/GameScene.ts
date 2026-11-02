@@ -596,7 +596,7 @@ export class GameScene extends Phaser.Scene {
     if (alive.some(o => o.stats.boss)) { this.calmT = 0; audio.set('chefe'); }
     else if (alive.length > 0) { this.calmT = 0; audio.set('batalha'); }
     else { this.calmT += dt; if (this.calmT > 4) audio.set('calma'); }
-    for (const s of soldiers) s.update(dt, this.mouse, WORLD_W, floor, alive, this.bars);
+    for (const s of soldiers) s.update(dt, this.mouse, WORLD_W, floor, alive, this.bars, this.proj);
     const structures: Structure[] = [this.castle, ...this.huts];
     for (const o of this.orcs) o.update(dt, soldiers, structures, this.bars, this.proj);
     this.orcs = this.orcs.filter(o => !o.gone);

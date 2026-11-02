@@ -7,6 +7,7 @@ import { Bars, Particles, popDamage } from '../fx';
 import { Building } from './Building';
 import { Combatant } from './Combatant';
 import type { Orc } from './Orc';
+import type { Projectiles } from './Projectile';
 
 export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead';
 
@@ -28,6 +29,8 @@ export class Soldier implements Combatant {
   maxHp = 1;
   private dmg = 1;
   private reach = 30;
+  /** arqueiro: atira desta distância */
+  private range = 0;
   private cd = 1;
   private runSpeed = SOLDIER_RUN_SPEED;
   /** recarga para o dano de arremesso */
@@ -105,6 +108,7 @@ export class Soldier implements Combatant {
     this.hp = this.maxHp; // evoluir também cura
     this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1));
     this.reach = st.reach;
+    this.range = st.range ?? 0;
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
   }
@@ -220,7 +224,7 @@ export class Soldier implements Combatant {
   }
 
   /** floor = limite de baixo da área jogável */
-  update(dt: number, mouse: Phaser.Math.Vector2, w: number, floor: number, foes: Orc[], bars: Bars) {
+  update(dt: number, mouse: Phaser.Math.Vector2, w: number, floor: number, foes: Orc[], bars: Bars, proj: Projectiles) {
     this.t += dt;
     if (this.state === 'dead') {
       this.respawnT -= dt;
@@ -262,7 +266,7 @@ export class Soldier implements Combatant {
         this.z = Math.abs(Math.sin(this.phase)) * 30;
         break;
       }
-      case 'fight': this.fight(dt, foes); break;
+      case 'fight': this.fight(dt, foes, proj); break;
       case 'held': {
         const k = Math.min(1, dt * 30);
         this.x += (mouse.x - this.x) * k;
@@ -317,7 +321,7 @@ export class Soldier implements Combatant {
   }
 
   /** Vai até o orc e bate com o corpo todo. */
-  private fight(dt: number, foes: Orc[]) {
+  private fight(dt: number, foes: Orc[], proj: Projectiles) {
     if (!this.target || !this.target.alive) {
       this.target = this.nearestFoe(foes);
       if (!this.target) { this.state = 'return'; this.phase = 0; return; }
@@ -338,14 +342,20 @@ export class Soldier implements Combatant {
       this.atkT += dt / ATTACK_TIME;
       if (prev < 0.5 && this.atkT >= 0.5 && !this.atkHit) {
         this.atkHit = true;
-        tg.takeDamage(this.dmg, this.x, this.y);
+        if (this.range > 0) {
+          // arqueiro: solta uma flecha em direção ao inimigo
+          proj.fire(this.x + this.face * 10, this.y - SOLDIER_H * 0.65, tg, () => ({ x: tg.x, y: tg.y - tg.stats.height * 0.5 }), this.dmg, 560, 1, 'arrow');
+        } else {
+          tg.takeDamage(this.dmg, this.x, this.y);
+        }
       }
-      const lunge = Math.sin(Math.min(1, this.atkT) * Math.PI) * 22;
+      // o arqueiro não avança no inimigo: só se encolhe para soltar a flecha
+      const lunge = this.range > 0 ? 0 : Math.sin(Math.min(1, this.atkT) * Math.PI) * 22;
       const d = dist || 1;
       this.ox = dx / d * lunge;
       this.oy = dy / d * lunge * 0.6;
       if (this.atkT >= 1) { this.atkT = 0; this.ox = this.oy = 0; }
-    } else if (dist > this.reach) {
+    } else if (dist > (this.range > 0 ? this.range * 0.9 : this.reach)) {
       this.phase += dt * this.hopSpeed * 1.6;
       this.x += dx / dist * this.runSpeed * dt;
       this.y += dy / dist * this.runSpeed * dt;

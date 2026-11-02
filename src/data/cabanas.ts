@@ -1,10 +1,11 @@
 /** Cada tipo de soldado tem o seu desenho. Se o PNG ainda não existir, usa o soldado de espada. */
-export type SoldierUnit = 'espada' | 'lanca' | 'alabarda';
+export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro';
 
 export const UNIT_ART: Record<SoldierUnit, string> = {
   espada: 'soldado',
   lanca: 'soldado_lanca',
   alabarda: 'soldado_alabarda',
+  arqueiro: 'arqueiro',
 };
 
 export interface SoldierSpec {
@@ -74,17 +75,18 @@ const SOLDADO_TIERS: (Tier & { unit: SoldierUnit })[] = [
   { from: 10, art: 'cabana_soldado_3', width: 270, unit: 'alabarda' },
 ];
 
-function soldadoLevels(): HutLevel[] {
+/** Gera os 15 níveis de uma cabana que abriga soldados. */
+function troopLevels(tiers: (Tier & { unit: SoldierUnit })[], o: { first: number; step: number; hp0: number; countBase: number; countCap: number }): HutLevel[] {
   return Array.from({ length: MAX_LEVEL }, (_, i) => {
     const lv = i + 1;
-    const t = tierOf(SOLDADO_TIERS, lv) as Tier & { unit: SoldierUnit };
+    const t = tierOf(tiers, lv) as Tier & { unit: SoldierUnit };
     return {
-      cost: reach(50, 60, lv),
+      cost: reach(o.first, o.step, lv),
       art: t.art,
-      hp: 150 + (lv - 1) * 45,
+      hp: o.hp0 + (lv - 1) * 45,
       // dentro do mesmo visual a cabana cresce um pouquinho a cada nível
       width: t.width + (lv - t.from) * 4,
-      soldiers: [{ unit: t.unit, furia: lv >= MAX_LEVEL, count: Math.min(4 + lv, 16), power: 1 + 0.1 * (lv - 1) }],
+      soldiers: [{ unit: t.unit, furia: lv >= MAX_LEVEL, count: Math.min(o.countBase + lv, o.countCap), power: 1 + 0.1 * (lv - 1) }],
     };
   });
 }
@@ -92,7 +94,23 @@ function soldadoLevels(): HutLevel[] {
 export const CABANA_SOLDADO: HutDef = {
   id: 'cabana_soldado',
   nome: 'Cabana de Soldado',
-  levels: soldadoLevels(),
+  levels: troopLevels(SOLDADO_TIERS, { first: 50, step: 60, hp0: 150, countBase: 4, countCap: 16 }),
+};
+
+/**
+ * Cabana de arqueiros: 15 níveis. Os arqueiros atiram de longe, então ficam atrás dos soldados.
+ * Por enquanto só existe o desenho do nível 1; os outros visuais (5, 10 e 15) entram aqui quando estiverem prontos.
+ */
+const ARQUEIRO_TIERS: (Tier & { unit: SoldierUnit })[] = [
+  { from: 1,  art: 'cabana_arqueiro_1', width: 150, unit: 'arqueiro' },
+  { from: 5,  art: 'cabana_arqueiro_1', width: 175, unit: 'arqueiro' },
+  { from: 10, art: 'cabana_arqueiro_1', width: 200, unit: 'arqueiro' },
+];
+
+export const CABANA_ARQUEIRO: HutDef = {
+  id: 'cabana_arqueiro',
+  nome: 'Cabana de Arqueiros',
+  levels: troopLevels(ARQUEIRO_TIERS, { first: 90, step: 70, hp0: 120, countBase: 3, countCap: 12 }),
 };
 
 /**
@@ -129,7 +147,7 @@ export const MINA_OURO: HutDef = {
 };
 
 /** O que aparece na barra de construção. Novas construções entram aqui. */
-export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, MINA_OURO];
+export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO];
 
 export function hutDef(id: string): HutDef {
   const d = BUILDABLES.find(b => b.id === id);

@@ -272,6 +272,12 @@ class AudioEngine {
 
   throw() { if (this.gate('throw', 60)) this.noise({ f: 300, f2: 2400, dur: 0.18, vol: 0.22 }); }
 
+  arrow() {
+    if (!this.gate('arrow', 60)) return;
+    this.tone({ f: 1100, f2: 380, dur: 0.1, type: 'triangle', vol: 0.1 });
+    this.noise({ f: 2500, filter: 'highpass', dur: 0.07, vol: 0.08 });
+  }
+
   magic() {
     if (!this.gate('magic', 60)) return;
     this.tone({ f: 380, f2: 980, dur: 0.22, type: 'sine', vol: 0.15 });

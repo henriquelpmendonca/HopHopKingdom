@@ -15,6 +15,8 @@ interface Shot {
   sparkT: number;
   age: number;
   size: number;
+  /** magia roxa (magos) ou flecha (arqueiros) */
+  style: 'magic' | 'arrow';
 }
 
 interface Strike {
@@ -89,9 +91,9 @@ export class Projectiles {
     }
   }
 
-  fire(x: number, y: number, target: Combatant, aim: () => { x: number; y: number }, dmg: number, speed: number, size = 1) {
-    this.list.push({ x, y, target, aim, dmg, speed, trail: [], sparkT: 0, age: 0, size });
-    this.fx.burst(x, y, 6, 0xb04cff);
+  fire(x: number, y: number, target: Combatant, aim: () => { x: number; y: number }, dmg: number, speed: number, size = 1, style: 'magic' | 'arrow' = 'magic') {
+    this.list.push({ x, y, target, aim, dmg, speed, trail: [], sparkT: 0, age: 0, size, style });
+    if (style === 'arrow') sfx.arrow(); else this.fx.burst(x, y, 6, 0xb04cff);
   }
 
   update(dt: number) {
@@ -105,14 +107,26 @@ export class Projectiles {
       const step = s.speed * dt;
       if (d <= step + 12 || s.age > 5) {
         if (s.target.alive) s.target.takeDamage(s.dmg, s.x, s.y);
-        this.fx.burst(a.x, a.y, 12, 0xb04cff, true);
-        sfx.magicHit();
-        this.fx.burst(a.x, a.y, 5, 0xf0c8ff);
+        if (s.style === 'arrow') {
+          this.fx.burst(a.x, a.y, 4, 0xe8d9b8);
+        } else {
+          this.fx.burst(a.x, a.y, 12, 0xb04cff, true);
+          sfx.magicHit();
+          this.fx.burst(a.x, a.y, 5, 0xf0c8ff);
+        }
         this.list.splice(i, 1);
         continue;
       }
       s.x += dx / d * step;
       s.y += dy / d * step;
+      if (s.style === 'arrow') {
+        // flecha: haste marrom, ponta clara e pena atrás
+        const ux = dx / d, uy = dy / d;
+        this.g.lineStyle(3, 0x8a5a2b, 1).beginPath().moveTo(s.x - ux * 18, s.y - uy * 18).lineTo(s.x, s.y).strokePath();
+        this.g.lineStyle(2, 0xf0e8d8, 1).beginPath().moveTo(s.x - ux * 18, s.y - uy * 18).lineTo(s.x - ux * 12 - uy * 4, s.y - uy * 12 + ux * 4).strokePath();
+        this.g.fillStyle(0xd8d4cc, 1).fillTriangle(s.x + ux * 6, s.y + uy * 6, s.x - uy * 3, s.y + ux * 3, s.x + uy * 3, s.y - ux * 3);
+        continue;
+      }
       s.trail.push({ x: s.x, y: s.y });
       if (s.trail.length > 16) s.trail.shift();
       s.sparkT -= dt;
