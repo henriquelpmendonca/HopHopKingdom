@@ -276,8 +276,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!spend(nx.cost)) { bus.emit(Evt.Broke, 'upgrade'); return; }
+    const artBefore = h instanceof Hut ? h.def.levels[h.level].art : '';
     h.upgrade();
-    floatText(this, h.x, h.y - h.h - 10, 'EVOLUIU!', '#7CFF6B');
+    // quando o visual da construção muda (de 5 em 5 níveis) a comemoração é maior
+    const novoVisual = h instanceof Hut && h.def.levels[h.level].art !== artBefore;
+    floatText(this, h.x, h.y - h.h - 10, novoVisual ? 'NOVO VISUAL!' : 'EVOLUIU!', '#7CFF6B');
+    if (novoVisual) { this.fx.burst(h.x, h.y - h.h * 0.5, 36, 0xffd84a, true); this.cameras.main.shake(200, 0.005); }
     sfx.upgrade(h instanceof Castle);
     this.save();
     this.emitSelect();

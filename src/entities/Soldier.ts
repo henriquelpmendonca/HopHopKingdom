@@ -100,9 +100,10 @@ export class Soldier implements Combatant {
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
-    this.maxHp = Math.round(st.hp * (f ? FURIA.hp : 1));
+    const pw = spec.power ?? 1;
+    this.maxHp = Math.round(st.hp * pw * (f ? FURIA.hp : 1));
     this.hp = this.maxHp; // evoluir também cura
-    this.dmg = Math.round(st.dmg * (f ? FURIA.dmg : 1));
+    this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1));
     this.reach = st.reach;
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
