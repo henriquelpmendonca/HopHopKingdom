@@ -75,6 +75,18 @@ export function setupHud() {
     refresh();
   });
 
+  // o preço de algumas construções sobe com quantas você já tem
+  bus.on(Evt.BuildCosts, (costs: Record<string, number>) => {
+    for (const [id, cost] of Object.entries(costs)) {
+      const s = slots.get(id);
+      if (!s) continue;
+      s.cost = cost;
+      const label = s.el.querySelector('.cost');
+      if (label) label.innerHTML = coinHtml + cost;
+    }
+    refresh();
+  });
+
   bus.on(Evt.Wave, (n: number) => {
     const el = $('waveN');
     if (el.textContent !== String(n)) boing($('wave'), 'bump');

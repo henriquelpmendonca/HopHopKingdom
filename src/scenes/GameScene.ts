@@ -9,7 +9,7 @@ import { Hut } from '../entities/Hut';
 import { Orc } from '../entities/Orc';
 import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
-import { HutDef, hutDef } from '../data/cabanas';
+import { BUILDABLES, buildCost, HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
 import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
@@ -92,6 +92,7 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(9000, () => bus.emit(Evt.Hint, null));
     }
     bus.emit(Evt.Coins, state.coins);
+    this.emitCosts();
     bus.emit(Evt.Wave, this.wave);
     bus.emit(Evt.Sword, state.sword);
     this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
@@ -142,6 +143,17 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
   }
 
+  /** Preço de construir mais uma deste tipo (sobe com quantas você já tem). */
+  private costOf(def: HutDef) {
+    return buildCost(def, this.huts.filter(h => h.def === def).length);
+  }
+
+  private emitCosts() {
+    const costs: Record<string, number> = {};
+    for (const d of BUILDABLES) costs[d.id] = this.costOf(d);
+    bus.emit(Evt.BuildCosts, costs);
+  }
+
   private get allSoldiers() { return this.huts.flatMap(h => h.soldiers); }
 
   /* ---------- construir ---------- */
@@ -155,7 +167,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (this.placing === def) { this.stopPlacing(); return; }
-    if (state.coins < def.levels[0].cost) {
+    if (state.coins < this.costOf(def)) {
       bus.emit(Evt.Broke, id);
       bus.emit(Evt.Hint, 'Faltam moedas!');
       this.time.delayedCall(1800, () => !this.placing && bus.emit(Evt.Hint, null));
@@ -201,10 +213,11 @@ export class GameScene extends Phaser.Scene {
   private placeHut(def: HutDef) {
     const b = this.ghostBuilding();
     if (!this.canPlace(b)) { bus.emit(Evt.Hint, 'Aqui não cabe!'); return; }
-    if (!spend(def.levels[0].cost)) return;
+    if (!spend(this.costOf(def))) return;
     const hut = new Hut(this, def, b.x, b.y, this.fx, h => this.onHutDestroyed(h));
     this.huts.push(hut);
     this.fx.burst(b.x, b.y, 24, 0xe8d9b8, true);
+    this.emitCosts();
     sfx.build();
     this.stopPlacing();
     this.select(hut);
@@ -467,6 +480,7 @@ export class GameScene extends Phaser.Scene {
 
   private onHutDestroyed(h: Hut) {
     this.huts = this.huts.filter(x => x !== h);
+    this.emitCosts();
     this.save();
     if (this.selected === h) { this.selected = null; this.emitSelect(); }
     floatText(this, h.x, h.y - h.h * 0.6, 'Cabana destruída!', '#ff5a4d');

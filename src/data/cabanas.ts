@@ -35,6 +35,13 @@ export interface HutDef {
   levels: HutLevel[];
   /** quantas dá para ter ao mesmo tempo (sem limite se faltar) */
   maxCount?: number;
+  /** cada construção a mais deste tipo custa mais: o preço é multiplicado por isto a cada uma que você já tem */
+  costGrowth?: number;
+}
+
+/** Preço de construir mais uma deste tipo, sabendo quantas você já tem. */
+export function buildCost(def: HutDef, owned: number) {
+  return Math.round(def.levels[0].cost * Math.pow(def.costGrowth ?? 1, owned) / 5) * 5;
 }
 
 export const CABANA_SOLDADO: HutDef = {
@@ -52,7 +59,8 @@ export const CABANA_SOLDADO: HutDef = {
 export const MINA_OURO: HutDef = {
   id: 'mina_ouro',
   nome: 'Mina de Ouro',
-  maxCount: 8,
+  // sem limite de minas: cada uma custa 12% mais que a anterior, então o dinheiro não foge do controle
+  costGrowth: 1.12,
   levels: [
     { cost: 100, art: 'mina_ouro_1', hp: 260, width: 190, soldiers: [], income: 6 },
     { cost: 250, art: 'mina_ouro_2', hp: 450, width: 215, soldiers: [], income: 14 },
