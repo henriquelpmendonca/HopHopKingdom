@@ -19,11 +19,15 @@ interface Shot {
   style: 'magic' | 'arrow';
   /** cores da magia: roxa dos inimigos ou azul dos magos aliados */
   pal: Palette;
+  /** o que acontece além do dano quando acerta (queimar, congelar...) */
+  onHit?: (target: Combatant) => void;
 }
 
 interface Palette { trailA: number; trailB: number; glow: number; core: number; hi: number; spark: number }
 
 export const PURPLE: Palette = { trailA: 0x7a1fd1, trailB: 0xd070ff, glow: 0xb04cff, core: 0xd070ff, hi: 0xf6dcff, spark: 0x9b30ff };
+export const FIRE: Palette = { trailA: 0xd9410f, trailB: 0xffc04a, glow: 0xff7a1f, core: 0xffa030, hi: 0xfff0b0, spark: 0xff6a00 };
+export const ICE: Palette = { trailA: 0x2a8fd8, trailB: 0xb8ecff, glow: 0x6ccaff, core: 0xbfefff, hi: 0xffffff, spark: 0x8fdcff };
 export const BLUE: Palette = { trailA: 0x1f7ad1, trailB: 0x70c0ff, glow: 0x4aa8ff, core: 0x70c0ff, hi: 0xdcf0ff, spark: 0x309bff };
 
 interface Strike {
@@ -46,6 +50,7 @@ export class Projectiles {
   private g: Phaser.GameObjects.Graphics;
   private list: Shot[] = [];
   private strikes: Strike[] = [];
+  private bolts: { x1: number; y1: number; x2: number; y2: number; t0: number; age: number; target: Combatant; dmg: number; applied: boolean }[] = [];
   /** marcas no chão, por baixo dos personagens */
   private ground: Phaser.GameObjects.Graphics;
 
@@ -54,10 +59,57 @@ export class Projectiles {
     this.ground = scene.add.graphics().setDepth(-400_000);
   }
 
+  /**
+   * Raio em cadeia: sai de (x, y), acerta o primeiro alvo e pula de um em um, em sequência.
+   * `pts` já vem na ordem; cada pulo causa um pouco menos de dano.
+   */
+  chain(x: number, y: number, pts: { target: Combatant; x: number; y: number }[], dmg: number, falloff: number, step: number) {
+    if (pts.length === 0) return;
+    sfx.zap();
+    let px = x, py = y, d = dmg;
+    pts.forEach((p, i) => {
+      this.bolts.push({ x1: px, y1: py, x2: p.x, y2: p.y, t0: i * step, age: 0, target: p.target, dmg: Math.max(1, Math.round(d)), applied: false });
+      px = p.x;
+      py = p.y;
+      d *= falloff;
+    });
+  }
+
+  private updateBolts(dt: number) {
+    for (let i = this.bolts.length - 1; i >= 0; i--) {
+      const b = this.bolts[i];
+      b.age += dt;
+      if (b.age < b.t0) continue;
+      if (!b.applied) {
+        b.applied = true;
+        if (b.target.alive) b.target.takeDamage(b.dmg, b.x1, b.y1);
+        this.fx.burst(b.x2, b.y2, 6, 0xfff6a0);
+      }
+      const life = b.age - b.t0;
+      if (life > 0.26) { this.bolts.splice(i, 1); continue; }
+      // raio em zigue-zague, desenhado de novo a cada quadro para tremer
+      const k = 1 - life / 0.26;
+      const dx = b.x2 - b.x1, dy = b.y2 - b.y1, len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len, n = Math.max(4, Math.round(len / 28));
+      const pts: [number, number][] = [[b.x1, b.y1]];
+      for (let j = 1; j < n; j++) {
+        const t = j / n, off = (Math.random() - 0.5) * 22;
+        pts.push([b.x1 + dx * t + nx * off, b.y1 + dy * t + ny * off]);
+      }
+      pts.push([b.x2, b.y2]);
+      for (const [w, c, a] of [[7, 0x9fd0ff, 0.45 * k], [2.5, 0xffffff, 0.95 * k]] as [number, number, number][]) {
+        this.g.lineStyle(w, c, a).beginPath().moveTo(pts[0][0], pts[0][1]);
+        for (let j = 1; j < pts.length; j++) this.g.lineTo(pts[j][0], pts[j][1]);
+        this.g.strokePath();
+      }
+    }
+  }
+
   /** Some com tudo que está no ar (cidade reerguida). */
   clear() {
     this.list = [];
     this.strikes = [];
+    this.bolts = [];
     this.g.clear();
     this.ground.clear();
   }
@@ -100,14 +152,15 @@ export class Projectiles {
     }
   }
 
-  fire(x: number, y: number, target: Combatant, aim: () => { x: number; y: number }, dmg: number, speed: number, size = 1, style: 'magic' | 'arrow' = 'magic', pal: Palette = PURPLE) {
-    this.list.push({ x, y, target, aim, dmg, speed, trail: [], sparkT: 0, age: 0, size, style, pal });
+  fire(x: number, y: number, target: Combatant, aim: () => { x: number; y: number }, dmg: number, speed: number, size = 1, style: 'magic' | 'arrow' = 'magic', pal: Palette = PURPLE, onHit?: (target: Combatant) => void) {
+    this.list.push({ x, y, target, aim, dmg, speed, trail: [], sparkT: 0, age: 0, size, style, pal, onHit });
     if (style === 'arrow') sfx.arrow(); else this.fx.burst(x, y, 6, pal.glow);
   }
 
   update(dt: number) {
     this.g.clear();
     this.updateStrikes(dt);
+    this.updateBolts(dt);
     for (let i = this.list.length - 1; i >= 0; i--) {
       const s = this.list[i];
       s.age += dt;
@@ -115,7 +168,10 @@ export class Projectiles {
       const dx = a.x - s.x, dy = a.y - s.y, d = Math.hypot(dx, dy) || 1;
       const step = s.speed * dt;
       if (d <= step + 12 || s.age > 5) {
-        if (s.target.alive) s.target.takeDamage(s.dmg, s.x, s.y);
+        if (s.target.alive) {
+          s.target.takeDamage(s.dmg, s.x, s.y);
+          s.onHit?.(s.target);
+        }
         if (s.style === 'arrow') {
           this.fx.burst(a.x, a.y, 4, 0xe8d9b8);
         } else {

@@ -11,9 +11,30 @@ export interface UnitStats {
   range?: number;
   /** distância da cabana em que ele nota inimigos (px); padrão AGGRO_RANGE */
   aggro?: number;
-  /** atira bolas de magia (azuis) em vez de flechas */
+  /** atira bolas de magia em vez de flechas */
   bolt?: boolean;
+  /** feitiços que o mago lança em rodízio, um a cada ataque */
+  spells?: Spell[];
 }
+
+/** bola de fogo (queima), gelo (congela) e raio (pula entre vários inimigos) */
+export type Spell = 'fire' | 'ice' | 'lightning';
+
+/** Detalhes dos feitiços dos magos aliados. */
+export const SPELL = {
+  /** a queimadura dá esta fração do dano por segundo... */
+  burnDps: 0.28,
+  /** ...durante estes segundos */
+  burnSeconds: 4,
+  freezeSeconds: 1.5,
+  /** o raio pula para até tantos inimigos, a menos desta distância um do outro */
+  chainJumps: 4,
+  chainRange: 240,
+  /** cada pulo do raio causa esta fração do dano anterior */
+  chainFalloff: 0.82,
+  /** tempo entre um pulo e o seguinte (s) */
+  chainStep: 0.1,
+};
 
 export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
   espada:   { hp: 45,  dmg: 7,  reach: 30, cd: 0.9 },
@@ -24,9 +45,10 @@ export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
   arqueiro2: { hp: 55, dmg: 13, reach: 30, cd: 0.95, range: 330, aggro: 600 },
   arqueiro3: { hp: 80, dmg: 19, reach: 30, cd: 0.9, range: 360, aggro: 640 },
   // magos aliados: magia mais forte que a flecha, mas mais frágeis
-  magoA1: { hp: 42, dmg: 17, reach: 30, cd: 1.5, range: 290, aggro: 540, bolt: true },
-  magoA2: { hp: 58, dmg: 26, reach: 30, cd: 1.4, range: 320, aggro: 580, bolt: true },
-  magoA3: { hp: 80, dmg: 38, reach: 30, cd: 1.3, range: 350, aggro: 620, bolt: true },
+  // 1-4: bola de fogo que queima; 5-9: fogo e gelo; 10-15: fogo, gelo e raio em cadeia
+  magoA1: { hp: 42, dmg: 17, reach: 30, cd: 1.5, range: 290, aggro: 540, bolt: true, spells: ['fire'] },
+  magoA2: { hp: 58, dmg: 26, reach: 30, cd: 1.4, range: 320, aggro: 580, bolt: true, spells: ['fire', 'ice'] },
+  magoA3: { hp: 80, dmg: 38, reach: 30, cd: 1.3, range: 350, aggro: 620, bolt: true, spells: ['fire', 'ice', 'lightning'] },
 };
 
 /** Fúria: mais vida, golpes mais fortes e mais rápidos. */

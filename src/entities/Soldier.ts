@@ -2,12 +2,12 @@ import Phaser from 'phaser';
 import { sfx } from '../audio';
 import { GRAVITY, SOLDIER_H } from '../config';
 import { SoldierSpec, UNIT_ART } from '../data/cabanas';
-import { AGGRO_RANGE, FURIA, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
+import { AGGRO_RANGE, FURIA, SPELL, type Spell, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
 import { Bars, Particles, popDamage } from '../fx';
 import { Building } from './Building';
 import { Combatant } from './Combatant';
 import type { Orc } from './Orc';
-import { BLUE, type Projectiles } from './Projectile';
+import { FIRE, ICE, type Projectiles } from './Projectile';
 
 export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead';
 
@@ -33,6 +33,8 @@ export class Soldier implements Combatant {
   private range = 0;
   /** mago: atira magia azul em vez de flecha */
   private bolt = false;
+  private spells: Spell[] = [];
+  private spellIdx = 0;
   /** distância da cabana em que nota inimigos, e até onde vai atrás deles */
   private aggro = AGGRO_RANGE;
   private leash = LEASH_RANGE;
@@ -117,6 +119,7 @@ export class Soldier implements Combatant {
     this.reach = st.reach;
     this.range = st.range ?? 0;
     this.bolt = !!st.bolt;
+    this.spells = st.spells ?? [];
     this.aggro = st.aggro ?? AGGRO_RANGE;
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
@@ -132,6 +135,35 @@ export class Soldier implements Combatant {
       this.target = null;
       this.atkT = 0;
       this.ox = this.oy = 0;
+    }
+  }
+
+  /** Mago aliado: lança o próximo feitiço do rodízio (fogo, gelo ou raio). */
+  private castSpell(tg: Orc, foes: Orc[], proj: Projectiles, aim: () => { x: number; y: number }) {
+    const spell = this.spells[this.spellIdx++ % Math.max(1, this.spells.length)] ?? 'fire';
+    const sx = this.x + this.face * 10, sy = this.y - SOLDIER_H * 0.7;
+    if (spell === 'fire') {
+      sfx.magic();
+      proj.fire(sx, sy, tg, aim, this.dmg, 400, 1, 'magic', FIRE, t => (t as Orc).ignite(this.dmg * SPELL.burnDps, SPELL.burnSeconds));
+    } else if (spell === 'ice') {
+      sfx.magic();
+      proj.fire(sx, sy, tg, aim, Math.round(this.dmg * 0.8), 440, 0.9, 'magic', ICE, t => (t as Orc).freeze(SPELL.freezeSeconds));
+    } else {
+      // raio: acerta o alvo e pula para os inimigos mais perto, um depois do outro
+      const hit: Orc[] = [tg];
+      let from = tg;
+      for (let j = 0; j < SPELL.chainJumps; j++) {
+        let best: Orc | null = null, bd = SPELL.chainRange;
+        for (const o of foes) {
+          if (!o.alive || hit.includes(o)) continue;
+          const d = Math.hypot(o.x - from.x, o.y - from.y);
+          if (d < bd) { bd = d; best = o; }
+        }
+        if (!best) break;
+        hit.push(best);
+        from = best;
+      }
+      proj.chain(sx, sy, hit.map(o => ({ target: o, x: o.x, y: o.y - o.stats.height * 0.5 })), Math.round(this.dmg * 0.9), SPELL.chainFalloff, SPELL.chainStep);
     }
   }
 
@@ -355,7 +387,7 @@ export class Soldier implements Combatant {
         if (this.range > 0) {
           // arqueiro: solta uma flecha em direção ao inimigo
           const aim = () => ({ x: tg.x, y: tg.y - tg.stats.height * 0.5 });
-          if (this.bolt) proj.fire(this.x + this.face * 10, this.y - SOLDIER_H * 0.7, tg, aim, this.dmg, 420, 0.9, 'magic', BLUE);
+          if (this.bolt) this.castSpell(tg, foes, proj, aim);
           else proj.fire(this.x + this.face * 10, this.y - SOLDIER_H * 0.65, tg, aim, this.dmg, 560, 1, 'arrow');
         } else {
           tg.takeDamage(this.dmg, this.x, this.y);

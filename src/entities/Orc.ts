@@ -35,6 +35,10 @@ export class Orc implements Combatant {
   private summonT = Infinity;
   /** segundos de gelo que faltam (parado, sem atacar) */
   private frozen = 0;
+  /** queimadura: dano por segundo e quanto tempo falta */
+  private burnDps = 0;
+  private burnT = 0;
+  private burnTick = 0;
   private ox = 0;
   private oy = 0;
 
@@ -73,6 +77,15 @@ export class Orc implements Combatant {
 
   adopt(m: Orc) { this.minions.push(m); }
 
+  /** Bola de fogo: o inimigo pega fogo e leva dano por alguns segundos. */
+  ignite(dps: number, sec: number) {
+    if (!this.alive) return;
+    this.burnDps = Math.max(this.burnDps, dps);
+    this.burnT = Math.max(this.burnT, sec);
+    this.burnTick = Math.min(this.burnTick, 0.5);
+    if (this.frozen <= 0) this.sprite.setTint(0xffa060);
+  }
+
   /** Poder de congelar: fica parado e azulado por `sec` segundos. */
   freeze(sec: number) {
     if (!this.alive) return;
@@ -110,14 +123,19 @@ export class Orc implements Combatant {
   }
   get gone() { return this.deadT >= 1; }
 
-  takeDamage(n: number, fromX: number, fromY: number) {
+  takeDamage(n: number, fromX: number, fromY: number, fromFire = false) {
     if (!this.alive) return;
     this.hp = Math.max(0, this.hp - n);
     this.hitT = 0.2;
     popDamage(this.scene, this.x, this.y - this.stats.height - 6, n, false);
-    sfx.hit(!!this.stats.boss || n >= 30);
-    this.fx.burst(this.x, this.y - this.stats.height * 0.5, 5, 0xffffff);
-    this.fx.blood(this.x, this.y - this.stats.height * 0.55, this.y, Math.min(40, 4 + n * 0.5) * (this.stats.boss ? 1.6 : 1));
+    if (fromFire) {
+      // queimadura: faíscas de fogo, sem sangue
+      this.fx.burst(this.x, this.y - this.stats.height * 0.5, 3, 0xff8a2a);
+    } else {
+      sfx.hit(!!this.stats.boss || n >= 30);
+      this.fx.burst(this.x, this.y - this.stats.height * 0.5, 5, 0xffffff);
+      this.fx.blood(this.x, this.y - this.stats.height * 0.55, this.y, Math.min(40, 4 + n * 0.5) * (this.stats.boss ? 1.6 : 1));
+    }
     const d = Math.hypot(this.x - fromX, this.y - fromY) || 1;
     this.rx = (this.x - fromX) / d * 16;
     this.ry = (this.y - fromY) / d * 8;
@@ -161,9 +179,19 @@ export class Orc implements Combatant {
     }
 
     this.age += dt;
+    if (this.burnT > 0) {
+      this.burnT -= dt;
+      this.burnTick -= dt;
+      if (this.burnTick <= 0) {
+        this.burnTick = 0.5;
+        this.takeDamage(Math.max(1, Math.round(this.burnDps * 0.5)), this.x, this.y, true);
+        if (!this.alive) return;
+      }
+      if (this.burnT <= 0) { this.burnDps = 0; if (this.frozen <= 0) this.sprite.clearTint(); }
+    }
     if (this.frozen > 0) {
       this.frozen -= dt;
-      if (this.frozen <= 0) this.sprite.clearTint();
+      if (this.frozen <= 0) { if (this.burnT > 0) this.sprite.setTint(0xffa060); else this.sprite.clearTint(); }
       this.render(bars);
       return;
     }
