@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CameraRig } from '../camera';
-import { BAR_H, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { BAR_H, CLICK_AOE_MULT, CLICK_AOE_RADIUS, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, SWORD_CURSOR, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -255,12 +255,44 @@ export class GameScene extends Phaser.Scene {
     return best;
   }
 
-  /** Clique que bate no inimigo. */
-  private clickHit(o: Orc, x: number, y: number) {
-    o.takeDamage(CLICK_DAMAGE + this.castle.level * CLICK_DAMAGE_PER_CASTLE_LEVEL, x, y);
+  /** Clique que bate no inimigo e, mais fraco, em quem está pertinho. */
+  private clickHit(o: Orc, x: number, y: number, touch: boolean) {
+    const dmg = CLICK_DAMAGE + this.castle.level * CLICK_DAMAGE_PER_CASTLE_LEVEL;
+    o.takeDamage(dmg, x, y);
+    for (const other of this.orcs) {
+      if (other === o || !other.alive) continue;
+      // distância até o meio do corpo do outro inimigo
+      if (Math.hypot(other.x - x, other.y - other.stats.height * 0.4 - y) < CLICK_AOE_RADIUS) {
+        other.takeDamage(Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
+      }
+    }
     this.fx.burst(x, y, 7, 0xffe28a);
-    const ring = this.add.ellipse(x, y, 16, 16).setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
-    this.tweens.add({ targets: ring, scale: 3, alpha: 0, duration: 220, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    const ring = this.add.ellipse(x, y, CLICK_AOE_RADIUS * 0.8, CLICK_AOE_RADIUS * 0.5)
+      .setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
+    this.tweens.add({ targets: ring, scale: 2.2, alpha: 0, duration: 240, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    // no celular não existe cursor: a espada aparece dando o golpe
+    if (touch) this.swordSwing(x, y);
+  }
+
+  /** Espada que desce cortando o ponto tocado (só quando o golpe acerta alguém). */
+  private swordSwing(x: number, y: number) {
+    const z = this.rig.zoom;
+    const sword = this.add.image(x + 26 / z, y + 34 / z, 'espada')
+      .setOrigin(0.5, 0.92).setDepth(900_001).setAlpha(0)
+      .setScale(0.45 / z).setRotation(-1.15);
+    // rastro branco do corte
+    const slash = this.add.graphics().setDepth(900_000).setPosition(x, y).setAlpha(0);
+    const r = 70 / z;
+    slash.lineStyle(7 / z, 0xffffff, 0.9).beginPath().arc(0, 0, r, Phaser.Math.DegToRad(200), Phaser.Math.DegToRad(330)).strokePath();
+    this.tweens.add({ targets: sword, alpha: 1, duration: 40 });
+    this.tweens.add({
+      targets: sword, rotation: 0.95, scale: 0.55 / z, duration: 150, ease: 'Cubic.easeIn',
+      onComplete: () => {
+        slash.setAlpha(1);
+        this.tweens.add({ targets: slash, alpha: 0, scale: 1.25, duration: 220 });
+        this.tweens.add({ targets: sword, alpha: 0, delay: 80, duration: 160, onComplete: () => { sword.destroy(); slash.destroy(); } });
+      },
+    });
   }
 
   private onDown(p: Phaser.Input.Pointer) {
@@ -286,7 +318,7 @@ export class GameScene extends Phaser.Scene {
     }
     // inimigo: o clique bate nele
     const foe = this.orcAt(wp.x, wp.y);
-    if (foe) { this.clickHit(foe, wp.x, wp.y); return; }
+    if (foe) { this.clickHit(foe, wp.x, wp.y, p.wasTouch); return; }
     const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(wp.x, wp.y))
       ?? (this.castle.contains(wp.x, wp.y) ? this.castle : null);
     this.select(hit === this.selected ? null : hit);
@@ -375,7 +407,7 @@ export class GameScene extends Phaser.Scene {
     this.rig.update(dt);
     const mw = this.rig.mouseWorld();
     this.mouse.set(mw.x, mw.y);
-    this.input.setDefaultCursor(!this.held && !this.placing && this.orcAt(mw.x, mw.y) ? 'crosshair' : 'default');
+    this.input.setDefaultCursor(!this.held && !this.placing && this.orcAt(mw.x, mw.y) ? SWORD_CURSOR : 'default');
     if (this.held) {
       this.samples.push({ x: mw.x, y: mw.y, t: performance.now() });
       if (this.samples.length > 8) this.samples.shift();
