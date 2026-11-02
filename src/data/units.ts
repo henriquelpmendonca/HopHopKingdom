@@ -110,7 +110,8 @@ export function isBossWave(wave: number) {
 }
 
 export const WAVE = {
-  firstDelay: 14,
+  /** segundos até a primeira onda: dá tempo de construir a primeira cabana */
+  firstDelay: 30,
   /** segundos entre uma onda e outra: mais tempo para construir e evoluir */
   interval: 38,
   count: (wave: number) => Math.min(2 + Math.floor(wave * 0.75), 14),

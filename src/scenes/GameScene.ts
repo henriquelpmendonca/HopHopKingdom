@@ -84,6 +84,13 @@ export class GameScene extends Phaser.Scene {
       bus.off(Evt.Upgrade, this.upgradeSelected, this);
     });
     this.loadProgress();
+    // os orcs vêm mesmo sem nenhuma construção: senão dava para juntar moedas sem risco, para sempre
+    const fresh = this.huts.length === 0;
+    this.waveTimer = this.debugWave ? 4 : fresh ? WAVE.firstDelay : 10;
+    if (fresh) {
+      bus.emit(Evt.Hint, 'Construa uma cabana de soldado na barra de baixo: os orcs já estão a caminho!');
+      this.time.delayedCall(9000, () => bus.emit(Evt.Hint, null));
+    }
     bus.emit(Evt.Coins, state.coins);
     bus.emit(Evt.Wave, this.wave);
     bus.emit(Evt.Sword, state.sword);
@@ -202,7 +209,6 @@ export class GameScene extends Phaser.Scene {
     this.stopPlacing();
     this.select(hut);
     this.save();
-    if (this.waveTimer < 0) this.waveTimer = this.debugWave ? 4 : WAVE.firstDelay;
     bus.emit(Evt.Hint, def.levels[0].soldiers.length ? 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!' : 'A mina rende moedas! Mas ela não tem soldados: proteja-a!');
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
