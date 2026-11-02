@@ -85,6 +85,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.loadProgress();
     bus.emit(Evt.Coins, state.coins);
+    bus.emit(Evt.Wave, this.wave);
     bus.emit(Evt.Sword, state.sword);
     this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
     const flush = () => this.save();
@@ -429,6 +430,7 @@ export class GameScene extends Phaser.Scene {
 
   private spawnWave() {
     this.wave++;
+    bus.emit(Evt.Wave, this.wave);
     this.save();
     if (this.selected) this.emitSelect();
     const boss = isBossWave(this.wave);
@@ -486,6 +488,7 @@ export class GameScene extends Phaser.Scene {
     state.coins = Math.floor(state.coins * REBUILD_COIN_KEEP);
     bus.emit(Evt.Coins, state.coins);
     this.wave = Math.max(0, this.wave - REBUILD_WAVES_BACK);
+    bus.emit(Evt.Wave, this.wave);
     this.waveTimer = 16;
     this.castle.hp = this.castle.maxHp;
     for (const h of this.huts) {

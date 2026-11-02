@@ -10,6 +10,8 @@ export const Evt = {
   Placing: 'placing',
   Hint: 'hint',
   Coins: 'coins',
+  /** jogo -> UI: número da onda atual */
+  Wave: 'wave',
   /** jogo -> UI: moedas por segundo no total */
   Income: 'income',
   /** jogo -> UI: nível da espada do clique mudou */

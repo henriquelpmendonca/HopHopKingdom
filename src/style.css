@@ -5,9 +5,12 @@ html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-
 
 /* contador de moedas */
 .coin{display:inline-block;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3a0,#ffc61a 55%,#d68a00);border:3px solid #5a3418;box-sizing:border-box;vertical-align:middle;margin-right:6px}
-#coins{position:fixed;top:14px;left:14px;z-index:5;display:flex;align-items:center;padding:6px 18px 6px 12px;border:4px solid #5a3418;border-radius:30px;background:#fff6dc;box-shadow:0 5px 0 #5a3418;font:900 26px "Trebuchet MS",Verdana,sans-serif;color:#5a3418}
+#stats{position:fixed;top:14px;left:14px;z-index:5;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+#coins,#wave{display:flex;align-items:center;padding:6px 18px 6px 12px;border:4px solid #5a3418;border-radius:30px;background:#fff6dc;box-shadow:0 5px 0 #5a3418;font:900 26px "Trebuchet MS",Verdana,sans-serif;color:#5a3418}
 #coins .coin{width:30px;height:30px;margin-right:10px}
-#coins.bump{animation:bump .35s cubic-bezier(.2,2,.4,1)}
+#coins.bump,#wave.bump{animation:bump .35s cubic-bezier(.2,2,.4,1)}
+#wave .flag{font-style:normal;font-size:24px;line-height:1;margin-right:9px}
+#wave small{margin-left:8px;font:800 15px "Trebuchet MS",Verdana,sans-serif;color:#9a6a3a}
 #coins.shake,.slot.shake{animation:shake .4s}
 @keyframes bump{0%{transform:scale(1.3,.8)}50%{transform:scale(.9,1.2)}100%{transform:scale(1)}}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px) rotate(-4deg)}40%{transform:translateX(10px) rotate(4deg)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
@@ -118,7 +121,10 @@ html, html *{cursor:none !important}
   .slot .cost .coin{width:14px;height:14px}
   .slot.weapon .lv{font-size:12px;top:-11px;left:-8px}
   .slot.green .arrow,.slot.weapon .arrow{width:28px;height:28px;font-size:15px;top:-13px;right:-11px}
-  #coins{top:10px;left:10px;font-size:20px;padding:4px 14px 4px 9px}
+  #stats{top:10px;left:10px;gap:8px}
+  #coins,#wave{font-size:20px;padding:4px 14px 4px 9px}
+  #wave .flag{font-size:19px;margin-right:6px}
+  #wave small{font-size:12px;margin-left:6px}
   #coins .coin{width:24px;height:24px;margin-right:7px}
   #coins small{font-size:12px;margin-left:7px}
   #audio{top:10px;right:10px;gap:8px}
@@ -130,7 +136,8 @@ html, html *{cursor:none !important}
   #bar{height:80px;gap:8px}
   .slot{width:58px;height:58px;padding:3px 3px 14px;border-radius:13px}
   .slot .cost{font-size:12px;bottom:-10px}
-  #coins{font-size:17px;top:6px;left:8px}
+  #stats{top:6px;left:8px;gap:6px}
+  #coins,#wave{font-size:17px}
   #audio{top:6px;right:8px}
   #audio button{width:34px;height:34px;font-size:15px}
 }

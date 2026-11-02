@@ -75,6 +75,12 @@ export function setupHud() {
     refresh();
   });
 
+  bus.on(Evt.Wave, (n: number) => {
+    const el = $('waveN');
+    if (el.textContent !== String(n)) boing($('wave'), 'bump');
+    el.textContent = String(n);
+  });
+
   bus.on(Evt.SelPos, (x: number, y: number) => {
     up.style.left = x + 'px';
     up.style.top = y + 'px';
