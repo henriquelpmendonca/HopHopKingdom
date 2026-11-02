@@ -74,6 +74,12 @@ export class Hut implements Structure {
   get maxed() { return this.level >= this.def.levels.length - 1; }
   get next() { return this.maxed ? null : this.def.levels[this.level + 1]; }
 
+  /** Volta a um nível salvo, sem cobrar nada. */
+  restore(level: number) {
+    this.level = Phaser.Math.Clamp(level, 0, this.def.levels.length - 1);
+    this.apply(true);
+  }
+
   setSelected(on: boolean) { this.outline.show(on); }
 
   contains(px: number, py: number) {

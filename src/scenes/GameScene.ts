@@ -10,6 +10,7 @@ import { Soldier } from '../entities/Soldier';
 import { HutDef, hutDef } from '../data/cabanas';
 import { BOSS_EVERY, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
+import { clearSave, loadGame, saveGame } from '../save';
 import { addCoins, spend, state } from '../state';
 
 export class GameScene extends Phaser.Scene {
@@ -32,6 +33,8 @@ export class GameScene extends Phaser.Scene {
   private wave = 0;
   private waveTimer = -1;
   private over = false;
+  /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
+  private persist = !['onda', 'moedas', 'magos'].some(k => new URLSearchParams(location.search).has(k));
   /** atalho de teste: ?onda=5 começa na onda 5 */
   private debugWave = Number(new URLSearchParams(location.search).get('onda')) || 0;
 
@@ -67,7 +70,12 @@ export class GameScene extends Phaser.Scene {
       bus.off(Evt.Build, this.startPlacing, this);
       bus.off(Evt.Upgrade, this.upgradeSelected, this);
     });
+    this.loadProgress();
     bus.emit(Evt.Coins, state.coins);
+    this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
+    const flush = () => this.save();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
 
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
@@ -81,6 +89,40 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
+  }
+
+  /* ---------- salvar / carregar ---------- */
+
+  private save() {
+    if (!this.persist || this.over) return;
+    saveGame({
+      coins: Math.floor(state.coins),
+      castleLevel: this.castle.level,
+      wave: this.wave,
+      magos: this.magos,
+      huts: this.huts.map(h => ({ id: h.def.id, dx: Math.round(h.x - this.castle.x), dy: Math.round(h.y - this.castle.y), level: h.level })),
+    });
+  }
+
+  private loadProgress() {
+    if (!this.persist) return;
+    const d = loadGame();
+    if (!d) return;
+    state.coins = d.coins;
+    this.wave = d.wave;
+    this.magos = this.magos || d.magos;
+    this.castle.restore(d.castleLevel);
+    const W = this.scale.width, floor = this.scale.height - BAR_H;
+    for (const s of d.huts) {
+      const x = Phaser.Math.Clamp(this.castle.x + s.dx, 110, W - 110);
+      const y = Phaser.Math.Clamp(this.castle.y + s.dy, 200, floor - 6);
+      const hut = new Hut(this, hutDef(s.id), x, y, this.fx, h => this.onHutDestroyed(h));
+      hut.restore(s.level);
+      this.huts.push(hut);
+    }
+    if (this.huts.length > 0) this.waveTimer = 10;
+    bus.emit(Evt.Hint, 'Bem-vindo de volta! Seu reino foi carregado.');
+    this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
   }
 
   private get allSoldiers() { return this.huts.flatMap(h => h.soldiers); }
@@ -136,6 +178,7 @@ export class GameScene extends Phaser.Scene {
     this.fx.burst(b.x, b.y, 24, 0xe8d9b8, true);
     this.stopPlacing();
     this.select(hut);
+    this.save();
     if (this.waveTimer < 0) this.waveTimer = this.debugWave ? 4 : WAVE.firstDelay;
     bus.emit(Evt.Hint, 'Clique na cabana pra evoluir! Orcs vêm aí: arremesse os soldadinhos neles!');
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
@@ -184,6 +227,7 @@ export class GameScene extends Phaser.Scene {
     if (!spend(nx.cost)) { bus.emit(Evt.Broke, 'upgrade'); return; }
     h.upgrade();
     floatText(this, h.x, h.y - h.h - 10, 'EVOLUIU!', '#7CFF6B');
+    this.save();
     this.emitSelect();
   }
 
@@ -236,6 +280,7 @@ export class GameScene extends Phaser.Scene {
 
   private spawnWave() {
     this.wave++;
+    this.save();
     if (this.selected) this.emitSelect();
     const boss = this.wave % BOSS_EVERY === 0;
     const n = WAVE.count(this.wave);
@@ -263,6 +308,7 @@ export class GameScene extends Phaser.Scene {
 
   private onHutDestroyed(h: Hut) {
     this.huts = this.huts.filter(x => x !== h);
+    this.save();
     if (this.selected === h) { this.selected = null; this.emitSelect(); }
     floatText(this, h.x, h.y - h.h * 0.6, 'Cabana destruída!', '#ff5a4d');
     this.cameras.main.shake(180, 0.004);
@@ -280,6 +326,8 @@ export class GameScene extends Phaser.Scene {
 
   private lose() {
     this.over = true;
+    // acabou: a próxima partida começa do zero
+    if (this.persist) clearSave();
     this.held = null;
     bus.emit(Evt.GameOver);
   }

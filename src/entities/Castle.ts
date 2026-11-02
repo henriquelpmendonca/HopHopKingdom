@@ -34,6 +34,12 @@ export class Castle implements Structure {
     return Math.abs(px - this.x) < this.w * 0.45 && py < this.y && py > this.y - this.h * 0.9;
   }
 
+  /** Volta a um nível salvo, sem cobrar nada. */
+  restore(level: number) {
+    this.level = Phaser.Math.Clamp(level, 0, CASTLE_LEVELS.length - 1);
+    this.apply(true);
+  }
+
   upgrade() {
     if (this.maxed) return;
     this.level++;
