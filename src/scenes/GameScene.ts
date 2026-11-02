@@ -85,6 +85,9 @@ export class GameScene extends Phaser.Scene {
     // carrega os quadros do cursor antes, para não piscar na hora do golpe
     for (let i = 0; i < SWORD_CURSORS.length; i++) new Image().src = `assets/espada_cursor_${i}.png`;
 
+    // o golpe vale para qualquer clique na página, inclusive nos botões
+    window.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') this.swingAt = performance.now(); });
+
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
     this.input.on('pointerdown', this.onDown, this);
@@ -303,7 +306,6 @@ export class GameScene extends Phaser.Scene {
 
   private onDown(p: Phaser.Input.Pointer) {
     this.rig.setMouse(p.x, p.y);
-    if (!p.wasTouch) this.swingAt = performance.now();
     const wp = this.rig.toWorld(p.x, p.y);
     this.mouse.set(wp.x, wp.y);
     if (this.placing) {
@@ -417,7 +419,8 @@ export class GameScene extends Phaser.Scene {
     // o cursor é sempre a espada; ao clicar ela gira como um golpe
     const t = this.swingAt < 0 ? 99 : (performance.now() - this.swingAt) / 1000;
     const cursor = SWORD_CURSORS[swordFrame(t)];
-    if (cursor !== this.cursorNow) { this.cursorNow = cursor; this.input.setDefaultCursor(cursor); }
+    // vale para a página toda, inclusive os botões da barra e o de evoluir (ver style.css)
+    if (cursor !== this.cursorNow) { this.cursorNow = cursor; document.documentElement.style.setProperty('--sword', cursor); }
     if (this.held) {
       this.samples.push({ x: mw.x, y: mw.y, t: performance.now() });
       if (this.samples.length > 8) this.samples.shift();

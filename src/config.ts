@@ -23,7 +23,8 @@ export const CLICK_AOE_MULT = 0.6;
  * 0 = parada, 1 a 3 = a espada girando em volta da mão, como num golpe.
  * O ponto do clique (21,21) é onde a ponta fica quando a espada está parada.
  */
-export const SWORD_CURSORS = [0, 1, 2, 3].map(i => `url(assets/espada_cursor_${i}.png) 21 21, crosshair`);
+// endereço completo: o CSS troca o cursor da página inteira (mapa, botões e cartas) por uma variável
+export const SWORD_CURSORS = [0, 1, 2, 3].map(i => `url(${new URL(`assets/espada_cursor_${i}.png`, document.baseURI).href}) 21 21, auto`);
 /** quadro do cursor segundo o tempo (s) desde o clique */
 export function swordFrame(t: number) {
   if (t < 0.04) return 1;
