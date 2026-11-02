@@ -15,12 +15,14 @@ export interface SwordTier {
 }
 
 /**
- * Nível 1 a 4: espada simples. Nível 5 a 9: a espada com guarda dourada.
- * Os desenhos do nível 10 e do 15 entram aqui quando estiverem prontos.
+ * Nível 1 a 4: espada simples. Nível 5 a 9: guarda dourada, maior. Nível 10 a 15: espada dourada com
+ * lâmina brilhante, a maior. O desenho do nível 15 ainda pode ganhar um visual próprio (basta
+ * acrescentar uma linha com `from: 15`).
  */
 export const SWORD_TIERS: SwordTier[] = [
-  { from: 1, art: 'espada',   aspect: 148 / 320, height: 74, pivot: 0.78 },
-  { from: 5, art: 'espada_2', aspect: 212 / 380, height: 82, pivot: 0.74 },
+  { from: 1,  art: 'espada',   aspect: 148 / 320, height: 64, pivot: 0.78 },
+  { from: 5,  art: 'espada_2', aspect: 212 / 380, height: 82, pivot: 0.74 },
+  { from: 10, art: 'espada_3', aspect: 196 / 380, height: 102, pivot: 0.76 },
 ];
 
 export function swordTier(level: number): SwordTier {
