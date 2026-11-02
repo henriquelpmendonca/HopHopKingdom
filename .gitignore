@@ -2,3 +2,4 @@ node_modules
 dist
 *.zip
 HopHopKingdom.zip
+dist-flat

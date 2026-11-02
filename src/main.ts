@@ -10,7 +10,8 @@ import { applyStaticTexts, setLocale } from './i18n';
 async function start() {
   await sdk.init();
   sdk.loadingStart();
-  setLocale(sdk.locale);
+  // CrazyGames exige inglês por padrão; português só com ?lang=pt
+  setLocale(new URLSearchParams(location.search).get('lang') ?? 'en');
   applyStaticTexts();
   audio.loadPrefs();
 
