@@ -182,15 +182,11 @@ html, html *{cursor:none !important}
   #bar{padding:0 8px}
 }
 
-/* celular: as cartas dos poderes viram uma coluna ao lado da tela, sempre à mão; a barra fica só com construções e espada */
+/* celular: todas as cartas ficam na barra, em quadradinhos; é só segurar e arrastar para o lado */
 .slot,#bar .gap{flex-shrink:0}
 @media (max-width:640px){
-  #bar{gap:6px}
-  .slot{width:60px;height:60px;padding:3px 3px 14px}
-  #hint{padding:0 72px 0 12px}
+  #bar{gap:8px;padding:0 10px}
+  .slot{width:64px;height:64px;padding:3px 3px 15px}
   .slot.weapon .lv{font-size:11px}
-  .slot.power{position:fixed;right:10px;width:54px;height:54px;padding:3px 3px 14px;z-index:6}
-  .slot.power:nth-last-child(1){bottom:calc(var(--bar, 108px) + 16px)}
-  .slot.power:nth-last-child(2){bottom:calc(var(--bar, 108px) + 86px)}
-  .slot.power:nth-last-child(3){bottom:calc(var(--bar, 108px) + 156px)}
+  .slot.power{width:58px;height:58px;padding:3px 3px 14px}
 }

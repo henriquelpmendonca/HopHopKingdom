@@ -204,6 +204,27 @@ export function setupHud() {
   sfxBtn.addEventListener('click', () => { audio.unlock(); audio.setSfx(!audio.sfxOn); paintAudio(); if (audio.sfxOn) sfx.ui(); });
   paintAudio();
 
+  // a barra tem muitas cartas: no celular rola com o dedo; com o mouse, segure e arraste para o lado
+  let drag: { x: number; left: number; moved: boolean } | null = null;
+  let noClickUntil = 0;
+  bar.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch') drag = { x: e.clientX, left: bar.scrollLeft, moved: false };
+  });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (Math.abs(dx) > 6) drag.moved = true;
+    if (drag.moved) bar.scrollLeft = drag.left - dx;
+  });
+  window.addEventListener('pointerup', () => {
+    // soltar depois de arrastar não pode contar como clique numa carta
+    if (drag?.moved) noClickUntil = performance.now() + 80;
+    drag = null;
+  });
+  bar.addEventListener('click', e => {
+    if (performance.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
   // clicar no botão não pode contar como clique no mapa
   for (const el of [bar, up, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
 }
