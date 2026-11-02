@@ -2,7 +2,8 @@
 export interface PowerDef {
   id: 'meteoros' | 'congelar' | 'curar';
   nome: string;
-  icone: string;
+  /** imagem em public/assets */
+  art: string;
   /** mana gasta */
   cost: number;
   /** segundos até poder usar de novo */
@@ -11,9 +12,9 @@ export interface PowerDef {
 }
 
 export const POWERS: PowerDef[] = [
-  { id: 'meteoros', nome: 'Chuva de Meteoros', icone: '☄️', cost: 50, cd: 22, desc: 'Meteoros caem sobre os inimigos mais perto da cidade' },
-  { id: 'congelar', nome: 'Congelar', icone: '❄️', cost: 35, cd: 28, desc: 'Congela todos os inimigos por 5 segundos' },
-  { id: 'curar', nome: 'Cura', icone: '💚', cost: 30, cd: 22, desc: 'Cura soldados e construções e levanta quem caiu' },
+  { id: 'meteoros', nome: 'Chuva de Meteoros', art: 'poder_meteoros', cost: 50, cd: 22, desc: 'Meteoros caem sobre os inimigos mais perto da cidade' },
+  { id: 'congelar', nome: 'Congelar', art: 'poder_congelar', cost: 35, cd: 28, desc: 'Congela todos os inimigos por 5 segundos' },
+  { id: 'curar', nome: 'Cura', art: 'poder_curar', cost: 30, cd: 22, desc: 'Cura soldados e construções e levanta quem caiu' },
 ];
 
 export const POWER_FREEZE_SECONDS = 5;

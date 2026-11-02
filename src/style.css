@@ -154,25 +154,43 @@ html, html *{cursor:none !important}
 #mana{font:900 26px "Trebuchet MS",Verdana,sans-serif;color:#1a3f8a}
 #mana .gem{width:24px;height:24px}
 #mana small{margin-left:8px;font:800 15px "Trebuchet MS",Verdana,sans-serif;color:#2f7ad0}
-#mana[hidden],#powers[hidden]{display:none}
+#mana[hidden]{display:none}
 .slot.hide{display:none}
 .slot .cost .gem{width:12px;height:12px;margin:0 6px 0 2px;border-width:2px}
-#powers{position:fixed;top:74px;right:14px;z-index:5;display:flex;flex-direction:column;gap:16px;align-items:center}
-.power{position:relative;width:54px;height:54px;padding:0;border:4px solid #1a3f8a;border-radius:50%;background:linear-gradient(#e8f6ff,#8ec9ff);box-shadow:0 5px 0 #1a3f8a;font-size:25px;line-height:1;cursor:pointer;animation:idle 2.4s ease-in-out infinite}
-.power .ico{pointer-events:none}
-.power .cost{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);display:flex;align-items:center;padding:0 7px 0 3px;border:3px solid #1a3f8a;border-radius:12px;background:#fff6dc;color:#1a3f8a;font:900 13px "Trebuchet MS",Verdana,sans-serif;white-space:nowrap}
-.power .cost .gem{width:11px;height:11px;margin:0 5px 0 2px;border-width:2px}
-.power.poor{filter:grayscale(.85);opacity:.75}
-.power:active{animation:none;transform:scale(.9);box-shadow:0 1px 0 #1a3f8a}
-.power.shake{animation:shake .4s}
-.power.cooling{pointer-events:none;filter:grayscale(.6)}
-.power.cooling::after{content:"";position:absolute;inset:-1px;border-radius:50%;background:rgba(20,30,70,.65);animation:cdwipe var(--cd,20s) linear forwards}
 @keyframes cdwipe{from{clip-path:inset(0 0 0 0)}to{clip-path:inset(0 0 100% 0)}}
 @media (max-width:640px){
   #mana{font-size:20px}
   #mana .gem{width:19px;height:19px;margin-right:6px}
   #mana small{font-size:12px;margin-left:6px}
-  #powers{top:62px;right:10px;gap:14px}
-  .power{width:46px;height:46px;font-size:21px;border-width:3px}
-  .power .cost{font-size:11px;bottom:-11px}
+}
+
+/* cartas dos poderes, ao lado da espada */
+.slot.power{width:70px;height:70px;padding:5px 5px 18px;background:linear-gradient(#f2f9ff,#b9dcff);border-color:#1a3f8a;box-shadow:0 7px 0 #1a3f8a,0 12px 14px rgba(0,0,0,.25)}
+.slot.power:active{box-shadow:0 1px 0 #1a3f8a}
+.slot.power .cost{border-color:#1a3f8a;color:#1a3f8a}
+.slot.power .key{position:absolute;top:-10px;left:-8px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:3px solid #1a3f8a;border-radius:50%;background:#fff6dc;color:#1a3f8a;font:900 12px "Trebuchet MS",Verdana,sans-serif}
+.slot.power.cooling{pointer-events:none;filter:grayscale(.55)}
+.slot.power.cooling::before{content:"";position:absolute;inset:0;border-radius:12px;background:rgba(20,30,70,.62);z-index:2;animation:cdwipe var(--cd,20s) linear forwards}
+@media (hover:none){.slot.power .key{display:none}}
+/* com tantas cartas, a barra rola para o lado nas telas estreitas (e continua centralizada quando cabe) */
+#bar{overflow-x:auto;overflow-y:hidden;touch-action:pan-x;scrollbar-width:none}
+#bar::-webkit-scrollbar{display:none}
+#bar{justify-content:safe center}
+@media (max-width:640px){
+  .slot.power{width:58px;height:58px;padding:3px 3px 15px;border-radius:14px}
+  .slot.power .cost{font-size:12px}
+  #bar{padding:0 8px}
+}
+
+/* celular: as cartas dos poderes viram uma coluna ao lado da tela, sempre à mão; a barra fica só com construções e espada */
+.slot,#bar .gap{flex-shrink:0}
+@media (max-width:640px){
+  #bar{gap:6px}
+  .slot{width:60px;height:60px;padding:3px 3px 14px}
+  #hint{padding:0 72px 0 12px}
+  .slot.weapon .lv{font-size:11px}
+  .slot.power{position:fixed;right:10px;width:54px;height:54px;padding:3px 3px 14px;z-index:6}
+  .slot.power:nth-last-child(1){bottom:calc(var(--bar, 108px) + 16px)}
+  .slot.power:nth-last-child(2){bottom:calc(var(--bar, 108px) + 86px)}
+  .slot.power:nth-last-child(3){bottom:calc(var(--bar, 108px) + 156px)}
 }

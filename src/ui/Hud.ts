@@ -100,11 +100,12 @@ export function setupHud() {
   const keys = ['1', '2', '3'];
   POWERS.forEach((p, i) => {
     const b = document.createElement('button');
-    b.className = 'power';
+    // cartas dos poderes ficam na barra, ao lado da espada; só aparecem com o Centro da Vila nível 3
+    b.className = 'slot power hide';
     b.title = `${p.nome} (tecla ${keys[i]}): ${p.desc}`;
-    b.innerHTML = `<span class="ico">${p.icone}</span><span class="cost">${gemHtml}${p.cost}</span>`;
+    b.innerHTML = `<img src="assets/${p.art}.png" alt=""><b class="key">${keys[i]}</b><span class="cost">${gemHtml}${p.cost}</span>`;
     b.addEventListener('click', () => { boing(b); sfx.ui(); bus.emit(Evt.Power, p.id); });
-    $('powers').appendChild(b);
+    bar.appendChild(b);
     powerBtns.set(p.id, b);
   });
   bus.on(Evt.PowerCd, (id: string, sec: number) => {
@@ -120,7 +121,7 @@ export function setupHud() {
     castleLv = lv;
     for (const s of slots.values()) if (s.need) s.el.classList.toggle('hide', castleLv < s.need);
     $('mana').hidden = castleLv < 3;
-    $('powers').hidden = castleLv < 3;
+    for (const b of powerBtns.values()) b.classList.toggle('hide', castleLv < 3);
   });
   bus.on(Evt.Mana, (n: number, inc: number) => {
     manaNow = n;
