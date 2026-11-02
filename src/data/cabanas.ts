@@ -60,8 +60,10 @@ export function buildCost(def: HutDef, owned: number) {
   return Math.round(def.levels[0].cost * Math.pow(def.costGrowth ?? 1, owned) / 5) * 5;
 }
 
-/** Quantos níveis têm as cabanas e as minas. O visual muda de 5 em 5 níveis (1-4, 5-9, 10-14, 15). */
-export const MAX_LEVEL = 15;
+/** Quantos níveis têm as cabanas e as minas. O visual muda de 5 em 5 níveis (1-4, 5-9, 10-14, 15...). Só o Centro da Vila nível 5 libera do 16 ao 25. */
+export const MAX_LEVEL = 25;
+/** a partir deste nível os soldados entram em fúria */
+const FURIA_LEVEL = 15;
 
 /** Um visual de construção: vale a partir do nível `from`. */
 interface Tier { from: number; art: string; width: number }
@@ -74,8 +76,12 @@ function tierOf(tiers: Tier[], level: number) {
 }
 
 /** Preço de chegar ao nível `lv` (1 = construir; 2 em diante = evoluir), subindo 30% por nível. */
-const reach = (first: number, step: number, lv: number) =>
-  lv === 1 ? first : Math.round(step * Math.pow(1.3, lv - 2) / 5) * 5;
+const reach = (first: number, step: number, lv: number) => {
+  if (lv === 1) return first;
+  const at15 = step * Math.pow(1.3, 15 - 2);
+  // depois do nível 15 o preço sobe mais devagar (22% por nível), senão ficaria impossível
+  return Math.round((lv <= 15 ? step * Math.pow(1.3, lv - 2) : at15 * Math.pow(1.22, lv - 15)) / 5) * 5;
+};
 
 /**
  * Cabana de soldado: 15 níveis. A decoração dos soldados muda junto com a cabana:
@@ -99,7 +105,7 @@ function troopLevels(tiers: (Tier & { unit: SoldierUnit })[], o: { first: number
       hp: o.hp0 + (lv - 1) * 45,
       // dentro do mesmo visual a cabana cresce um pouquinho a cada nível
       width: t.width + (lv - t.from) * 4,
-      soldiers: [{ unit: t.unit, furia: lv >= MAX_LEVEL, count: Math.min(o.countBase + lv, o.countCap), power: 1 + 0.1 * (lv - 1) }],
+      soldiers: [{ unit: t.unit, furia: lv >= FURIA_LEVEL, count: Math.min(o.countBase + lv, o.countCap), power: 1 + 0.1 * (lv - 1) }],
     };
   });
 }
