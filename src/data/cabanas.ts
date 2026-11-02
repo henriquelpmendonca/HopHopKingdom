@@ -8,10 +8,9 @@ export const UNIT_ART: Record<SoldierUnit, string> = {
   arqueiro: 'arqueiro',
   arqueiro2: 'arqueiro_2',
   arqueiro3: 'arqueiro_3',
-  // enquanto não há desenhos dos magos aliados, usam os dos magos inimigos pintados de azul
-  magoA1: 'mago',
-  magoA2: 'mago2',
-  magoA3: 'mago3',
+  magoA1: 'mago_aliado_1',
+  magoA2: 'mago_aliado_2',
+  magoA3: 'mago_aliado_3',
 };
 
 export interface SoldierSpec {

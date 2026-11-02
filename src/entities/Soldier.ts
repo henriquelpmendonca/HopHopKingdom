@@ -106,10 +106,7 @@ export class Soldier implements Combatant {
     this.glow = spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
     this.aura.setVisible(this.glow !== 0 && this.alive);
     if (this.glow) this.aura.setTint(this.glow);
-    // os magos aliados usam, por enquanto, os desenhos dos magos inimigos: pintados de azul para não confundir
-    if (spec.furia) this.sprite.setTint(0xff9a9a);
-    else if (UNIT_STATS[spec.unit].bolt) this.sprite.setTint(0x8fc4ff);
-    else this.sprite.clearTint();
+    if (spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
