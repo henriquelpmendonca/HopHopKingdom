@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio';
 import { Structure } from './Building';
 import { Soldier } from './Soldier';
 import { HutDef, SoldierSpec } from '../data/cabanas';
@@ -42,6 +43,7 @@ export class Hut implements Structure {
     this.hp = Math.max(0, this.hp - n);
     const p = this.nearestPoint(fromX, fromY);
     popDamage(this.scene, p.x, p.y - 20, n, true);
+    sfx.thud();
     this.fx.burst(p.x, p.y, 4, 0xe8d9b8);
     // tremidinha
     const sx = this.sprite.scaleX, sy = this.sprite.scaleY;
@@ -51,6 +53,7 @@ export class Hut implements Structure {
 
   private collapse() {
     this.ruined = true;
+    sfx.crush();
     this.fx.burst(this.x, this.y - this.h * 0.4, 36, 0xe8d9b8, true);
     this.fx.burst(this.x, this.y - this.h * 0.2, 16, 0x7a5a3a, true);
     for (const s of this.soldiers) s.destroy();

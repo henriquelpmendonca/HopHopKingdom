@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio';
 import { ORCS, OrcKind, OrcStats, orcForWave } from '../data/units';
 import { Bars, Particles, popDamage } from '../fx';
 import { Structure } from './Building';
@@ -82,6 +83,7 @@ export class Orc implements Combatant {
       });
     }
     this.fx.burst(this.x, this.y - this.stats.height * 0.6, 20, 0xb04cff, true);
+    sfx.summon();
     this.fx.burst(this.x, this.y, 10, 0xf6dcff);
     this.summonT = sm.every;
   }
@@ -92,6 +94,7 @@ export class Orc implements Combatant {
     this.hp = Math.max(0, this.hp - n);
     this.hitT = 0.2;
     popDamage(this.scene, this.x, this.y - this.stats.height - 6, n, false);
+    sfx.hit(!!this.stats.boss || n >= 30);
     this.fx.burst(this.x, this.y - this.stats.height * 0.5, 5, 0xffffff);
     this.fx.blood(this.x, this.y - this.stats.height * 0.55, this.y, Math.min(40, 4 + n * 0.5) * (this.stats.boss ? 1.6 : 1));
     const d = Math.hypot(this.x - fromX, this.y - fromY) || 1;
@@ -99,6 +102,7 @@ export class Orc implements Combatant {
     this.ry = (this.y - fromY) / d * 8;
     if (this.hp <= 0) {
       this.deadT = 0;
+      sfx.orcDie(!!this.stats.boss);
       this.fx.burst(this.x, this.y - this.stats.height * 0.5, 18, 0x9bb84a, true);
       this.fx.blood(this.x, this.y - this.stats.height * 0.5, this.y, this.stats.boss ? 90 : 26);
       if (this.stats.boss) this.scene.cameras.main.shake(500, 0.012);
@@ -198,6 +202,7 @@ export class Orc implements Combatant {
   private castStrike(tg: Combatant, soldiers: Soldier[], structures: Structure[], proj: Projectiles) {
     const r = this.stats.ranged!;
     const radius = r.radius ?? 100;
+    sfx.strikeCharge(r.delay ?? 1);
     const p = 'nearestPoint' in tg ? (tg as Structure).nearestPoint(this.x, this.y) : { x: tg.x, y: tg.y };
     this.fx.burst(this.x + this.face * 22, this.y - this.stats.height * 0.62, 10, 0xd070ff);
     proj.strike(p.x, p.y, radius, r.delay ?? 1, (x, y, rad) => {
@@ -214,6 +219,7 @@ export class Orc implements Combatant {
   /** Mago: solta uma bola de magia roxa em direção ao alvo. */
   private shoot(tg: Combatant, proj: Projectiles) {
     const r = this.stats.ranged!;
+    sfx.magic();
     let aim: () => { x: number; y: number };
     if ('nearestPoint' in tg) {
       const p = (tg as Structure).nearestPoint(this.x, this.y);
@@ -234,6 +240,7 @@ export class Orc implements Combatant {
       }
     }
     this.scene.cameras.main.shake(160, 0.007);
+    sfx.slam();
     this.fx.burst(cx, cy, 14, 0xd9c9a0, true);
     const ring = this.scene.add.ellipse(cx, cy, radius * 0.4, radius * 0.2).setStrokeStyle(6, 0xfff0c0).setDepth(900_000);
     this.scene.tweens.add({ targets: ring, scale: 3.2, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });

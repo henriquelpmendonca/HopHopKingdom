@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio';
 import { Particles } from '../fx';
 import { Combatant } from './Combatant';
 
@@ -62,6 +63,7 @@ export class Projectiles {
         if (s.t >= s.delay) {
           s.hit = true;
           s.onImpact(s.x, s.y, s.r);
+          sfx.strikeImpact();
           this.fx.burst(s.x, s.y, 26, 0xb04cff, true);
           this.fx.burst(s.x, s.y, 10, 0xf6dcff, true);
           this.scene.cameras.main.shake(110, 0.005);
@@ -96,6 +98,7 @@ export class Projectiles {
       if (d <= step + 12 || s.age > 5) {
         if (s.target.alive) s.target.takeDamage(s.dmg, s.x, s.y);
         this.fx.burst(a.x, a.y, 12, 0xb04cff, true);
+        sfx.magicHit();
         this.fx.burst(a.x, a.y, 5, 0xf0c8ff);
         this.list.splice(i, 1);
         continue;

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio';
 import { CASTLE_LEVELS } from '../data/castle';
 import { Bars, Particles, popDamage } from '../fx';
 import { Outline } from '../outline';
@@ -76,6 +77,7 @@ export class Castle implements Structure {
     this.hp = Math.max(0, this.hp - n);
     const p = this.nearestPoint(fromX, fromY);
     popDamage(this.scene, p.x, p.y - 20, n, true);
+    sfx.thud();
     this.fx.burst(p.x, p.y, 4, 0xe8d9b8);
     // tremidinha
     this.scene.tweens.add({

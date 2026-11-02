@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { audio, sfx } from '../audio';
 import { CameraRig } from '../camera';
 import { BAR_H, CLICK_AOE_MULT, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
@@ -26,6 +27,8 @@ export class GameScene extends Phaser.Scene {
   private samples: { x: number; y: number; t: number }[] = [];
   private mouse = new Phaser.Math.Vector2();
   private incomeTimer = 0;
+  /** há quanto tempo não há inimigos (para a música voltar à calma) */
+  private calmT = 0;
   private bars!: Bars;
   private rig!: CameraRig;
   private proj!: Projectiles;
@@ -184,6 +187,7 @@ export class GameScene extends Phaser.Scene {
     const hut = new Hut(this, def, b.x, b.y, this.fx, h => this.onHutDestroyed(h));
     this.huts.push(hut);
     this.fx.burst(b.x, b.y, 24, 0xe8d9b8, true);
+    sfx.build();
     this.stopPlacing();
     this.select(hut);
     this.save();
@@ -244,6 +248,7 @@ export class GameScene extends Phaser.Scene {
     if (!spend(nx.cost)) { bus.emit(Evt.Broke, 'upgrade'); return; }
     h.upgrade();
     floatText(this, h.x, h.y - h.h - 10, 'EVOLUIU!', '#7CFF6B');
+    sfx.upgrade(h instanceof Castle);
     this.save();
     this.emitSelect();
   }
@@ -262,6 +267,7 @@ export class GameScene extends Phaser.Scene {
     bus.emit(Evt.Sword, state.sword);
     const mw = this.mouse;
     const novoVisual = swordTier(state.sword).art !== before;
+    sfx.upgrade(novoVisual);
     floatText(this, mw.x, mw.y - 30, novoVisual ? 'ESPADA NOVA!' : `Espada Nv ${state.sword}`, '#7CFF6B');
     this.fx.burst(mw.x, mw.y, novoVisual ? 28 : 10, 0xffe28a, novoVisual);
     if (novoVisual) this.cameras.main.shake(180, 0.004);
@@ -296,6 +302,7 @@ export class GameScene extends Phaser.Scene {
       o.takeDamage(i === 0 ? dmg : Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
     });
     this.fx.burst(x, y, 7, 0xffe28a);
+    sfx.swordHit();
     const ring = this.add.ellipse(x, y, radius * 0.8, radius * 0.5)
       .setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
     this.tweens.add({ targets: ring, scale: 2.2, alpha: 0, duration: 240, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
@@ -381,6 +388,8 @@ export class GameScene extends Phaser.Scene {
     if (this.selected) this.emitSelect();
     const boss = isBossWave(this.wave);
     const n = WAVE.count(this.wave);
+    sfx.horn();
+    if (boss) sfx.bossRoar();
     const W = WORLD_W, floor = WORLD_H;
     for (let i = 0; i < n; i++) {
       // entram pelas bordas do mapa: em cima, à esquerda ou à direita
@@ -418,6 +427,7 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
     }
     addCoins(o.stats.coins);
+    sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + o.stats.coins);
   }
 
@@ -426,6 +436,8 @@ export class GameScene extends Phaser.Scene {
     // acabou: a próxima partida começa do zero
     if (this.persist) clearSave();
     this.held = null;
+    sfx.gameOver();
+    audio.set('calma');
     bus.emit(Evt.GameOver);
   }
 
@@ -448,6 +460,7 @@ export class GameScene extends Phaser.Scene {
     if (this.incomeTimer >= 1) {
       this.incomeTimer -= 1;
       addCoins(this.castle.income);
+      sfx.coinSoft();
       floatText(this, this.castle.x + (Math.random() - 0.5) * 60, this.castle.y - this.castle.h * 0.6, '+' + this.castle.income);
       let total = this.castle.income;
       // cada mina rende e mostra a moedinha subindo
@@ -482,6 +495,10 @@ export class GameScene extends Phaser.Scene {
     this.bars.begin();
     const soldiers = this.allSoldiers;
     const alive = this.orcs.filter(o => o.alive);
+    // a música acompanha o perigo: calma, batalha, chefe
+    if (alive.some(o => o.stats.boss)) { this.calmT = 0; audio.set('chefe'); }
+    else if (alive.length > 0) { this.calmT = 0; audio.set('batalha'); }
+    else { this.calmT += dt; if (this.calmT > 4) audio.set('calma'); }
     for (const s of soldiers) s.update(dt, this.mouse, WORLD_W, floor, alive, this.bars);
     const structures: Structure[] = [this.castle, ...this.huts];
     for (const o of this.orcs) o.update(dt, soldiers, structures, this.bars, this.proj);

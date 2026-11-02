@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
+import { unlockAudio } from './audio';
 import { setupHud } from './ui/Hud';
 import { setupSwordCursor } from './ui/SwordCursor';
 
@@ -14,6 +15,7 @@ const game = new Phaser.Game({
 
 setupHud();
 setupSwordCursor();
+unlockAudio();
 
 // só no modo de desenvolvimento: ajuda a inspecionar o jogo pelo console
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;

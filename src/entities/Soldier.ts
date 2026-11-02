@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sfx } from '../audio';
 import { GRAVITY, SOLDIER_H } from '../config';
 import { SoldierSpec, UNIT_ART } from '../data/cabanas';
 import { AGGRO_RANGE, FURIA, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
@@ -109,6 +110,7 @@ export class Soldier implements Combatant {
   }
 
   grab() {
+    sfx.grab();
     this.state = 'held';
     this.target = null;
     this.atkT = 0;
@@ -119,6 +121,7 @@ export class Soldier implements Combatant {
 
   throwWith(vx: number, vy: number) {
     const sp = Math.hypot(vx, vy);
+    sfx.throw();
     this.state = 'fly';
     this.vx = vx;
     this.vy = vy;
@@ -132,6 +135,7 @@ export class Soldier implements Combatant {
     this.hp = Math.max(0, this.hp - n);
     this.hitT = 0.2;
     popDamage(this.scene, this.x, this.y - this.z - SOLDIER_H * this.size - 4, n, true);
+    sfx.hit();
     this.fx.burst(this.x, this.y - SOLDIER_H * 0.5, 4, 0xff8a7a);
     this.fx.blood(this.x, this.y - SOLDIER_H * 0.5, this.y, Math.min(30, 3 + n * 0.45));
     const d = Math.hypot(this.x - fromX, this.y - fromY) || 1;
@@ -146,6 +150,7 @@ export class Soldier implements Combatant {
     this.atkT = 0;
     this.ox = this.oy = 0;
     this.respawnT = RESPAWN_TIME;
+    sfx.pop();
     this.fx.burst(this.x, this.y - SOLDIER_H * 0.5, 14, 0xffffff, true);
     this.fx.blood(this.x, this.y - SOLDIER_H * 0.5, this.y, 16);
     this.setVisible(false);

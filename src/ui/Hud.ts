@@ -1,3 +1,4 @@
+import { audio, sfx } from '../audio';
 import { BUILDABLES } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
@@ -23,7 +24,7 @@ export function setupHud() {
     el.className = 'slot';
     el.title = def.nome;
     el.innerHTML = `<img src="assets/${def.levels[0].art}.png" alt=""><span class="cost">${coinHtml}${def.levels[0].cost}</span>`;
-    el.addEventListener('click', () => { boing(el); bus.emit(Evt.Build, def.id); });
+    el.addEventListener('click', () => { boing(el); sfx.ui(); bus.emit(Evt.Build, def.id); });
     bar.appendChild(el);
     slots.set(def.id, { el, cost: def.levels[0].cost });
   }
@@ -46,7 +47,7 @@ export function setupHud() {
     sw.title = `Espada do clique: ${swordDamage(swordLevel)} de dano`;
   }
   drawSword();
-  sw.addEventListener('click', () => { boing(sw); bus.emit(Evt.UpgradeSword); });
+  sw.addEventListener('click', () => { boing(sw); sfx.ui(); bus.emit(Evt.UpgradeSword); });
   bus.on(Evt.Sword, (lv: number) => {
     const up = lv > swordLevel;
     swordLevel = lv;
@@ -87,6 +88,7 @@ export function setupHud() {
   bus.on(Evt.Broke, (id: string) => {
     const el = id === 'upgrade' ? up : id === 'sword' ? sw : slots.get(id)?.el;
     if (el) boing(el, 'shake');
+    sfx.error();
     boing($('coins'), 'shake');
   });
 
@@ -115,8 +117,19 @@ export function setupHud() {
   up.addEventListener('click', () => {
     if (!sel?.next) return;
     boing(up);
+    sfx.ui();
     bus.emit(Evt.Upgrade);
   });
+  // botões de música e de efeitos sonoros
+  const musicBtn = $('musicBtn'), sfxBtn = $('sfxBtn');
+  const paintAudio = () => {
+    musicBtn.classList.toggle('off', !audio.musicOn);
+    sfxBtn.classList.toggle('off', !audio.sfxOn);
+  };
+  musicBtn.addEventListener('click', () => { audio.unlock(); audio.setMusic(!audio.musicOn); paintAudio(); });
+  sfxBtn.addEventListener('click', () => { audio.unlock(); audio.setSfx(!audio.sfxOn); paintAudio(); if (audio.sfxOn) sfx.ui(); });
+  paintAudio();
+
   // clicar no botão não pode contar como clique no mapa
-  for (const el of [bar, up]) el.addEventListener('pointerdown', e => e.stopPropagation());
+  for (const el of [bar, up, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
 }
