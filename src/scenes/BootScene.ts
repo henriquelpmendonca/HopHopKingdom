@@ -1,0 +1,29 @@
+import Phaser from 'phaser';
+
+export class BootScene extends Phaser.Scene {
+  constructor() { super('Boot'); }
+
+  preload() {
+    this.load.image('castelo', 'assets/castelo.png');
+    this.load.image('castelo_2', 'assets/castelo_2.png');
+    this.load.image('castelo_3', 'assets/castelo_3.png');
+    this.load.image('soldado', 'assets/soldado.png');
+    this.load.image('orc', 'assets/orc.png');
+    this.load.image('orc2', 'assets/orc2.png');
+    this.load.image('orc3', 'assets/orc3.png');
+    this.load.image('boss', 'assets/boss.png');
+    this.load.image('mago', 'assets/mago.png');
+    this.load.image('mago2', 'assets/mago2.png');
+    this.load.image('mago3', 'assets/mago3.png');
+    this.load.image('esqueleto', 'assets/esqueleto.png');
+    // desenhos opcionais: se o arquivo ainda não existir, o jogo usa o soldado de espada
+    this.load.on('loaderror', () => {});
+    this.load.image('soldado_lanca', 'assets/soldado_lanca.png');
+    this.load.image('soldado_alabarda', 'assets/soldado_alabarda.png');
+    for (let i = 1; i <= 3; i++) this.load.image('cabana_soldado_' + i, `assets/cabana_soldado_${i}.png`);
+  }
+
+  create() {
+    this.scene.start('Game');
+  }
+}
