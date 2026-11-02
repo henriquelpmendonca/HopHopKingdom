@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { BAR_H, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, MAX_THROW_SPEED, SOLDIER_H } from '../config';
+import { CameraRig } from '../camera';
+import { BAR_H, CLICK_DAMAGE, CLICK_DAMAGE_PER_CASTLE_LEVEL, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -17,7 +18,6 @@ export class GameScene extends Phaser.Scene {
   private castle!: Castle;
   private huts: Hut[] = [];
   private fx!: Particles;
-  private bg!: Phaser.GameObjects.TileSprite;
   private ghost!: Phaser.GameObjects.Image;
   private placing: HutDef | null = null;
   private selected: Hut | Castle | null = null;
@@ -26,6 +26,7 @@ export class GameScene extends Phaser.Scene {
   private mouse = new Phaser.Math.Vector2();
   private incomeTimer = 0;
   private bars!: Bars;
+  private rig!: CameraRig;
   private proj!: Projectiles;
   /** o primeiro chefe morreu: magos entram nas ondas */
   private magos = new URLSearchParams(location.search).has('magos');
@@ -48,16 +49,17 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(COLORS.grassTile, 0.5).fillRect(0, 0, 80, 80).fillRect(80, 80, 80, 80);
     g.generateTexture('grama', 160, 160);
     g.destroy();
-    this.bg = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'grama')
+    this.add.tileSprite(0, 0, WORLD_W, WORLD_H + BAR_H, 'grama')
       .setOrigin(0).setDepth(-1e6);
-    this.scale.on('resize', (s: Phaser.Structs.Size) => this.bg.setSize(s.width, s.height));
 
     this.fx = new Particles(this);
 
-    // centro da cidade: já começa no meio da área jogável
+    // centro da cidade: no meio do mapa
     const tex = this.textures.get('castelo').getSourceImage();
     const ch = 420 * tex.height / tex.width;
-    this.castle = new Castle(this, this.scale.width / 2, (this.scale.height - BAR_H) / 2 + ch / 2, this.fx);
+    this.castle = new Castle(this, WORLD_W / 2, WORLD_H / 2 + ch / 2, this.fx);
+    this.rig = new CameraRig(this);
+    this.rig.centerOn(this.castle.x, this.castle.y - this.castle.h * 0.4);
     this.bars = new Bars(this);
     this.proj = new Projectiles(this, this.fx);
 
@@ -79,15 +81,6 @@ export class GameScene extends Phaser.Scene {
 
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      this.mouse.set(p.x, p.y);
-      // mira quando está sobre um inimigo
-      this.input.setDefaultCursor(!this.held && !this.placing && this.orcAt(p.x, p.y) ? 'crosshair' : 'default');
-      if (this.held) {
-        this.samples.push({ x: p.x, y: p.y, t: performance.now() });
-        if (this.samples.length > 8) this.samples.shift();
-      }
-    });
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
@@ -114,10 +107,9 @@ export class GameScene extends Phaser.Scene {
     this.wave = d.wave;
     this.magos = this.magos || d.magos;
     this.castle.restore(d.castleLevel);
-    const W = this.scale.width, floor = this.scale.height - BAR_H;
     for (const s of d.huts) {
-      const x = Phaser.Math.Clamp(this.castle.x + s.dx, 110, W - 110);
-      const y = Phaser.Math.Clamp(this.castle.y + s.dy, 200, floor - 6);
+      const x = Phaser.Math.Clamp(this.castle.x + s.dx, 110, WORLD_W - 110);
+      const y = Phaser.Math.Clamp(this.castle.y + s.dy, 200, WORLD_H - 6);
       const hut = new Hut(this, hutDef(s.id), x, y, this.fx, h => this.onHutDestroyed(h));
       hut.restore(s.level);
       this.huts.push(hut);
@@ -171,8 +163,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private canPlace(b: Building) {
-    if (b.y > this.scale.height - BAR_H - 4 || b.y - b.h < 70) return false;
-    if (b.x - b.w / 2 < 0 || b.x + b.w / 2 > this.scale.width) return false;
+    if (b.y > WORLD_H - 6 || b.y - b.h < 70) return false;
+    if (b.x - b.w / 2 < 0 || b.x + b.w / 2 > WORLD_W) return false;
+    // não dá para construir por baixo da barra de construção
+    if (this.rig.toScreen(b.x, b.y).y > this.scale.height - BAR_H - 4) return false;
     if (overlaps(b, this.castle)) return false;
     return !this.huts.some(h => overlaps(b, h));
   }
@@ -215,6 +209,15 @@ export class GameScene extends Phaser.Scene {
       next: nx ? { art: nx.art, cost: nx.cost, lock } : null,
     };
     bus.emit(Evt.Select, info);
+    this.emitSelPos();
+  }
+
+  /** O botão de upgrade é HTML: acompanha a câmera. */
+  private emitSelPos() {
+    const h = this.selected;
+    if (!h) return;
+    const p = this.rig.toScreen(h.x, h.y - h.h - 26);
+    bus.emit(Evt.SelPos, p.x, p.y);
   }
 
   private upgradeSelected() {
@@ -261,7 +264,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onDown(p: Phaser.Input.Pointer) {
-    this.mouse.set(p.x, p.y);
+    this.rig.setMouse(p.x, p.y);
+    const wp = this.rig.toWorld(p.x, p.y);
+    this.mouse.set(wp.x, wp.y);
     if (this.placing) {
       if (p.rightButtonDown()) this.stopPlacing(); else this.placeHut(this.placing);
       return;
@@ -270,20 +275,20 @@ export class GameScene extends Phaser.Scene {
     let best: Soldier | null = null;
     for (const s of this.allSoldiers) {
       if (s.state === 'dead') continue;
-      if (s.hitDistance(p.x, p.y) < SOLDIER_H * 0.7 && (!best || s.y > best.y)) best = s;
+      if (s.hitDistance(wp.x, wp.y) < SOLDIER_H * 0.7 && (!best || s.y > best.y)) best = s;
     }
     if (best) {
       this.held = best;
       best.grab();
-      this.samples = [{ x: p.x, y: p.y, t: performance.now() }];
+      this.samples = [{ x: wp.x, y: wp.y, t: performance.now() }];
       bus.emit(Evt.Hint, null);
       return;
     }
     // inimigo: o clique bate nele
-    const foe = this.orcAt(p.x, p.y);
-    if (foe) { this.clickHit(foe, p.x, p.y); return; }
-    const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(p.x, p.y))
-      ?? (this.castle.contains(p.x, p.y) ? this.castle : null);
+    const foe = this.orcAt(wp.x, wp.y);
+    if (foe) { this.clickHit(foe, wp.x, wp.y); return; }
+    const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(wp.x, wp.y))
+      ?? (this.castle.contains(wp.x, wp.y) ? this.castle : null);
     this.select(hit === this.selected ? null : hit);
   }
 
@@ -314,9 +319,9 @@ export class GameScene extends Phaser.Scene {
     if (this.selected) this.emitSelect();
     const boss = this.wave % BOSS_EVERY === 0;
     const n = WAVE.count(this.wave);
-    const W = this.scale.width, floor = this.scale.height - BAR_H;
+    const W = WORLD_W, floor = WORLD_H;
     for (let i = 0; i < n; i++) {
-      // entram por cima, esquerda ou direita
+      // entram pelas bordas do mapa: em cima, à esquerda ou à direita
       const side = Phaser.Math.Between(0, 2);
       const x = side === 0 ? Phaser.Math.Between(40, W - 40) : side === 1 ? -50 : W + 50;
       const y = side === 0 ? 40 : Phaser.Math.Between(120, floor - 40);
@@ -366,6 +371,17 @@ export class GameScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.05);
     if (this.over) return;
 
+    // câmera: zoom, bordas e teclas; o mouse passa a valer em coordenadas do mapa
+    this.rig.update(dt);
+    const mw = this.rig.mouseWorld();
+    this.mouse.set(mw.x, mw.y);
+    this.input.setDefaultCursor(!this.held && !this.placing && this.orcAt(mw.x, mw.y) ? 'crosshair' : 'default');
+    if (this.held) {
+      this.samples.push({ x: mw.x, y: mw.y, t: performance.now() });
+      if (this.samples.length > 8) this.samples.shift();
+    }
+    this.emitSelPos();
+
     // renda do centro da cidade (até as minas existirem)
     this.incomeTimer += dt;
     if (this.incomeTimer >= 1) {
@@ -401,11 +417,11 @@ export class GameScene extends Phaser.Scene {
       if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.interval; }
     }
 
-    const floor = this.scale.height - BAR_H;
+    const floor = WORLD_H;
     this.bars.begin();
     const soldiers = this.allSoldiers;
     const alive = this.orcs.filter(o => o.alive);
-    for (const s of soldiers) s.update(dt, this.mouse, this.scale.width, floor, alive, this.bars);
+    for (const s of soldiers) s.update(dt, this.mouse, WORLD_W, floor, alive, this.bars);
     const structures: Structure[] = [this.castle, ...this.huts];
     for (const o of this.orcs) o.update(dt, soldiers, structures, this.bars, this.proj);
     this.orcs = this.orcs.filter(o => !o.gone);

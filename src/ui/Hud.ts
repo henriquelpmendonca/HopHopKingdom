@@ -39,6 +39,11 @@ export function setupHud() {
     refresh();
   });
 
+  bus.on(Evt.SelPos, (x: number, y: number) => {
+    up.style.left = x + 'px';
+    up.style.top = y + 'px';
+  });
+
   bus.on(Evt.Income, (n: number) => { $('incomeN').textContent = '+' + n + '/s'; });
 
   bus.on(Evt.Placing, (id: string | null) => {
@@ -60,8 +65,6 @@ export function setupHud() {
     sel = info;
     if (!info) { up.hidden = true; return; }
     up.hidden = false;
-    up.style.left = info.x + 'px';
-    up.style.top = info.y + 'px';
     up.classList.toggle('locked', !!info.next?.lock);
     if (info.next) {
       up.classList.remove('max');

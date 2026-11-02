@@ -3,7 +3,7 @@ import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { setupHud } from './ui/Hud';
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#cfe8a8',
@@ -12,3 +12,6 @@ new Phaser.Game({
 });
 
 setupHud();
+
+// só no modo de desenvolvimento: ajuda a inspecionar o jogo pelo console
+if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
