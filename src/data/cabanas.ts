@@ -1,11 +1,12 @@
 /** Cada tipo de soldado tem o seu desenho. Se o PNG ainda não existir, usa o soldado de espada. */
-export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro';
+export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro' | 'arqueiro2';
 
 export const UNIT_ART: Record<SoldierUnit, string> = {
   espada: 'soldado',
   lanca: 'soldado_lanca',
   alabarda: 'soldado_alabarda',
   arqueiro: 'arqueiro',
+  arqueiro2: 'arqueiro_2',
 };
 
 export interface SoldierSpec {
@@ -99,12 +100,12 @@ export const CABANA_SOLDADO: HutDef = {
 
 /**
  * Cabana de arqueiros: 15 níveis. Os arqueiros atiram de longe, então ficam atrás dos soldados.
- * Por enquanto só existe o desenho do nível 1; os outros visuais (5, 10 e 15) entram aqui quando estiverem prontos.
+ * Níveis 1-4: arqueiro simples; 5-9: arqueiro de armadura dourada. Os visuais do 10 e do 15 entram aqui quando estiverem prontos.
  */
 const ARQUEIRO_TIERS: (Tier & { unit: SoldierUnit })[] = [
   { from: 1,  art: 'cabana_arqueiro_1', width: 150, unit: 'arqueiro' },
-  { from: 5,  art: 'cabana_arqueiro_1', width: 175, unit: 'arqueiro' },
-  { from: 10, art: 'cabana_arqueiro_1', width: 200, unit: 'arqueiro' },
+  { from: 5,  art: 'cabana_arqueiro_2', width: 215, unit: 'arqueiro2' },
+  { from: 10, art: 'cabana_arqueiro_2', width: 240, unit: 'arqueiro2' },
 ];
 
 export const CABANA_ARQUEIRO: HutDef = {
