@@ -99,8 +99,13 @@ export function pickOrcKind(wave: number, magos = false): OrcKind {
   return 'orc1';
 }
 
-/** A cada quantas ondas vem um chefe. */
+/** Em que onda aparece o primeiro chefe e, depois, a cada quantas ondas ele volta. */
+export const BOSS_FIRST = 10;
 export const BOSS_EVERY = 5;
+
+export function isBossWave(wave: number) {
+  return wave >= BOSS_FIRST && (wave - BOSS_FIRST) % BOSS_EVERY === 0;
+}
 
 export const WAVE = {
   firstDelay: 12,

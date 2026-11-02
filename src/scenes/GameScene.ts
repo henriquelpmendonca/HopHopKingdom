@@ -10,7 +10,7 @@ import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
 import { HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
-import { BOSS_EVERY, pickOrcKind, WAVE } from '../data/units';
+import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { clearSave, loadGame, saveGame } from '../save';
 import { addCoins, spend, state } from '../state';
@@ -379,7 +379,7 @@ export class GameScene extends Phaser.Scene {
     this.wave++;
     this.save();
     if (this.selected) this.emitSelect();
-    const boss = this.wave % BOSS_EVERY === 0;
+    const boss = isBossWave(this.wave);
     const n = WAVE.count(this.wave);
     const W = WORLD_W, floor = WORLD_H;
     for (let i = 0; i < n; i++) {
