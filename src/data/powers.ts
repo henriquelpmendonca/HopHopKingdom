@@ -20,7 +20,7 @@ export const POWERS: PowerDef[] = [
 export const POWER_FREEZE_SECONDS = 5;
 export const POWER_METEOR_COUNT = 6;
 /** dano de cada meteoro: base + por onda */
-export const meteorDamage = (wave: number) => 80 + wave * 10;
+export const meteorDamage = (wave: number) => Math.round(80 * Math.pow(1.07, wave));
 /** mana que o Centro da Vila nível 4 dá de presente, para comprar a primeira mina de mana */
 export const MANA_GIFT = 120;
 /** mana por segundo que o Centro da Vila nível 4 gera sozinho (para nunca ficar sem saída) */

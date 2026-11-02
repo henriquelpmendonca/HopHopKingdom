@@ -110,8 +110,9 @@ export const ORCS: Record<OrcKind, OrcStats> = {
 export function orcForWave(kind: OrcKind, wave: number) {
   const o = ORCS[kind];
   return {
-    hp: Math.round(o.hp * (1 + 0.09 * wave)),
-    dmg: Math.round(o.dmg * (1 + 0.05 * wave)),
+    // crescem em ritmo composto (8% e 4% por onda): sem isso a economia do jogador ultrapassa os inimigos
+    hp: Math.round(o.hp * Math.pow(1.08, wave)),
+    dmg: Math.round(o.dmg * Math.pow(1.04, wave)),
     speed: Math.min(o.speed + wave * 1.5, o.speed + 30),
   };
 }
@@ -150,5 +151,5 @@ export const WAVE = {
   firstDelay: 30,
   /** segundos entre uma onda e outra: mais tempo para construir e evoluir */
   interval: 38,
-  count: (wave: number) => Math.min(2 + Math.floor(wave * 0.75), 14),
+  count: (wave: number) => Math.min(2 + Math.floor(wave * 0.9), 22),
 };

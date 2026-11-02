@@ -12,6 +12,8 @@ export const ZOOM_MAX = 1.6;
 export const EDGE_SCROLL_PX = 26;
 export const SCROLL_SPEED = 1300;
 export const START_COINS = 100;
+/** multiplicador das moedas que os inimigos dão ao morrer */
+export const KILL_COIN_MULT = 0.7;
 /** ao reerguer a cidade depois de perder: fração das moedas que fica e quantas ondas voltam */
 export const REBUILD_COIN_KEEP = 0.6;
 export const REBUILD_WAVES_BACK = 2;

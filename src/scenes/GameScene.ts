@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { audio, sfx } from '../audio';
 import { CameraRig } from '../camera';
 import { Radar } from '../ui/Radar';
-import { barH, CLICK_AOE_MULT, REBUILD_COIN_KEEP, REBUILD_WAVES_BACK, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_WAVES_BACK, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -619,9 +619,10 @@ export class GameScene extends Phaser.Scene {
       bus.emit(Evt.Hint, 'O Rei Orc caiu! Mas magos sombrios estão chegando...');
       this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
     }
-    addCoins(o.stats.coins);
+    const reward = Math.max(1, Math.round(o.stats.coins * KILL_COIN_MULT));
+    addCoins(reward);
     sfx.coin();
-    floatText(this, o.x, o.y - o.stats.height - 30, '+' + o.stats.coins);
+    floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
   }
 
   /** Perder não apaga tudo: a cidade é reerguida com um custo pequeno. */

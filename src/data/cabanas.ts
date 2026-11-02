@@ -115,6 +115,8 @@ function troopLevels(tiers: (Tier & { unit: SoldierUnit })[], o: { first: number
 export const CABANA_SOLDADO: HutDef = {
   id: 'cabana_soldado',
   nome: 'Cabana de Soldado',
+  // cada cabana a mais custa 15% mais: um exército gigante não sai de graça
+  costGrowth: 1.15,
   levels: troopLevels(SOLDADO_TIERS, { first: 50, step: 60, hp0: 150, countBase: 4, countCap: 16 }),
 };
 
@@ -131,6 +133,7 @@ const ARQUEIRO_TIERS: (Tier & { unit: SoldierUnit })[] = [
 export const CABANA_ARQUEIRO: HutDef = {
   id: 'cabana_arqueiro',
   nome: 'Cabana de Arqueiros',
+  costGrowth: 1.15,
   levels: troopLevels(ARQUEIRO_TIERS, { first: 90, step: 70, hp0: 120, countBase: 3, countCap: 12 }),
 };
 
@@ -154,7 +157,7 @@ function minaLevels(): HutLevel[] {
       hp: 260 + (lv - 1) * 45,
       width: t.width + (lv - t.from) * 3,
       soldiers: [],
-      income: Math.round(6 + (lv - 1) * 2.2),
+      income: Math.round(5 + (lv - 1) * 1.4),
     };
   });
 }
@@ -162,8 +165,8 @@ function minaLevels(): HutLevel[] {
 export const MINA_OURO: HutDef = {
   id: 'mina_ouro',
   nome: 'Mina de Ouro',
-  // sem limite de minas: cada uma custa 12% mais que a anterior, então o dinheiro não foge do controle
-  costGrowth: 1.12,
+  // sem limite de minas: cada uma custa 22% mais que a anterior, então o dinheiro não foge do controle
+  costGrowth: 1.22,
   levels: minaLevels(),
 };
 
