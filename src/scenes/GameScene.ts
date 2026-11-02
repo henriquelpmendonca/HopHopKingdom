@@ -270,29 +270,31 @@ export class GameScene extends Phaser.Scene {
 
   /* ---------- mouse ---------- */
 
-  /** Inimigo vivo mais à frente sob o ponto (px, py). */
-  private orcAt(px: number, py: number): Orc | null {
-    let best: Orc | null = null;
+  /**
+   * Inimigos que o golpe em (x, y) alcança: quem está sob o clique ou a até `reach` px do corpo dele.
+   * Vêm do mais perto para o mais longe.
+   */
+  private orcsNear(x: number, y: number, reach: number): Orc[] {
+    const hit: { o: Orc; d: number }[] = [];
     for (const o of this.orcs) {
       if (!o.alive) continue;
       const hgt = o.stats.height;
-      if (Math.abs(px - o.x) < hgt * 0.38 && py < o.y + 6 && py > o.y - hgt && (!best || o.y > best.y)) best = o;
+      // distância do clique até a caixa do corpo (zero se o clique estiver em cima dele)
+      const dx = Math.max(Math.abs(x - o.x) - hgt * 0.38, 0);
+      const dy = Math.max(o.y - hgt - y, y - (o.y + 6), 0);
+      const d = Math.hypot(dx, dy);
+      if (d <= reach) hit.push({ o, d });
     }
-    return best;
+    return hit.sort((a, b) => a.d - b.d).map(h => h.o);
   }
 
-  /** Clique que bate no inimigo e, mais fraco, em quem está pertinho. */
-  private clickHit(o: Orc, x: number, y: number, touch: boolean) {
+  /** Golpe do clique: o mais perto leva o dano inteiro, os outros dentro da área levam uma parte. */
+  private clickHit(targets: Orc[], x: number, y: number, touch: boolean) {
     const dmg = swordDamage(state.sword);
     const radius = swordRadius(state.sword);
-    o.takeDamage(dmg, x, y);
-    for (const other of this.orcs) {
-      if (other === o || !other.alive) continue;
-      // distância até o meio do corpo do outro inimigo
-      if (Math.hypot(other.x - x, other.y - other.stats.height * 0.4 - y) < radius) {
-        other.takeDamage(Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
-      }
-    }
+    targets.forEach((o, i) => {
+      o.takeDamage(i === 0 ? dmg : Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
+    });
     this.fx.burst(x, y, 7, 0xffe28a);
     const ring = this.add.ellipse(x, y, radius * 0.8, radius * 0.5)
       .setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
@@ -344,8 +346,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     // inimigo: o clique bate nele
-    const foe = this.orcAt(wp.x, wp.y);
-    if (foe) { this.clickHit(foe, wp.x, wp.y, p.wasTouch); return; }
+    // a área da espada é generosa: acerta quem estiver sob o clique ou bem pertinho
+    const foes = this.orcsNear(wp.x, wp.y, swordRadius(state.sword) * 0.6);
+    if (foes.length) { this.clickHit(foes, wp.x, wp.y, p.wasTouch); return; }
     const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(wp.x, wp.y))
       ?? (this.castle.contains(wp.x, wp.y) ? this.castle : null);
     this.select(hit === this.selected ? null : hit);
