@@ -42,7 +42,7 @@ async function start() {
   document.addEventListener('visibilitychange', () => { hidden = document.hidden; apply(); });
 
   // só no modo de desenvolvimento: ajuda a inspecionar o jogo pelo console
-  if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
+  if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;
 }
 
 void start();
