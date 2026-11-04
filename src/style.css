@@ -259,7 +259,7 @@ body.tuto #hint{display:none}
 #forgeBtn{position:relative}
 #forgeBadge{position:absolute;right:-8px;bottom:-8px;min-width:22px;padding:0 5px;border:3px solid #5a3418;border-radius:12px;background:#ffe45a;color:#5a3418;font:900 12px/16px "Trebuchet MS",Verdana,sans-serif}
 #forgeBadge.pulse{animation:bump .45s}
-#audio #forgeBtn.ready{animation:idle 1.4s ease-in-out infinite;background:linear-gradient(#fff6a8,#ffd22e)}
+#audio #forgeBtn.ready{animation:idle 1.4s ease-in-out infinite}
 #forge{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;background:rgba(40,20,5,.6)}
 #forge[hidden]{display:none}
 #forgebox{width:min(560px,94vw);max-height:92vh;overflow:auto;padding:20px 24px;border:6px solid #5a3418;border-radius:28px;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 10px 0 #5a3418;color:#5a3418;font-family:"Trebuchet MS",Verdana,sans-serif;animation:popin .45s cubic-bezier(.2,2,.4,1)}
@@ -298,3 +298,19 @@ body.tuto #hint{display:none}
 #langMenu button.on{border-color:#1f5a18;background:linear-gradient(#d8ffb8,#8be07a)}
 @media (max-width:640px){#langMenu{top:60px;right:10px}}
 @media (max-height:520px){#langMenu{top:48px;right:8px;flex-direction:row;flex-wrap:wrap;max-width:calc(100vw - 16px);padding:6px;gap:4px}#langMenu button{min-width:0;padding:5px 9px;font-size:13px}}
+
+/* botões do canto: desenhos prontos (public/assets/ui_*.png) no lugar dos botões feitos em CSS */
+#audio button.ic{border:0;border-radius:50%;background:transparent center/100% 100% no-repeat;box-shadow:none;filter:drop-shadow(0 3px 0 rgba(90,52,24,.35))}
+#audio button.ic:active{box-shadow:none;transform:scale(.9)}
+#audio #pauseBtn.ic{background-image:url(/assets/ui_pause.png)}
+#audio #langBtn.ic{background-image:url(/assets/ui_lang.png)}
+#audio #forgeBtn.ic{background-image:url(/assets/ui_star.png)}
+#audio #musicBtn.ic{background-image:url(/assets/ui_music.png)}
+#audio #sfxBtn.ic{background-image:url(/assets/ui_sfx.png)}
+#audio #gift.ic{background-image:url(/assets/ui_gift.png)}
+#audio button.ic.off{filter:grayscale(1);opacity:.65}
+#audio #forgeBtn.ic.ready{filter:drop-shadow(0 0 7px #ffe45a) drop-shadow(0 0 3px #fff6a8)}
+#gift.ic.cooling{filter:grayscale(.8)}
+#gift.ic:disabled{box-shadow:none}
+/* em pausa: o botão mostra "continuar" */
+#pauseBtn.paused::before{content:"▶";position:absolute;left:22%;top:22%;width:56%;height:56%;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fbd192;color:#7a4a1e;font-size:18px;line-height:1;padding-left:2px;box-sizing:border-box}

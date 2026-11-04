@@ -144,7 +144,7 @@ export function setupHud() {
   const setPause = (on: boolean) => {
     if (on && ($('over').hidden === false || !pauseBox.hidden)) return;
     pauseBox.hidden = !on;
-    $('pauseBtn').textContent = on ? '▶' : '⏸';
+    $('pauseBtn').classList.toggle('paused', on);
     bus.emit(Evt.Pause, on);
   };
   $('pauseBtn').addEventListener('click', () => { sfx.ui(); setPause(pauseBox.hidden !== false); });
