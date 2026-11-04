@@ -4,6 +4,7 @@ import { GameScene } from './scenes/GameScene';
 import { audio, unlockAudio } from './audio';
 import { setupHud } from './ui/Hud';
 import { setupTutorial } from './ui/Tutorial';
+import { setupBanner } from './ui/Banner';
 import { setupSwordCursor } from './ui/SwordCursor';
 import { sdk } from './sdk';
 import { applyStaticTexts, setLocale } from './i18n';
@@ -26,6 +27,7 @@ async function start() {
 
   setupHud();
   setupTutorial();
+  setupBanner();
   setupSwordCursor();
   unlockAudio();
 

@@ -44,7 +44,11 @@ export const Evt = {
   Gift: 'gift',
   /** jogo -> UI: o que o jogador fez, para o tutorial: start, placed, wave, grab, throw, hit, upgrade */
   Tuto: 'tuto',
+  /** jogo -> UI: faixa grande no meio da tela (onda, chefe, combo): { title, sub?, kind } */
+  Banner: 'banner',
 } as const;
+
+export interface BannerInfo { title: string; sub?: string; kind: 'wave' | 'boss' | 'combo' }
 
 export interface SelectInfo {
   /** posição na tela do topo da cabana */

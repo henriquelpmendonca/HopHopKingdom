@@ -223,3 +223,22 @@ body.tuto #hint{display:none}
 .slot.green.tuto-glow{animation-name:tutoglowg!important}
 @keyframes tutoglowg{0%,100%{box-shadow:0 0 0 0 rgba(255,214,64,.95),0 7px 0 #1f5a18;transform:translate(-50%,-100%)}50%{box-shadow:0 0 0 14px rgba(255,214,64,0),0 7px 0 #1f5a18;transform:translate(-50%,-110%)}}
 @media (max-width:640px){#tuto{font-size:15px;padding:8px 10px 8px 14px;gap:8px}#tutoSkip{font-size:12px;padding:4px 9px}}
+
+/* faixa grande de onda, chefe e combo */
+#banner{position:fixed;left:50%;top:20%;transform:translateX(-50%);z-index:6;pointer-events:none;text-align:center;width:max-content;max-width:calc(100vw - 20px);
+  font-family:"Trebuchet MS",Verdana,sans-serif;font-weight:900;color:#fff3c4;-webkit-text-stroke:0;text-shadow:0 5px 0 #5a3418,3px 0 0 #5a3418,-3px 0 0 #5a3418,0 -3px 0 #5a3418,3px 3px 0 #5a3418,-3px 3px 0 #5a3418,3px -3px 0 #5a3418,-3px -3px 0 #5a3418,0 10px 18px rgba(0,0,0,.25)}
+#banner[hidden]{display:none}
+#banner b{display:block;font-size:64px;line-height:1.05;letter-spacing:2px}
+#banner span{display:block;margin-top:6px;font-size:24px;color:#fff;letter-spacing:.5px}
+#banner span[hidden]{display:none}
+#banner.boss{color:#ff6b4a}
+#banner.boss b{font-size:84px}
+#banner.combo{top:30%}
+#banner.combo b{font-size:46px;color:#ffd24a}
+#banner.show.wave,#banner.show.boss{animation:bannerin .55s cubic-bezier(.2,1.6,.4,1) both,bannerout .4s ease-in 1.5s forwards}
+#banner.show.boss{animation:bannerin .55s cubic-bezier(.2,1.6,.4,1) both,bannerout .4s ease-in 2.15s forwards,bannershake .5s .05s}
+#banner.show.combo{animation:bannerin .3s cubic-bezier(.2,1.8,.4,1) both,bannerout .3s ease-in .8s forwards}
+@keyframes bannerin{0%{transform:translateX(-50%) scale(.2);opacity:0}100%{transform:translateX(-50%) scale(1);opacity:1}}
+@keyframes bannerout{to{transform:translateX(-50%) scale(1.15);opacity:0}}
+@keyframes bannershake{0%,100%{margin-left:0}20%{margin-left:-12px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:8px}}
+@media (max-width:640px){#banner b{font-size:42px}#banner.boss b{font-size:54px}#banner.combo b{font-size:34px}#banner span{font-size:17px}}

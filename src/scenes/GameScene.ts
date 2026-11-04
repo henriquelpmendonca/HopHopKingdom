@@ -23,6 +23,9 @@ import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
 
+/** quantos orcs seguidos mostram um aviso de combo */
+const COMBO_AT = [3, 5, 8, 12, 16, 20, 25, 30];
+
 export class GameScene extends Phaser.Scene {
   private castle!: Castle;
   private huts: Hut[] = [];
@@ -49,6 +52,8 @@ export class GameScene extends Phaser.Scene {
   private orcs: Orc[] = [];
   private wave = 0;
   private waveTimer = -1;
+  private combo = 0;
+  private comboAt = -1e9;
   private over = false;
   isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
@@ -624,8 +629,10 @@ export class GameScene extends Phaser.Scene {
       this.orcs.push(new Orc(this, bp.x, bp.y, 'boss', this.wave, this.fx, o => this.onOrcDie(o)));
       this.cameras.main.shake(600, 0.01);
       bus.emit(Evt.Hint, t('hint.boss', { w: this.wave }));
+      bus.emit(Evt.Banner, { title: t('banner.boss'), sub: t('banner.boss_sub', { w: this.wave }), kind: 'boss' });
     } else {
       bus.emit(Evt.Hint, t('hint.wave', { w: this.wave, n }) + (this.wave === 1 ? t('hint.click_them') : ''));
+      bus.emit(Evt.Banner, { title: t('banner.wave', { w: this.wave }), sub: t('banner.orcs', { n }), kind: 'wave' });
     }
     this.time.delayedCall(4500, () => bus.emit(Evt.Hint, null));
   }
@@ -649,6 +656,11 @@ export class GameScene extends Phaser.Scene {
     addCoins(reward);
     sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
+    // vários orcs derrotados em seguida viram um combo
+    const now = this.time.now;
+    this.combo = now - this.comboAt < 2500 ? this.combo + 1 : 1;
+    this.comboAt = now;
+    if (COMBO_AT.includes(this.combo)) bus.emit(Evt.Banner, { title: t('banner.combo', { n: this.combo }), kind: 'combo' });
   }
 
   /** Moedas de presente por assistir a um anúncio: uns 90 segundos de renda, no mínimo 400. */
