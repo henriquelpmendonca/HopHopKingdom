@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import { sdk } from '../sdk';
 import { CameraRig } from '../camera';
 import { Radar } from '../ui/Radar';
-import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_WAVES_BACK, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_HUT_WAVES, rebuildBack, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -53,6 +53,11 @@ export class GameScene extends Phaser.Scene {
   private orcs: Orc[] = [];
   private wave = 0;
   private waveTimer = -1;
+  /** segundos desde que a onda atual começou, e quantos orcs dela ainda vão entrar */
+  private waveAge = 0;
+  private pending = 0;
+  /** cabanas derrubadas (voltam quando a cidade é reerguida) */
+  private fallen: { id: string; x: number; y: number; level: number; wave: number }[] = [];
   private combo = 0;
   private kills = 0;
   private lastCount = -1;
@@ -643,10 +648,12 @@ export class GameScene extends Phaser.Scene {
         y: Phaser.Math.Clamp(this.castle.y + Math.sin(a) * dist * 0.8, 60, WORLD_H - 40),
       };
     };
+    this.pending += n;
     for (let i = 0; i < n; i++) {
       // no tutorial os orcs entram bem perto, para dar para clicar neles logo
       const { x, y } = around(tuto.on ? 620 + Math.random() * 120 : 1100 + Math.random() * 300);
       this.time.delayedCall(i * 450, () => {
+        this.pending = Math.max(0, this.pending - 1);
         if (this.over) return;
         const kind = pickOrcKind(this.wave, this.magos);
         this.orcs.push(new Orc(this, x, y, kind, this.wave, this.fx, o => this.onOrcDie(o)));
@@ -666,6 +673,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onHutDestroyed(h: Hut) {
+    this.fallen.push({ id: h.def.id, x: h.x, y: h.y, level: h.level, wave: this.wave });
     this.huts = this.huts.filter(x => x !== h);
     this.emitCosts();
     this.save();
@@ -720,9 +728,16 @@ export class GameScene extends Phaser.Scene {
     // com anúncio com recompensa, reerguer não custa nada
     if (!free) state.coins = Math.floor(state.coins * REBUILD_COIN_KEEP);
     bus.emit(Evt.Coins, state.coins);
-    this.wave = free ? this.wave : Math.max(0, this.wave - REBUILD_WAVES_BACK);
+    // as cabanas derrubadas nas últimas ondas voltam do jeito que eram, onde não houver outra coisa no lugar
+    const lost = this.fallen.filter(f => f.wave >= this.wave - REBUILD_HUT_WAVES);
+    this.fallen = [];
+    for (const f of lost) this.restoreHut(f);
+    this.emitCosts();
+    const back = free ? 0 : rebuildBack(this.wave);
+    this.wave = Math.max(0, this.wave - back);
     bus.emit(Evt.Wave, this.wave);
-    this.waveTimer = 16;
+    this.waveTimer = 25;
+    this.waveAge = 0;
     this.castle.hp = this.castle.maxHp;
     for (const h of this.huts) {
       h.hp = h.maxHp;
@@ -732,9 +747,22 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.shake(250, 0.006);
     sfx.upgrade(true);
     audio.set('calma');
-    bus.emit(Evt.Hint, free ? t('hint.ad_free_rebuild') : t('hint.rebuilt', { p: Math.round((1 - REBUILD_COIN_KEEP) * 100), w: REBUILD_WAVES_BACK }));
+    bus.emit(Evt.Hint, free ? t('hint.ad_free_rebuild') : t('hint.rebuilt', { p: Math.round((1 - REBUILD_COIN_KEEP) * 100), w: back }));
     this.time.delayedCall(6000, () => bus.emit(Evt.Hint, null));
     this.save();
+  }
+
+  /** Põe de volta uma cabana derrubada, a menos que já haja algo no lugar. */
+  private restoreHut(f: { id: string; x: number; y: number; level: number }) {
+    const def = hutDef(f.id);
+    const lv = def.levels[Math.min(f.level, def.levels.length - 1)];
+    const tex = this.textures.get(lv.art).getSourceImage();
+    const b: Building = { x: f.x, y: f.y, w: lv.width, h: lv.width * tex.height / tex.width };
+    if (overlaps(b, this.castle) || this.huts.some(h => overlaps(b, h))) return;
+    const hut = new Hut(this, def, f.x, f.y, this.fx, h => this.onHutDestroyed(h));
+    hut.restore(f.level);
+    this.huts.push(hut);
+    this.fx.burst(f.x, f.y - 20, 18, 0xe8d9b8, true);
   }
 
   /** guarda a melhor onda de todas as partidas e devolve o recorde */
@@ -814,9 +842,13 @@ export class GameScene extends Phaser.Scene {
 
     // ondas
     if (this.waveTimer >= 0) {
-      this.waveTimer -= dt;
-      if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.interval; }
-      const left = this.waveTimer >= 0 && this.waveTimer < 600 ? Math.ceil(this.waveTimer) : -1;
+      // a preparação só corre quando não resta nenhum inimigo da onda (ou se algum ficou preso há muito tempo)
+      this.waveAge += dt;
+      const fighting = this.pending > 0 || this.orcs.some(o => o.alive);
+      const ticking = !fighting || this.waveAge > WAVE.maxFight;
+      if (ticking) this.waveTimer -= dt;
+      if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.interval; this.waveAge = 0; }
+      const left = ticking && this.waveTimer >= 0 && this.waveTimer < 600 ? Math.ceil(this.waveTimer) : -1;
       if (left !== this.lastCount) { this.lastCount = left; bus.emit(Evt.Countdown, left >= 0 ? left : null); }
     }
 

@@ -149,7 +149,9 @@ export function isBossWave(wave: number) {
 export const WAVE = {
   /** segundos até a primeira onda: dá tempo de construir a primeira cabana */
   firstDelay: 30,
-  /** segundos entre uma onda e outra: mais tempo para construir e evoluir */
-  interval: 38,
+  /** segundos de preparação: a contagem só corre depois que o último inimigo da onda morreu */
+  interval: 55,
+  /** se algum inimigo ficar preso e a onda durar mais que isto (s), a contagem corre mesmo assim */
+  maxFight: 180,
   count: (wave: number) => Math.min(2 + Math.floor(wave * 0.9), 22),
 };

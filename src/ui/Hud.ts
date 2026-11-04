@@ -1,7 +1,7 @@
 import { audio, sfx } from '../audio';
 import { t, type Key } from '../i18n';
 import { sdk } from '../sdk';
-import { REBUILD_COIN_KEEP, REBUILD_WAVES_BACK } from '../config';
+import { REBUILD_COIN_KEEP, rebuildBack } from '../config';
 import { clearSave } from '../save';
 import { BUILDABLES } from '../data/cabanas';
 import { MAGIC_CASTLE_LEVEL } from '../data/castle';
@@ -205,7 +205,7 @@ export function setupHud() {
     const stars = getStars();
     $('overStars').textContent = stars > 0 ? '⭐ ' + t('ui.over_stars', { n: stars }) : '';
     $('overForge').classList.toggle('ready', anyAffordable());
-    $('overTxt').textContent = t('ui.over_txt', { w: info.wave, p: Math.round((1 - REBUILD_COIN_KEEP) * 100), n: REBUILD_WAVES_BACK });
+    $('overTxt').textContent = t('ui.over_txt', { w: info.wave, p: Math.round((1 - REBUILD_COIN_KEEP) * 100), n: rebuildBack(info.wave) });
     // reerguer de graça só aparece se houver anúncio com recompensa disponível
     $('rebuildFree').hidden = !sdk.adsAvailable;
     $('over').hidden = false;
