@@ -37,3 +37,10 @@ export const BOUNCE = { jumps: 6, range: 360, mult: 0.45, step: 0.14 };
 /** baú: chances de cair de cada orc, quanto tempo fica no chão (s) e o tamanho na tela (px) */
 export const CHEST = { chance: 0.05, chanceElite: 0.3, life: 14, height: 74 };
 export const chestCoins = (wave: number, boss: boolean) => Math.round((40 + wave * 14) * (boss ? 3 : 1));
+
+/** tempo (s) para a casa preparar outro soldado especial depois de um ser usado; evoluir a casa deixa mais rápido */
+export const rechargeSeconds = (level: number) => Math.max(8, Math.round(24 - level * 0.6));
+
+/** nível mínimo da cabana para evoluir e o custo (em mana) de cada evolução */
+export const EVOLVE_LEVEL = 10;
+export const EVOLVE_COST: Record<string, number> = { cabana_gigante: 120, cabana_bomba: 100, cabana_quicador: 100 };

@@ -12,14 +12,14 @@ import { Hut } from '../entities/Hut';
 import { Orc } from '../entities/Orc';
 import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
-import { BUILDABLES, buildCost, HutDef, hutDef } from '../data/cabanas';
+import { BUILDABLES, buildCost, EVOLUTIONS, HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
 import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
 import { store } from '../store';
-import { BOMB_RADIUS, BOUNCE, bombDamage, CHEST, chestCoins, GIANT, POWER, SPECIAL_KINDS, type SpecialKind } from '../data/special';
+import { BOMB_RADIUS, BOUNCE, bombDamage, CHEST, chestCoins, EVOLVE_COST, EVOLVE_LEVEL, GIANT, SPECIAL_ART } from '../data/special';
 import { addStars, noteKill, perkMult, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
@@ -39,9 +39,6 @@ export class GameScene extends Phaser.Scene {
   /** desenho (e largura) da cabana no cursor: o nível 1 ao construir, o nível dela ao mover */
   private ghostLv: { art: string; width: number } | null = null;
   private calmShown = true;
-  /** barra de poder: com ela cheia, o próximo soldado pego vira especial */
-  private charge = 0;
-  private specialIdx = Math.floor(Math.random() * 3);
   /** baús que caem dos orcs: clique para abrir antes que sumam */
   private chests: { img: Phaser.GameObjects.Image; life: number; boss: boolean; open: boolean }[] = [];
   private selected: Hut | Castle | null = null;
@@ -76,7 +73,7 @@ export class GameScene extends Phaser.Scene {
   private over = false;
   isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
-  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana', 'poder'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
+  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
   /** atalho de teste: ?onda=5 começa na onda 5 */
   private debugWave = Number(new URLSearchParams(import.meta.env.DEV ? location.search : '').get('onda')) || 0;
 
@@ -118,11 +115,13 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Gift, this.gift, this);
     bus.on(Evt.Perks, this.onPerk, this);
     bus.on(Evt.Sell, this.sellSelected, this);
+    bus.on(Evt.Evolve, this.evolveSelected, this);
     bus.on(Evt.Move, this.startMove, this);
     bus.on(Evt.Stars, this.onStars, this);
     this.events.once('shutdown', () => {
       bus.off(Evt.Perks, this.onPerk, this);
       bus.off(Evt.Sell, this.sellSelected, this);
+      bus.off(Evt.Evolve, this.evolveSelected, this);
       bus.off(Evt.Move, this.startMove, this);
       bus.off(Evt.Stars, this.onStars, this);
       bus.off(Evt.Gift, this.gift, this);
@@ -150,8 +149,6 @@ export class GameScene extends Phaser.Scene {
     this.onCastleLevel(false);
     this.emitCosts();
     bus.emit(Evt.Wave, this.wave);
-    // atalho de teste: ?poder=1 começa com a barra de poder cheia (e a cada pouco, enche de novo)
-    if (new URLSearchParams(import.meta.env.DEV ? location.search : '').has('poder')) this.addCharge(POWER.max);
     bus.emit(Evt.Sword, state.sword);
     this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
     const flush = () => this.save();
@@ -416,32 +413,11 @@ export class GameScene extends Phaser.Scene {
     // no tutorial os orcs chegam logo depois da primeira cabana
     if (tuto.on && this.waveTimer > 9) this.waveTimer = 9;
     if (tuto.on) { this.stopPlacing(); this.select(null); } else
-    bus.emit(Evt.Hint, def.levels[0].soldiers.length ? t('hint.built_troops') : (def.currency === 'mana' ? t('hint.built_mana_mine') : t('hint.built_mine')));
+    bus.emit(Evt.Hint, def.id === 'casa_estudo' ? t('hint.built_study') : def.levels[0].soldiers.length ? t('hint.built_troops') : (def.currency === 'mana' ? t('hint.built_mana_mine') : t('hint.built_mine')));
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
 
   /* ---------- soldados especiais e baús ---------- */
-
-  private addCharge(n: number) {
-    if (tuto.on || this.over) return;
-    const was = this.charge;
-    this.charge = Math.min(POWER.max, this.charge + n);
-    bus.emit(Evt.Charge, this.charge);
-    if (was < POWER.max && this.charge >= POWER.max) {
-      sfx.upgrade(true);
-      bus.emit(Evt.Banner, { title: t('banner.power'), sub: t('banner.power_sub'), kind: 'combo' });
-    }
-  }
-
-  /** O próximo especial da fila (bomba, gigante, quicador, em rodízio). */
-  private armSoldier(s: Soldier) {
-    const kind: SpecialKind = SPECIAL_KINDS[this.specialIdx++ % SPECIAL_KINDS.length];
-    s.makeSpecial(kind);
-    this.charge = 0;
-    bus.emit(Evt.Charge, 0);
-    const label = kind === 'bomba' ? t('fl.special_bomb') : kind === 'gigante' ? t('fl.special_giant') : t('fl.special_bounce');
-    floatText(this, s.x, s.y - 90, label, '#ffd84a');
-  }
 
   /** Imagem que cresce e some (explosão e afins). */
   private puff(x: number, y: number, key: string, width: number, ms = 520) {
@@ -453,9 +429,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private explode(s: Soldier) {
-    const x = s.x, y = s.y;
+    const x = s.x, y = s.y, pw = s.power;
     s.clearSpecial();
-    const dmg = bombDamage(this.wave);
+    const dmg = Math.round(bombDamage(this.wave) * pw);
     for (const o of this.orcs) {
       if (o.alive && Math.hypot(o.x - x, (o.y - y) * 2) < BOMB_RADIUS) o.takeDamage(dmg, x, y);
     }
@@ -467,7 +443,7 @@ export class GameScene extends Phaser.Scene {
 
   private giantLand(s: Soldier) {
     s.becomeGiant();
-    const dmg = Math.round(bombDamage(this.wave) * GIANT.shockMult);
+    const dmg = Math.round(bombDamage(this.wave) * GIANT.shockMult * s.power);
     for (const o of this.orcs) {
       if (o.alive && Math.hypot(o.x - s.x, (o.y - s.y) * 2) < GIANT.shockRadius) o.takeDamage(dmg, s.x, s.y);
     }
@@ -494,7 +470,7 @@ export class GameScene extends Phaser.Scene {
       from = best;
     }
     s.startBounce();
-    const dmg = Math.round(bombDamage(this.wave) * BOUNCE.mult);
+    const dmg = Math.round(bombDamage(this.wave) * BOUNCE.mult * s.power);
     hits.forEach((o, i) => {
       this.time.delayedCall(i * BOUNCE.step * 1000, () => {
         if (s.state !== 'bounce') return;
@@ -538,6 +514,74 @@ export class GameScene extends Phaser.Scene {
   private clearChests() {
     for (const c of this.chests) c.img.destroy();
     this.chests = [];
+  }
+
+  /* ---------- evoluir (Casa de Estudo) ---------- */
+
+  private hasStudy() {
+    return this.huts.some(h => h.def.id === 'casa_estudo' && h.alive);
+  }
+
+  /** casas novas em que esta cabana pode virar (só aparecem com a Casa de Estudo de pé) */
+  private evolveOptions(h: Hut) {
+    const targets = EVOLUTIONS[h.def.id];
+    if (!targets || !this.hasStudy()) return undefined;
+    return targets.map(id => {
+      const d = hutDef(id);
+      const kind = d.levels[0].soldiers.find(sp => sp.special)?.special ?? 'gigante';
+      const tooLow = h.level + 1 < EVOLVE_LEVEL;
+      return {
+        id,
+        art: SPECIAL_ART[kind],
+        name: t(`name.${id}` as Key),
+        cost: EVOLVE_COST[id] ?? 100,
+        ok: this.calm() && !tooLow,
+        lock: tooLow ? t('ui.level', { n: EVOLVE_LEVEL }) : undefined,
+      };
+    });
+  }
+
+  /** A cabana vira uma casa de soldados especiais: mesma posição e mesmo nível, pagando mana. */
+  private evolveSelected(id: string) {
+    const h = this.selected;
+    if (!(h instanceof Hut) || this.over) return;
+    if (!EVOLUTIONS[h.def.id]?.includes(id)) return;
+    if (!this.hasStudy()) {
+      bus.emit(Evt.Broke, 'tools');
+      bus.emit(Evt.Hint, t('hint.evolve_study'));
+      this.time.delayedCall(2600, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    if (h.level + 1 < EVOLVE_LEVEL) {
+      bus.emit(Evt.Broke, 'tools');
+      bus.emit(Evt.Hint, t('hint.evolve_level', { n: EVOLVE_LEVEL }));
+      this.time.delayedCall(2600, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    if (!this.calm()) { this.notCalm(); return; }
+    if (!spendMana(EVOLVE_COST[id] ?? 100)) {
+      bus.emit(Evt.Broke, 'tools');
+      bus.emit(Evt.Hint, t('hint.no_mana'));
+      this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    this.emitMana();
+    const def = hutDef(id);
+    const { x, y, level } = h;
+    this.huts = this.huts.filter(q => q !== h);
+    h.dismantle();
+    const nh = new Hut(this, def, x, y, this.fx, q => this.onHutDestroyed(q));
+    nh.restore(level);
+    this.huts.push(nh);
+    this.select(nh);
+    this.emitCosts();
+    this.fx.burst(x, y - nh.h * 0.5, 36, 0xc9a0ff, true);
+    this.cameras.main.shake(220, 0.006);
+    sfx.upgrade(true);
+    floatText(this, x, y - nh.h - 10, t('fl.evolved'), '#d6a8ff');
+    bus.emit(Evt.Hint, t('hint.evolved'));
+    this.time.delayedCall(3500, () => bus.emit(Evt.Hint, null));
+    this.save();
   }
 
   /* ---------- vender e mover ---------- */
@@ -647,6 +691,7 @@ export class GameScene extends Phaser.Scene {
       x: h.x, y: h.y - h.h - 26,
       next: nx ? { art: nx.art, cost: nx.cost, lock, mana: h instanceof Hut && h.def.currency === 'mana' } : null,
       tools: h instanceof Hut ? { refund: this.refundOf(h), move: this.moveCostOf(h), mana: h.def.currency === 'mana', ok: this.calm() } : undefined,
+      evolve: h instanceof Hut ? this.evolveOptions(h) : undefined,
     };
     bus.emit(Evt.Select, info);
     this.emitSelPos();
@@ -808,7 +853,6 @@ export class GameScene extends Phaser.Scene {
     if (best) {
       this.held = best;
       best.grab();
-      if (this.charge >= POWER.max && !best.special && !tuto.on) this.armSoldier(best);
       bus.emit(Evt.Tuto, 'grab');
       this.samples = [{ x: wp.x, y: wp.y, t: performance.now() }];
       bus.emit(Evt.Hint, null);
@@ -928,7 +972,6 @@ export class GameScene extends Phaser.Scene {
     // estrelas reais: uma a cada 10 orcs, e o Rei Orc vale mais
     noteKill();
     if (o.stats.boss) addStars(STARS_BOSS_KILL);
-    this.addCharge(o.stats.boss ? POWER.perBossKill : POWER.perKill);
     const elite = o.stats.boss || o.stats.coins >= 60;
     if (!tuto.on && Math.random() < (o.stats.boss ? 1 : elite ? CHEST.chanceElite : CHEST.chance)) this.spawnChest(o.x, o.y, !!o.stats.boss);
     sfx.coin();
@@ -1129,7 +1172,6 @@ export class GameScene extends Phaser.Scene {
           if (s.special === 'bomba' && !s.gentle) { this.explode(s); break; }
           if (s.special === 'quicador' && !s.gentle) { this.bounce(s, o); break; }
           o.takeDamage(Math.max(6, Math.round(s.speed * 0.03)), s.x, s.y);
-          if (!s.special) this.addCharge(POWER.perThrowHit);
           break;
         }
       }

@@ -1,4 +1,5 @@
 import { MAGIC_CASTLE_LEVEL } from './castle';
+import { rechargeSeconds, type SpecialKind } from './special';
 
 /** Cada tipo de soldado tem o seu desenho. Se o PNG ainda não existir, usa o soldado de espada. */
 export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro' | 'arqueiro2' | 'arqueiro3' | 'magoA1' | 'magoA2' | 'magoA3';
@@ -22,6 +23,10 @@ export interface SoldierSpec {
   count: number;
   /** multiplicador de vida e dano: cada nível da cabana deixa os soldados um pouco mais fortes */
   power?: number;
+  /** soldado especial de uma casa evoluída: fica brilhando até ser arremessado e depois leva um tempo para recarregar */
+  special?: SpecialKind;
+  /** segundos para recarregar o poder */
+  recharge?: number;
 }
 
 export interface HutLevel {
@@ -226,11 +231,61 @@ export const MINA_MANA: HutDef = {
   levels: manaLevels(),
 };
 
+/**
+ * Casa de Estudo: onde se estudam novos guerreiros. Só com o Centro da Vila nível 4 (mana), e só uma.
+ * Com ela de pé, cabanas de nível 10 ou mais podem evoluir (pagando mana) para casas de soldados especiais.
+ */
+export const CASA_ESTUDO: HutDef = {
+  id: 'casa_estudo',
+  nome: 'Casa de Estudo',
+  currency: 'mana',
+  needCastle: MAGIC_CASTLE_LEVEL,
+  maxCount: 1,
+  levels: [{ cost: 80, art: 'cabana_estudo_1', hp: 300, width: 160, soldiers: [] }],
+};
+
+/**
+ * Casas evoluídas: a cabana continua com os soldados dela e ganha soldados especiais (bombardeiro, gigante, quicador)
+ * que você arremessa; depois de usar o poder ele volta ao normal e recarrega sozinho. Mais níveis = mais especiais,
+ * mais poder e recarga mais rápida. Só existe o desenho do nível 1 da casa nova.
+ */
+function evolved(base: HutDef, o: { id: string; nome: string; art: string; kind: SpecialKind }): HutDef {
+  return {
+    id: o.id,
+    nome: o.nome,
+    costGrowth: base.costGrowth,
+    levels: base.levels.map((l, i) => ({
+      ...l,
+      art: o.art,
+      soldiers: [...l.soldiers, {
+        unit: 'espada' as SoldierUnit,
+        special: o.kind,
+        recharge: rechargeSeconds(i + 1),
+        count: Math.min(1 + Math.floor(i / 5), 4),
+        power: l.soldiers[0]?.power ?? 1,
+      }],
+    })),
+  };
+}
+
+export const CABANA_GIGANTE = evolved(CABANA_SOLDADO, { id: 'cabana_gigante', nome: 'Casa do Gigante', art: 'cabana_gigante_1', kind: 'gigante' });
+export const CABANA_BOMBA = evolved(CABANA_ARQUEIRO, { id: 'cabana_bomba', nome: 'Casa do Bombardeiro', art: 'cabana_bomba_1', kind: 'bomba' });
+export const CABANA_QUICADOR = evolved(CABANA_ARQUEIRO, { id: 'cabana_quicador', nome: 'Casa do Quicador', art: 'cabana_quicador_1', kind: 'quicador' });
+
+/** quem pode evoluir para quê */
+export const EVOLUTIONS: Record<string, string[]> = {
+  cabana_soldado: ['cabana_gigante'],
+  cabana_arqueiro: ['cabana_bomba', 'cabana_quicador'],
+};
+
 /** O que aparece na barra de construção. Novas construções entram aqui. */
-export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO, MINA_MANA, CABANA_MAGO];
+export const BUILDABLES: HutDef[] = [CABANA_SOLDADO, CABANA_ARQUEIRO, MINA_OURO, MINA_MANA, CABANA_MAGO, CASA_ESTUDO];
+
+/** tudo que existe no mapa, inclusive o que só se obtém evoluindo */
+const ALL_HUTS: HutDef[] = [...BUILDABLES, CABANA_GIGANTE, CABANA_BOMBA, CABANA_QUICADOR];
 
 export function hutDef(id: string): HutDef {
-  const d = BUILDABLES.find(b => b.id === id);
+  const d = ALL_HUTS.find(b => b.id === id);
   if (!d) throw new Error('cabana desconhecida: ' + id);
   return d;
 }

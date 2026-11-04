@@ -334,13 +334,9 @@ body.tuto #hint{display:none}
 .slot.green.ringbtn[hidden]{display:none}
 @media (max-width:640px){.slot.green.ringbtn{width:54px;height:54px}.slot.green.ringbtn .ico{font-size:24px}.slot.green.ringbtn .cost{font-size:13px;bottom:-14px}}
 
-/* barra de poder dos soldados especiais */
-#power{display:flex;align-items:center;gap:8px;margin-top:8px;padding:5px 12px 5px 8px;border:4px solid #5a3418;border-radius:22px;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 5px 0 #5a3418;width:max-content;max-width:calc(100vw - 20px);pointer-events:none}
-#power .pbolt{font-style:normal;font-size:20px;line-height:1}
-#power .pbar{width:92px;height:14px;border:3px solid #5a3418;border-radius:9px;background:#e4d3b2;overflow:hidden}
-#powerFill{display:block;height:100%;width:0;background:linear-gradient(#ffe45a,#ff9f1a);transition:width .25s}
-#power small{font:900 13px "Trebuchet MS",Verdana,sans-serif;color:#b04a00}
-#power small:empty{display:none}
-#power.ready{animation:idle 1.1s ease-in-out infinite;border-color:#b04a00;box-shadow:0 5px 0 #b04a00,0 0 14px 3px rgba(255,200,40,.85)}
-#power.ready #powerFill{background:linear-gradient(#fff6a8,#ffb300)}
-@media (max-width:640px){#power{padding:3px 9px 3px 6px;gap:5px}#power .pbar{width:64px;height:11px}#power small{font-size:11px}}
+/* botões de evoluir a cabana para uma casa especial */
+.slot.green.evo{background:linear-gradient(#efe0ff,#a77be0);border-color:#4b2a80;box-shadow:0 6px 0 #4b2a80,0 10px 12px rgba(0,0,0,.25)}
+.slot.green.evo img{max-height:84%;max-width:84%}
+.slot.green.evo .cost{border-color:#4b2a80;color:#4b2a80;font-size:14px}
+.slot.green.ringbtn.evo{width:68px;height:68px}
+@media (max-width:640px){.slot.green.ringbtn.evo{width:58px;height:58px}}

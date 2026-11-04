@@ -56,6 +56,8 @@ export const Evt = {
   Perks: 'perks',
   /** UI -> jogo: vender / mover a cabana selecionada */
   Sell: 'sell',
+  /** UI -> jogo: evoluir a cabana selecionada para outra casa (id da casa nova) */
+  Evolve: 'evolve',
   Move: 'move',
   /** jogo -> UI: barra de poder dos soldados especiais (0 a 100) */
   Charge: 'charge',
@@ -75,4 +77,6 @@ export interface SelectInfo {
   next: { art: string; cost: number; /** custa mana em vez de moedas */ mana?: boolean; /** motivo de estar bloqueado (ex.: nível do centro da vila) */ lock?: string } | null;
   /** só cabanas: quanto devolve ao vender, quanto custa mover e se dá para fazer isso agora (entre ondas) */
   tools?: { refund: number; move: number; mana: boolean; ok: boolean };
+  /** só cabanas que podem evoluir (com a Casa de Estudo de pé): as casas novas possíveis */
+  evolve?: { id: string; art: string; name: string; cost: number; ok: boolean; lock?: string }[];
 }

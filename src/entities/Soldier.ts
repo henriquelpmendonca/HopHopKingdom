@@ -75,6 +75,11 @@ export class Soldier implements Combatant {
   /** soltou sem arremessar de verdade: o poder especial fica guardado */
   gentle = false;
   private giantT = 0;
+  /** segundos até a casa recarregar o poder deste soldado (0 = não está recarregando) */
+  private rechargeT = 0;
+
+  /** força do poder: cresce com o nível da casa */
+  get power() { return this.spec?.power ?? 1; }
 
   readonly sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
@@ -107,7 +112,7 @@ export class Soldier implements Combatant {
   get speed() { return Math.hypot(this.vx, this.vy); }
 
   /** Troca o desenho (espada, lança, alabarda), o brilho e os números de combate. */
-  setSpec(spec: SoldierSpec) {
+  setSpec(spec: SoldierSpec, arm = true) {
     this.spec = spec;
     this.special = null;
     this.giantT = 0;
@@ -139,6 +144,8 @@ export class Soldier implements Combatant {
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
+    // soldado de uma casa evoluída: já nasce com o poder
+    if (arm && spec.special) { this.rechargeT = 0; this.makeSpecial(spec.special); }
   }
 
   /** A barra de poder encheu: este soldado vira especial (desenho, tamanho e brilho dourado). */
@@ -163,8 +170,10 @@ export class Soldier implements Combatant {
     this.special = null;
     this.giantT = 0;
     const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
-    this.setSpec(this.spec);
+    this.setSpec(this.spec, false);
     this.hp = Math.max(1, Math.round(this.maxHp * ratio));
+    // soldado de casa evoluída: volta ao normal e a casa prepara o próximo poder
+    if (this.spec.special) this.rechargeT = this.spec.recharge ?? 20;
   }
 
   /** O gigante pousou: fica enorme e forte por alguns segundos. */
@@ -197,7 +206,10 @@ export class Soldier implements Combatant {
   rescale() {
     const was = this.alive;
     const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
-    this.setSpec(this.spec);
+    const sp = this.special, rt = this.rechargeT;
+    this.setSpec(this.spec, false);
+    if (sp) this.makeSpecial(sp);
+    this.rechargeT = rt;
     this.hp = was ? Math.max(1, Math.round(this.maxHp * ratio)) : 0;
   }
 
@@ -303,6 +315,11 @@ export class Soldier implements Combatant {
     this.y = this.home.y;
     this.setVisible(true);
     this.fx.burst(this.x, this.y, 8, 0xffffff);
+    // caiu em combate: o poder volta a carregar do zero
+    if (this.spec.special) {
+      if (this.special) this.clearSpecial();
+      else if (this.rechargeT <= 0) this.rechargeT = this.spec.recharge ?? 20;
+    }
   }
 
   /** Tira o soldado do mapa de vez (cabana destruída). */
@@ -350,6 +367,10 @@ export class Soldier implements Combatant {
       return;
     }
     if (this.giantT > 0) { this.giantT -= dt; if (this.giantT <= 0) { this.fx.burst(this.x, this.y - SOLDIER_H, 16, 0xffd84a, true); this.clearSpecial(); } }
+    if (this.rechargeT > 0 && this.state !== 'held' && this.state !== 'fly') {
+      this.rechargeT -= dt;
+      if (this.rechargeT <= 0 && this.spec.special) { this.rechargeT = 0; this.makeSpecial(this.spec.special); }
+    }
     this.cdT -= dt;
     this.hitCd -= dt;
     this.hitT = Math.max(0, this.hitT - dt);

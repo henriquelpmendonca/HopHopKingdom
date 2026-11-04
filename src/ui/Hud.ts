@@ -151,16 +151,6 @@ export function setupHud() {
   $('resume').addEventListener('click', () => { sfx.ui(); setPause(false); });
   window.addEventListener('keydown', e => { if (e.code === 'KeyP' && !e.repeat) setPause(pauseBox.hidden !== false); });
 
-  // barra de poder dos soldados especiais
-  const powerBox = $('power'), powerFill = $('powerFill'), powerTxt = $('powerTxt');
-  powerBox.title = t('ui.power');
-  bus.on(Evt.Charge, (v: number) => {
-    powerFill.style.width = Math.min(100, v) + '%';
-    const full = v >= 100;
-    powerBox.classList.toggle('ready', full);
-    powerTxt.textContent = full ? t('ui.power_ready') : '';
-  });
-
   bus.on(Evt.Wave, (n: number) => {
     const el = $('waveN');
     if (el.textContent !== String(n)) boing($('wave'), 'bump');
@@ -168,8 +158,10 @@ export function setupHud() {
   });
 
   // roda de botões ao redor da cabana: evoluir em cima, mover e vender embaixo dos lados
-  const mv = $('moveBtn'), sl = $('sellBtn');
-  const ringItems: [HTMLElement, number][] = [[up, -90], [mv, 150], [sl, 30]];
+  const mv = $('moveBtn'), sl = $('sellBtn'), evoA = $('evoA'), evoB = $('evoB');
+  const evoBtns = [evoA, evoB];
+  const ringItems: [HTMLElement, number][] = [[up, -90], [mv, 150], [sl, 30], [evoA, -150], [evoB, -30]];
+  let evo: SelectInfo['evolve'];
   let ring = { x: 0, y: 0, r: 90 };
   let selKey = '';
   let emerge = false;
@@ -219,6 +211,23 @@ export function setupHud() {
     sl.classList.toggle('poor', !tools.ok);
     sl.classList.toggle('confirm', !!sellArmed);
   }
+  // evoluir a cabana para uma casa de soldados especiais (precisa da Casa de Estudo)
+  function drawEvo() {
+    evoBtns.forEach((b, i) => {
+      const e = evo?.[i];
+      b.hidden = !e;
+      if (!e) return;
+      b.innerHTML = `<img src="assets/${e.art}.png" alt=""><span class="cost">${e.lock ? '🔒 ' + e.lock : gemHtml + e.cost}</span>`;
+      b.title = t('ui.evolve', { name: e.name });
+      b.classList.toggle('poor', !e.ok);
+    });
+  }
+  evoBtns.forEach((b, i) => b.addEventListener('click', () => {
+    sfx.ui();
+    boing(b);
+    const e = evo?.[i];
+    if (e) bus.emit(Evt.Evolve, e.id);
+  }));
   function disarm() { window.clearTimeout(sellArmed); sellArmed = 0; drawTools(); }
   mv.addEventListener('click', () => { sfx.ui(); boing(mv); disarm(); bus.emit(Evt.Move); });
   sl.addEventListener('click', () => {
@@ -251,11 +260,13 @@ export function setupHud() {
 
   bus.on(Evt.Select, (info: SelectInfo | null) => {
     sel = info;
-    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; tools = undefined; selKey = ''; disarm(); return; }
+    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; evoA.hidden = true; evoB.hidden = true; tools = undefined; evo = undefined; selKey = ''; disarm(); return; }
     if (info.key !== selKey) { selKey = info.key; emerge = true; disarm(); }
     tools = info.tools;
     mv.hidden = sl.hidden = !tools;
     drawTools();
+    evo = info.evolve;
+    drawEvo();
     up.hidden = false;
     up.classList.toggle('locked', !!info.next?.lock);
     if (info.next) {
@@ -357,5 +368,5 @@ export function setupHud() {
   }, true);
 
   // clicar no botão não pode contar como clique no mapa
-  for (const el of [bar, up, mv, sl, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
+  for (const el of [bar, up, mv, sl, evoA, evoB, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
 }
