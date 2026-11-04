@@ -17,7 +17,7 @@ export function setupLangMenu() {
     });
     menu.appendChild(b);
   }
-  const toggle = (on: boolean) => { menu.hidden = !on; };
+  const toggle = (on: boolean) => { menu.hidden = !on; btn.classList.toggle('open', on); };
   btn.addEventListener('click', e => { e.stopPropagation(); sfx.ui(); toggle(menu.hidden !== false); });
   // clicar fora (ou Esc) fecha
   document.addEventListener('pointerdown', e => { if (menu.hidden === false && !menu.contains(e.target as Node)) toggle(false); });

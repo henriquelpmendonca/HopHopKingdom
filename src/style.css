@@ -308,9 +308,13 @@ body.tuto #hint{display:none}
 #audio #musicBtn.ic{background-image:url(/assets/ui_music.png)}
 #audio #sfxBtn.ic{background-image:url(/assets/ui_sfx.png)}
 #audio #gift.ic{background-image:url(/assets/ui_gift.png)}
-#audio button.ic.off{filter:grayscale(1);opacity:.65}
-#audio #forgeBtn.ic.ready{filter:drop-shadow(0 0 7px #ffe45a) drop-shadow(0 0 3px #fff6a8)}
-#gift.ic.cooling{filter:grayscale(.8)}
 #gift.ic:disabled{box-shadow:none}
-/* em pausa: o botão mostra "continuar" */
-#pauseBtn.paused::before{content:"▶";position:absolute;left:22%;top:22%;width:56%;height:56%;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fbd192;color:#7a4a1e;font-size:18px;line-height:1;padding-left:2px;box-sizing:border-box}
+/* estados apertado / ligado (segunda folha de desenhos) */
+#audio button.ic.off{opacity:1}
+#audio button.ic.off::after{display:none}
+#audio #pauseBtn.ic.paused{background-image:url(/assets/ui_play.png)}
+#audio #langBtn.ic.open,#audio #langBtn.ic:active{background-image:url(/assets/ui_lang_on.png)}
+#audio #forgeBtn.ic.open,#audio #forgeBtn.ic.ready,#audio #forgeBtn.ic:active{background-image:url(/assets/ui_star_on.png)}
+#audio #musicBtn.ic.off{background-image:url(/assets/ui_music_off.png)}
+#audio #sfxBtn.ic.off{background-image:url(/assets/ui_sfx_off.png)}
+#audio #gift.ic:active,#audio #gift.ic.cooling,#audio #gift.ic:disabled{background-image:url(/assets/ui_gift_on.png)}

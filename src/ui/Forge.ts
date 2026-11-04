@@ -54,6 +54,7 @@ export function setupForge() {
     if (on === open) return;
     open = on;
     box.hidden = !on;
+    btn.classList.toggle('open', on);
     if (on) paint();
     // o jogo fica parado enquanto a Forja está aberta (a pausa normal, se já estiver pausado, não é mexida)
     const paused = $('pause').hidden === false;
