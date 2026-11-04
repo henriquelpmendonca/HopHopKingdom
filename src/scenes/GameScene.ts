@@ -17,7 +17,8 @@ import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../da
 import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
-import { addCoins, addMana, spend, spendMana, state } from '../state';
+import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
+import { store } from '../store';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
@@ -102,7 +103,11 @@ export class GameScene extends Phaser.Scene {
     // os orcs vêm mesmo sem nenhuma construção: senão dava para juntar moedas sem risco, para sempre
     const fresh = this.huts.length === 0;
     this.waveTimer = this.debugWave ? 4 : fresh ? WAVE.firstDelay : 10;
-    if (fresh) {
+    // jogo novo: tutorial guiado (pulável); com atalhos de teste ele fica de fora
+    if (fresh && this.wave === 0 && this.persist && store.get('hhk_tuto') !== '1') {
+      tuto.on = true;
+      bus.emit(Evt.Tuto, 'start');
+    } else if (fresh) {
       bus.emit(Evt.Hint, t('hint.build_first'));
       this.time.delayedCall(9000, () => bus.emit(Evt.Hint, null));
     }
@@ -333,6 +338,10 @@ export class GameScene extends Phaser.Scene {
     this.stopPlacing();
     this.select(hut);
     this.save();
+    bus.emit(Evt.Tuto, 'placed');
+    // no tutorial os orcs chegam logo depois da primeira cabana
+    if (tuto.on && this.waveTimer > 9) this.waveTimer = 9;
+    if (tuto.on) { this.stopPlacing(); this.select(null); } else
     bus.emit(Evt.Hint, def.levels[0].soldiers.length ? t('hint.built_troops') : (def.currency === 'mana' ? t('hint.built_mana_mine') : t('hint.built_mine')));
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
@@ -410,6 +419,7 @@ export class GameScene extends Phaser.Scene {
     floatText(this, h.x, h.y - h.h - 10, novoVisual ? t('fl.new_look') : t('fl.upgraded'), '#7CFF6B');
     if (novoVisual) { this.fx.burst(h.x, h.y - h.h * 0.5, 36, 0xffd84a, true); this.cameras.main.shake(200, 0.005); }
     sfx.upgrade(h instanceof Castle);
+    bus.emit(Evt.Tuto, 'upgrade');
     if (h instanceof Castle) this.onCastleLevel(true);
     this.save();
     this.emitSelect();
@@ -465,6 +475,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.fx.burst(x, y, 7, 0xffe28a);
     sfx.swordHit();
+    bus.emit(Evt.Tuto, 'hit');
     const ring = this.add.ellipse(x, y, radius * 0.8, radius * 0.5)
       .setStrokeStyle(4, 0xfff0c0).setDepth(900_000);
     this.tweens.add({ targets: ring, scale: 2.2, alpha: 0, duration: 240, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
@@ -529,6 +540,7 @@ export class GameScene extends Phaser.Scene {
     if (best) {
       this.held = best;
       best.grab();
+      bus.emit(Evt.Tuto, 'grab');
       this.samples = [{ x: wp.x, y: wp.y, t: performance.now() }];
       bus.emit(Evt.Hint, null);
       return;
@@ -573,6 +585,7 @@ export class GameScene extends Phaser.Scene {
     const sp = Math.hypot(vx, vy);
     if (sp > MAX_THROW_SPEED) { vx *= MAX_THROW_SPEED / sp; vy *= MAX_THROW_SPEED / sp; }
     s.throwWith(vx, vy);
+    bus.emit(Evt.Tuto, 'throw');
   }
 
   /* ---------- loop ---------- */
@@ -587,6 +600,7 @@ export class GameScene extends Phaser.Scene {
     const boss = isBossWave(this.wave);
     const n = WAVE.count(this.wave);
     sfx.horn();
+    bus.emit(Evt.Tuto, 'wave');
     if (boss) sfx.bossRoar();
     // entram de longe, num círculo em volta da cidade (o mapa é grande: nas bordas demorariam demais)
     const around = (dist: number) => {
@@ -597,7 +611,8 @@ export class GameScene extends Phaser.Scene {
       };
     };
     for (let i = 0; i < n; i++) {
-      const { x, y } = around(1100 + Math.random() * 300);
+      // no tutorial os orcs entram bem perto, para dar para clicar neles logo
+      const { x, y } = around(tuto.on ? 620 + Math.random() * 120 : 1100 + Math.random() * 300);
       this.time.delayedCall(i * 450, () => {
         if (this.over) return;
         const kind = pickOrcKind(this.wave, this.magos);

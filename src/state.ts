@@ -11,6 +11,9 @@ export const state = {
   mana: Number(qs.get('mana')) || 0,
 };
 
+/** o tutorial dos primeiros minutos está rodando */
+export const tuto = { on: false };
+
 export function addCoins(n: number) {
   state.coins += n;
   bus.emit(Evt.Coins, state.coins);

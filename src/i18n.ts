@@ -72,6 +72,17 @@ const EN = {
   'ui.rebuild': 'Rebuild the city',
   'ui.rebuild_free': 'Rebuild for free (watch an ad)',
   'ui.restart': 'Start over',
+  'tuto.skip': 'Skip tutorial',
+  'tuto.build': 'Welcome! Tap the Soldier Hut card below to build your first hut.',
+  'tuto.place_mouse': 'Now click on the grass to place it.',
+  'tuto.place_touch': 'Drag your finger onto the grass and let go to place it.',
+  'tuto.wait': 'Your little soldiers hop around to protect the hut. Here come the orcs!',
+  'tuto.throw_mouse': 'Press and hold a soldier, drag, and release to THROW him at an orc!',
+  'tuto.throw_touch': 'Touch and hold a soldier, drag, and let go to THROW him at an orc!',
+  'tuto.hit_mouse': 'Click on the orcs to hit them with your sword!',
+  'tuto.hit_touch': 'Tap on the orcs to hit them with your sword!',
+  'tuto.upgrade': 'Collect coins from your kills, then click your hut and press the green arrow to upgrade it!',
+  'tuto.done': 'Great job! Keep building, upgrading and defending your kingdom!',
 } as const;
 
 export type Key = keyof typeof EN;
@@ -139,6 +150,17 @@ const PT: Record<Key, string> = {
   'ui.rebuild': 'Reerguer a cidade',
   'ui.rebuild_free': 'Reerguer de graça (assistir anúncio)',
   'ui.restart': 'Começar do zero',
+  'tuto.skip': 'Pular tutorial',
+  'tuto.build': 'Bem-vindo! Toque na carta da Cabana de Soldado aqui embaixo para construir a primeira.',
+  'tuto.place_mouse': 'Agora clique na grama para colocar.',
+  'tuto.place_touch': 'Arraste o dedo até a grama e solte para colocar.',
+  'tuto.wait': 'Seus soldadinhos pulam em volta da cabana para protegê-la. Lá vêm os orcs!',
+  'tuto.throw_mouse': 'Segure um soldado, arraste e solte para ARREMESSAR ele num orc!',
+  'tuto.throw_touch': 'Toque e segure um soldado, arraste e solte para ARREMESSAR ele num orc!',
+  'tuto.hit_mouse': 'Clique nos orcs para bater neles com a sua espada!',
+  'tuto.hit_touch': 'Toque nos orcs para bater neles com a sua espada!',
+  'tuto.upgrade': 'Junte moedas com os orcs derrotados, clique na cabana e aperte a seta verde para evoluir!',
+  'tuto.done': 'Muito bem! Continue construindo, evoluindo e defendendo o seu reino!',
 };
 
 const DICT: Record<Lang, Record<Key, string>> = { en: EN as unknown as Record<Key, string>, pt: PT };

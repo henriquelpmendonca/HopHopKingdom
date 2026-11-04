@@ -42,6 +42,8 @@ export const Evt = {
   Rebuild: 'rebuild',
   /** UI -> jogo: o jogador assistiu a um anúncio e ganha moedas */
   Gift: 'gift',
+  /** jogo -> UI: o que o jogador fez, para o tutorial: start, placed, wave, grab, throw, hit, upgrade */
+  Tuto: 'tuto',
 } as const;
 
 export interface SelectInfo {
