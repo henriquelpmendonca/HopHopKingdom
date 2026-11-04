@@ -314,7 +314,7 @@ body.tuto #hint{display:none}
 #audio button.ic.off::after{display:none}
 #audio #pauseBtn.ic.paused{background-image:url(/assets/ui_play.png)}
 #audio #langBtn.ic.open,#audio #langBtn.ic:active{background-image:url(/assets/ui_lang_on.png)}
-#audio #forgeBtn.ic.open,#audio #forgeBtn.ic.ready,#audio #forgeBtn.ic:active{background-image:url(/assets/ui_star_on.png)}
+#audio #forgeBtn.ic.open,#audio #forgeBtn.ic:active{background-image:url(/assets/ui_star_on.png)}
 #audio #musicBtn.ic.off{background-image:url(/assets/ui_music_off.png)}
 #audio #sfxBtn.ic.off{background-image:url(/assets/ui_sfx_off.png)}
 #audio #gift.ic:active,#audio #gift.ic.cooling,#audio #gift.ic:disabled{background-image:url(/assets/ui_gift_on.png)}
