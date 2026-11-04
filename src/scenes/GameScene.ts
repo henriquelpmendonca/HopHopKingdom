@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import { sdk } from '../sdk';
 import { CameraRig } from '../camera';
 import { Radar } from '../ui/Radar';
-import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_HUT_WAVES, rebuildBack, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_HUT_WAVES, rebuildBack, SELL_REFUND, MOVE_COST, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
@@ -33,6 +33,11 @@ export class GameScene extends Phaser.Scene {
   private fx!: Particles;
   private ghost!: Phaser.GameObjects.Image;
   private placing: HutDef | null = null;
+  /** cabana levantada para mudar de lugar: se desistir, volta para onde estava */
+  private moving: { def: HutDef; level: number; x: number; y: number; cost: number } | null = null;
+  /** desenho (e largura) da cabana no cursor: o nível 1 ao construir, o nível dela ao mover */
+  private ghostLv: { art: string; width: number } | null = null;
+  private calmShown = true;
   private selected: Hut | Castle | null = null;
   private held: Soldier | null = null;
   private samples: { x: number; y: number; t: number }[] = [];
@@ -106,9 +111,13 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Power, this.usePower, this);
     bus.on(Evt.Gift, this.gift, this);
     bus.on(Evt.Perks, this.onPerk, this);
+    bus.on(Evt.Sell, this.sellSelected, this);
+    bus.on(Evt.Move, this.startMove, this);
     bus.on(Evt.Stars, this.onStars, this);
     this.events.once('shutdown', () => {
       bus.off(Evt.Perks, this.onPerk, this);
+      bus.off(Evt.Sell, this.sellSelected, this);
+      bus.off(Evt.Move, this.startMove, this);
       bus.off(Evt.Stars, this.onStars, this);
       bus.off(Evt.Gift, this.gift, this);
       bus.off(Evt.Power, this.usePower, this);
@@ -165,7 +174,11 @@ export class GameScene extends Phaser.Scene {
       magos: this.magos,
       sword: state.sword,
       mana: Math.floor(state.mana),
-      huts: this.huts.map(h => ({ id: h.def.id, dx: Math.round(h.x - this.castle.x), dy: Math.round(h.y - this.castle.y), level: h.level })),
+      huts: [
+        ...this.huts.map(h => ({ id: h.def.id, dx: Math.round(h.x - this.castle.x), dy: Math.round(h.y - this.castle.y), level: h.level })),
+        // a cabana levantada para mudar de lugar não pode se perder se a página fechar
+        ...(this.moving ? [{ id: this.moving.def.id, dx: Math.round(this.moving.x - this.castle.x), dy: Math.round(this.moving.y - this.castle.y), level: this.moving.level }] : []),
+      ],
     });
   }
 
@@ -305,6 +318,7 @@ export class GameScene extends Phaser.Scene {
   /* ---------- construir ---------- */
 
   private startPlacing(id: string) {
+    if (this.moving) this.stopPlacing();
     const def = hutDef(id);
     if (def.maxCount && this.huts.filter(h => h.def === def).length >= def.maxCount) {
       bus.emit(Evt.Broke, id);
@@ -331,6 +345,7 @@ export class GameScene extends Phaser.Scene {
     // no celular a construção aparece no meio da tela, para você arrastar e soltar
     if (this.rig.touch) this.rig.setMouse(this.scale.width / 2, (this.scale.height - barH()) * 0.45);
     const lv = def.levels[0];
+    this.ghostLv = lv;
     const tex = this.textures.get(lv.art).getSourceImage();
     this.ghost.setTexture(lv.art).setDisplaySize(lv.width, lv.width * tex.height / tex.width).setVisible(true);
     bus.emit(Evt.Placing, id);
@@ -341,6 +356,13 @@ export class GameScene extends Phaser.Scene {
 
   private stopPlacing() {
     if (!this.placing) return;
+    // desistiu de mover: a cabana volta, sem custo, para onde estava
+    if (this.moving) {
+      const m = this.moving;
+      this.moving = null;
+      this.restoreHut({ id: m.def.id, x: m.x, y: m.y, level: m.level });
+      this.emitCosts();
+    }
     this.placing = null;
     this.ghost.setVisible(false);
     bus.emit(Evt.Placing, null);
@@ -365,9 +387,15 @@ export class GameScene extends Phaser.Scene {
   private placeHut(def: HutDef) {
     const b = this.ghostBuilding();
     if (!this.canPlace(b)) { bus.emit(Evt.Hint, t('hint.no_room')); return; }
-    if (!(def.currency === 'mana' ? spendMana(this.costOf(def)) : spend(this.costOf(def)))) return;
+    const mv = this.moving;
+    const price = mv ? mv.cost : this.costOf(def);
+    if (!(def.currency === 'mana' ? spendMana(price) : spend(price))) {
+      bus.emit(Evt.Broke, def.id);
+      return;
+    }
     this.emitMana();
     const hut = new Hut(this, def, b.x, b.y, this.fx, h => this.onHutDestroyed(h));
+    if (mv) { hut.restore(mv.level); this.moving = null; }
     this.huts.push(hut);
     this.fx.burst(b.x, b.y, 24, 0xe8d9b8, true);
     this.emitCosts();
@@ -375,12 +403,83 @@ export class GameScene extends Phaser.Scene {
     this.stopPlacing();
     this.select(hut);
     this.save();
+    if (mv) { floatText(this, b.x, b.y - hut.h - 10, t('hint.moved'), '#7CFF6B'); return; }
     bus.emit(Evt.Tuto, 'placed');
     // no tutorial os orcs chegam logo depois da primeira cabana
     if (tuto.on && this.waveTimer > 9) this.waveTimer = 9;
     if (tuto.on) { this.stopPlacing(); this.select(null); } else
     bus.emit(Evt.Hint, def.levels[0].soldiers.length ? t('hint.built_troops') : (def.currency === 'mana' ? t('hint.built_mana_mine') : t('hint.built_mine')));
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
+  }
+
+  /* ---------- vender e mover ---------- */
+
+  /** sem inimigos (nem por entrar): só então dá para vender ou mover cabanas */
+  private calm() {
+    return !tuto.on && this.pending === 0 && !this.orcs.some(o => o.alive);
+  }
+
+  /** o que a cabana já valeu: o preço de todos os níveis até o dela */
+  private hutValue(h: Hut) {
+    let v = 0;
+    for (let i = 0; i <= h.level; i++) v += h.def.levels[i].cost;
+    return v;
+  }
+  private refundOf(h: Hut) { return Math.round(this.hutValue(h) * SELL_REFUND); }
+  private moveCostOf(h: Hut) { return Math.max(5, Math.round(this.hutValue(h) * MOVE_COST)); }
+
+  private notCalm() {
+    bus.emit(Evt.Broke, 'tools');
+    bus.emit(Evt.Hint, t('hint.only_calm'));
+    this.time.delayedCall(2600, () => bus.emit(Evt.Hint, null));
+  }
+
+  private sellSelected() {
+    const h = this.selected;
+    if (!(h instanceof Hut) || this.over) return;
+    if (!this.calm()) { this.notCalm(); return; }
+    const n = this.refundOf(h);
+    const mana = h.def.currency === 'mana';
+    const x = h.x, y = h.y - h.h * 0.6;
+    this.huts = this.huts.filter(x2 => x2 !== h);
+    h.dismantle();
+    this.select(null);
+    if (mana) { addMana(n); this.emitMana(); } else addCoins(n);
+    sfx.coin();
+    floatText(this, x, y, '+' + n, mana ? '#7ad0ff' : '#ffd84a');
+    bus.emit(Evt.Hint, t('hint.sold', { n }));
+    this.time.delayedCall(3000, () => bus.emit(Evt.Hint, null));
+    this.emitCosts();
+    this.save();
+  }
+
+  /** Levanta a cabana selecionada e deixa escolher onde pôr: pagar só ao largar; desistir devolve ao lugar. */
+  private startMove() {
+    const h = this.selected;
+    if (!(h instanceof Hut) || this.over || this.placing) return;
+    if (!this.calm()) { this.notCalm(); return; }
+    const cost = this.moveCostOf(h);
+    const mana = h.def.currency === 'mana';
+    if ((mana ? state.mana : state.coins) < cost) {
+      bus.emit(Evt.Broke, 'tools');
+      bus.emit(Evt.Hint, mana ? t('hint.no_mana') : t('hint.no_coins'));
+      this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    const lv = h.def.levels[h.level];
+    this.moving = { def: h.def, level: h.level, x: h.x, y: h.y, cost };
+    this.huts = this.huts.filter(x => x !== h);
+    h.dismantle();
+    this.select(null);
+    this.emitCosts();
+    this.held = null;
+    this.placing = h.def;
+    this.ghostLv = lv;
+    if (this.rig.touch) this.rig.setMouse(this.scale.width / 2, (this.scale.height - barH()) * 0.45);
+    const tex = this.textures.get(lv.art).getSourceImage();
+    this.ghost.setTexture(lv.art).setDisplaySize(lv.width, lv.width * tex.height / tex.width).setVisible(true);
+    bus.emit(Evt.Placing, null);
+    bus.emit(Evt.Hint, this.rig.touch ? t('hint.place_touch') : t('hint.place_mouse'));
   }
 
   /* ---------- selecionar / evoluir ---------- */
@@ -416,8 +515,10 @@ export class GameScene extends Phaser.Scene {
     // o centro da vila também espera você chegar a uma onda
     if (h instanceof Castle && h.next && this.wave < h.next.minWave) lock = t('ui.lock_wave', { n: h.next.minWave });
     const info: SelectInfo = {
+      key: `${h.x},${h.y}`,
       x: h.x, y: h.y - h.h - 26,
       next: nx ? { art: nx.art, cost: nx.cost, lock, mana: h instanceof Hut && h.def.currency === 'mana' } : null,
+      tools: h instanceof Hut ? { refund: this.refundOf(h), move: this.moveCostOf(h), mana: h.def.currency === 'mana', ok: this.calm() } : undefined,
     };
     bus.emit(Evt.Select, info);
     this.emitSelPos();
@@ -427,8 +528,10 @@ export class GameScene extends Phaser.Scene {
   private emitSelPos() {
     const h = this.selected;
     if (!h) return;
-    const p = this.rig.toScreen(h.x, h.y - h.h - 26);
-    bus.emit(Evt.SelPos, p.x, p.y);
+    // a roda de botões gira em volta do meio da construção; o raio acompanha o zoom
+    const p = this.rig.toScreen(h.x, h.y - h.h * 0.5);
+    const r = Phaser.Math.Clamp(Math.max(h.w, h.h) * 0.5 * this.rig.zoom * 0.9 + 52, 80, 260);
+    bus.emit(Evt.SelPos, p.x, p.y, r);
   }
 
   private upgradeSelected() {
@@ -777,6 +880,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private lose() {
+    this.stopPlacing();
     this.over = true;
     this.held = null;
     sdk.setPlaying(false);
@@ -833,12 +937,16 @@ export class GameScene extends Phaser.Scene {
       const b = this.ghostBuilding();
       const ok = this.canPlace(b);
       const bob = Math.abs(Math.sin(time / 1000 * 9)) * 10;
-      const base = this.placing.levels[0].width / this.ghost.width;
+      const base = (this.ghostLv ?? this.placing.levels[0]).width / this.ghost.width;
       this.ghost.setPosition(b.x, b.y - bob)
         .setScale(base * (1 + bob * 0.004), base * (1 - bob * 0.004))
         .setRotation(Math.sin(time / 1000 * 5) * 0.04);
       if (ok) this.ghost.clearTint(); else this.ghost.setTint(0xff7070);
     }
+
+    // vender e mover só entre ondas: avisa a tela quando isso muda
+    const calmNow = this.calm();
+    if (calmNow !== this.calmShown) { this.calmShown = calmNow; if (this.selected instanceof Hut) this.emitSelect(); }
 
     // ondas
     if (this.waveTimer >= 0) {

@@ -157,9 +157,68 @@ export function setupHud() {
     el.textContent = String(n);
   });
 
-  bus.on(Evt.SelPos, (x: number, y: number) => {
-    up.style.left = x + 'px';
-    up.style.top = y + 'px';
+  // roda de botões ao redor da cabana: evoluir em cima, mover e vender embaixo dos lados
+  const mv = $('moveBtn'), sl = $('sellBtn');
+  const ringItems: [HTMLElement, number][] = [[up, -90], [mv, 150], [sl, 30]];
+  let ring = { x: 0, y: 0, r: 90 };
+  let selKey = '';
+  let emerge = false;
+  let emergeTimer = 0;
+  let tools: SelectInfo['tools'];
+  let sellArmed = 0;
+
+  function placeRing(center: boolean) {
+    const maxY = window.innerHeight - bar.offsetHeight - 24;
+    for (const [el, deg] of ringItems) {
+      if (el.hidden) continue;
+      const a = deg * Math.PI / 180;
+      const x = center ? ring.x : ring.x + Math.cos(a) * ring.r;
+      let y = center ? ring.y : ring.y + Math.sin(a) * ring.r;
+      y = Math.min(y, maxY);
+      el.style.left = x + 'px';
+      // os botões ancoram pela base: soma meia altura para o centro cair no círculo
+      el.style.top = (y + el.offsetHeight / 2) + 'px';
+    }
+  }
+
+  bus.on(Evt.SelPos, (x: number, y: number, r: number) => {
+    ring = { x, y, r };
+    if (emerge) {
+      // começa tudo no meio da cabana e, com a transição ligada, os botões saem para o círculo
+      emerge = false;
+      for (const [el] of ringItems) el.classList.remove('emerge');
+      placeRing(true);
+      void up.offsetWidth;
+      for (const [el] of ringItems) el.classList.add('emerge');
+      window.clearTimeout(emergeTimer);
+      emergeTimer = window.setTimeout(() => { for (const [el] of ringItems) el.classList.remove('emerge'); }, 650);
+    }
+    placeRing(false);
+  });
+
+  function drawTools() {
+    if (!tools) return;
+    const cur = tools.mana ? gemHtml : coinHtml;
+    mv.innerHTML = `<b class="ico">↔</b><span class="cost">${cur}${tools.move}</span>`;
+    sl.innerHTML = sellArmed
+      ? `<b class="ico">❓</b><span class="cost">${t('ui.sell_sure')}</span>`
+      : `<b class="ico">💰</b><span class="cost">+${cur}${tools.refund}</span>`;
+    mv.title = t('ui.move');
+    sl.title = t('ui.sell');
+    mv.classList.toggle('poor', !tools.ok);
+    sl.classList.toggle('poor', !tools.ok);
+    sl.classList.toggle('confirm', !!sellArmed);
+  }
+  function disarm() { window.clearTimeout(sellArmed); sellArmed = 0; drawTools(); }
+  mv.addEventListener('click', () => { sfx.ui(); boing(mv); disarm(); bus.emit(Evt.Move); });
+  sl.addEventListener('click', () => {
+    sfx.ui();
+    boing(sl);
+    // vender pede um segundo toque, para ninguém perder uma cabana evoluída sem querer
+    if (!tools?.ok) { bus.emit(Evt.Sell); return; }
+    if (!sellArmed) { sellArmed = window.setTimeout(disarm, 2800); drawTools(); return; }
+    disarm();
+    bus.emit(Evt.Sell);
   });
 
   bus.on(Evt.Income, (n: number) => { $('incomeN').textContent = '+' + n + '/s'; });
@@ -182,7 +241,11 @@ export function setupHud() {
 
   bus.on(Evt.Select, (info: SelectInfo | null) => {
     sel = info;
-    if (!info) { up.hidden = true; return; }
+    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; tools = undefined; selKey = ''; disarm(); return; }
+    if (info.key !== selKey) { selKey = info.key; emerge = true; disarm(); }
+    tools = info.tools;
+    mv.hidden = sl.hidden = !tools;
+    drawTools();
     up.hidden = false;
     up.classList.toggle('locked', !!info.next?.lock);
     if (info.next) {
@@ -284,5 +347,5 @@ export function setupHud() {
   }, true);
 
   // clicar no botão não pode contar como clique no mapa
-  for (const el of [bar, up, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
+  for (const el of [bar, up, mv, sl, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
 }

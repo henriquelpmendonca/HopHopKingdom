@@ -23,3 +23,7 @@ export const REBUILD_HUT_WAVES = 4;
 export const CLICK_AOE_MULT = 0.6;
 
 export const COLORS = { grass: 0xcfe8a8, grassTile: 0xb9d98e };
+
+/** vender uma cabana devolve esta fração do que ela valeu; movê-la custa esta fração (só entre ondas) */
+export const SELL_REFUND = 0.6;
+export const MOVE_COST = 0.1;

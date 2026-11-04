@@ -68,7 +68,22 @@ export class Hut implements Structure {
     this.onDestroyed(this);
   }
 
-  /** Cura devagar quando está tudo calmo. */
+  /** Desmonta a cabana (vender ou mover): some sem virar ruína e sem avisar que foi destruída. */
+  dismantle() {
+    if (this.ruined) return;
+    this.ruined = true;
+    sfx.build();
+    this.fx.burst(this.x, this.y - this.h * 0.4, 20, 0xe8d9b8, true);
+    for (const s of this.soldiers) s.destroy();
+    this.soldiers.length = 0;
+    this.outline.destroy();
+    this.badge.destroy();
+    this.scene.tweens.add({
+      targets: this.sprite, scaleY: 0, alpha: 0, duration: 300, ease: 'Back.easeIn',
+      onComplete: () => this.sprite.destroy(),
+    });
+  }
+
   /** Uma melhoria da Forja Real foi comprada: a vida máxima muda, a proporção fica. */
   rescale() {
     const ratio = this.hp / this.maxHp;

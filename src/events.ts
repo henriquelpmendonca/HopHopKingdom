@@ -54,6 +54,9 @@ export const Evt = {
   Stars: 'stars',
   /** meta -> jogo: uma melhoria da Forja foi comprada (id) */
   Perks: 'perks',
+  /** UI -> jogo: vender / mover a cabana selecionada */
+  Sell: 'sell',
+  Move: 'move',
   /** UI -> UI: abrir a Forja Real */
   OpenForge: 'openForge',
 } as const;
@@ -61,9 +64,13 @@ export const Evt = {
 export interface BannerInfo { title: string; sub?: string; kind: 'wave' | 'boss' | 'combo' }
 
 export interface SelectInfo {
+  /** muda quando se seleciona outra construção (a roda de botões sai de novo do centro) */
+  key: string;
   /** posição na tela do topo da cabana */
   x: number;
   y: number;
   /** próximo nível; null = já no máximo */
   next: { art: string; cost: number; /** custa mana em vez de moedas */ mana?: boolean; /** motivo de estar bloqueado (ex.: nível do centro da vila) */ lock?: string } | null;
+  /** só cabanas: quanto devolve ao vender, quanto custa mover e se dá para fazer isso agora (entre ondas) */
+  tools?: { refund: number; move: number; mana: boolean; ok: boolean };
 }

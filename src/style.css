@@ -318,3 +318,18 @@ body.tuto #hint{display:none}
 #audio #musicBtn.ic.off{background-image:url(/assets/ui_music_off.png)}
 #audio #sfxBtn.ic.off{background-image:url(/assets/ui_sfx_off.png)}
 #audio #gift.ic:active,#audio #gift.ic.cooling,#audio #gift.ic:disabled{background-image:url(/assets/ui_gift_on.png)}
+
+/* roda de botões ao redor da cabana: evoluir, mover e vender saem do meio dela */
+.slot.green.emerge{transition:left .42s cubic-bezier(.2,1.6,.4,1),top .42s cubic-bezier(.2,1.6,.4,1)}
+.slot.green.ringbtn{width:64px;height:64px;padding:0;border-radius:50%;flex-direction:column}
+.slot.green.ringbtn::after{border-radius:50%}
+.slot.green.ringbtn .ico{font:900 30px/1 "Trebuchet MS",Verdana,sans-serif;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.35);pointer-events:none}
+.slot.green.ringbtn .cost{bottom:-16px;font-size:15px}
+.slot.green.mv{background:linear-gradient(#e8f3ff,#6fa8e8);border-color:#2f4f7a;box-shadow:0 6px 0 #2f4f7a,0 10px 12px rgba(0,0,0,.25)}
+.slot.green.mv .cost{border-color:#2f4f7a;color:#2f4f7a}
+.slot.green.sl{background:linear-gradient(#ffe9a8,#ffb300);border-color:#7a4a00;box-shadow:0 6px 0 #7a4a00,0 10px 12px rgba(0,0,0,.25)}
+.slot.green.sl .cost{border-color:#7a4a00;color:#7a4a00}
+.slot.green.sl.confirm{background:linear-gradient(#ffb8b0,#e0382a);border-color:#7a1810;box-shadow:0 6px 0 #7a1810,0 10px 12px rgba(0,0,0,.25)}
+.slot.green.sl.confirm .cost{border-color:#7a1810;color:#b02015}
+.slot.green.ringbtn[hidden]{display:none}
+@media (max-width:640px){.slot.green.ringbtn{width:54px;height:54px}.slot.green.ringbtn .ico{font-size:24px}.slot.green.ringbtn .cost{font-size:13px;bottom:-14px}}
