@@ -26,6 +26,8 @@ class Sdk {
   active = false;
   private playing = false;
   private inAd = false;
+  /** o anúncio com recompensa falhou sem nem começar (ex.: Basic Launch, sem anúncios): esconde os botões */
+  private noAds = false;
   private listeners: Listener[] = [];
 
   /** Chamado quando o jogo precisa pausar e silenciar (anúncio) ou voltar. */
@@ -46,7 +48,7 @@ class Sdk {
   get locale() { return raw()?.user?.systemInfo?.locale ?? navigator.language; }
 
   /** anúncios existem: no CrazyGames, ou no modo de desenvolvimento (simulados) */
-  get adsAvailable() { return this.active || import.meta.env.DEV; }
+  get adsAvailable() { return (this.active || import.meta.env.DEV) && !this.noAds; }
 
   /** armazenamento do SDK (acompanha o jogador); fora do CrazyGames, o do navegador */
   get cloud() { return this.active ? raw()?.data : undefined; }
@@ -93,18 +95,20 @@ class Sdk {
     }
     if (this.inAd) return;
     let finished = false;
+    let started = false;
     const wasPlaying = this.playing;
     const done = (success: boolean) => {
       if (finished) return;
       finished = true;
       this.pause(false);
       if (wasPlaying) this.setPlaying(true);
+      if (!success && !started && type === 'rewarded') this.noAds = true;
       if (success) ok();
       end();
     };
     try {
       s.ad.requestAd(type, {
-        adStarted: () => { this.setPlaying(false); this.pause(true); },
+        adStarted: () => { started = true; this.setPlaying(false); this.pause(true); },
         adFinished: () => done(true),
         adError: () => done(false),
       });

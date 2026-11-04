@@ -197,6 +197,7 @@ export function setupHud() {
   $('rebuildFree').addEventListener('click', () => {
     sfx.ui();
     sdk.rewarded(() => { $('over').hidden = true; bus.emit(Evt.Rebuild, { free: true }); }, () => {
+      $('rebuildFree').hidden = !sdk.adsAvailable;
       if ($('over').hidden === false) { bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); }
     });
   });
@@ -212,7 +213,7 @@ export function setupHud() {
       bus.emit(Evt.Gift);
       gift.classList.add('cooling');
       window.setTimeout(() => { gift.classList.remove('cooling'); gift.disabled = false; }, 180000);
-    }, () => { gift.disabled = false; bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); });
+    }, () => { gift.disabled = false; gift.hidden = !sdk.adsAvailable; bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); });
   });
 
   up.addEventListener('click', () => {

@@ -1,4 +1,4 @@
-html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;background:#cfe8a8;font-family:"Trebuchet MS",Verdana,sans-serif;touch-action:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;background:#cfe8a8;font-family:"Trebuchet MS",Verdana,sans-serif;touch-action:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
 #game{position:fixed;inset:0}
 #game canvas{display:block}
 #hint{position:fixed;left:0;right:0;bottom:calc(var(--bar, 130px) + 12px);padding:0 12px;text-align:center;color:#4d5e2e;font-weight:bold;font-size:18px;pointer-events:none;transition:opacity .4s;opacity:0;text-shadow:0 1px 0 #fff8}
@@ -136,6 +136,9 @@ html, html *{cursor:none !important}
   #bar{height:80px;gap:8px}
   .slot{width:58px;height:58px;padding:3px 3px 14px;border-radius:13px}
   .slot .cost{font-size:12px;bottom:-10px}
+  .slot.weapon .lv{font-size:10px;top:-10px;left:-7px;padding:0 5px;border-width:2px}
+  .slot.green .arrow,.slot.weapon .arrow{width:24px;height:24px;font-size:13px;top:-11px;right:-9px;border-width:3px}
+  .slot.power{width:58px;height:58px;padding:3px 3px 14px}
   #stats{top:6px;left:8px;gap:6px}
   #coins,#wave{font-size:17px}
   #audio{top:6px;right:8px}
@@ -199,3 +202,9 @@ html, html *{cursor:none !important}
 #rebuildFree{display:block;width:100%;padding:10px 16px;margin:0 0 12px;border:4px solid #7a4a00;border-radius:26px;background:linear-gradient(#ffe27a,#ffb300);color:#fff;font:900 18px "Trebuchet MS",Verdana,sans-serif;text-shadow:0 2px 0 #7a4a00;box-shadow:0 5px 0 #7a4a00;cursor:pointer}
 #rebuildFree[hidden]{display:none}
 @media (max-width:640px){#gift{width:40px;height:40px;font-size:18px;border-width:3px}}
+
+/* telas baixas: as cartas de poder acompanham o tamanho das outras (esta regra precisa vir depois da base de .slot.power) */
+@media (max-height:520px){
+  .slot.power{width:58px;height:58px;padding:3px 3px 14px;border-radius:14px}
+  .slot.power .cost{font-size:12px}
+}
