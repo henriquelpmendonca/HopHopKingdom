@@ -133,6 +133,23 @@ export function setupHud() {
     refresh();
   });
 
+  // próxima onda
+  bus.on(Evt.Countdown, (n: number | null) => {
+    $('nextN').textContent = n === null ? '' : t('ui.next_wave', { n });
+  });
+
+  // pausa: botão, tecla P e tela de pausa
+  const pauseBox = $('pause');
+  const setPause = (on: boolean) => {
+    if (on && ($('over').hidden === false || !pauseBox.hidden)) return;
+    pauseBox.hidden = !on;
+    $('pauseBtn').textContent = on ? '▶' : '⏸';
+    bus.emit(Evt.Pause, on);
+  };
+  $('pauseBtn').addEventListener('click', () => { sfx.ui(); setPause(pauseBox.hidden !== false); });
+  $('resume').addEventListener('click', () => { sfx.ui(); setPause(false); });
+  window.addEventListener('keydown', e => { if (e.code === 'KeyP' && !e.repeat) setPause(pauseBox.hidden !== false); });
+
   bus.on(Evt.Wave, (n: number) => {
     const el = $('waveN');
     if (el.textContent !== String(n)) boing($('wave'), 'bump');
@@ -181,7 +198,9 @@ export function setupHud() {
     refresh();
   });
 
-  bus.on(Evt.GameOver, (info: { wave: number }) => {
+  bus.on(Evt.GameOver, (info: { wave: number; kills: number; best: number }) => {
+    $('overStats').textContent = t('ui.over_stats', { k: info.kills, b: info.best });
+    pauseBox.hidden = true;
     $('overTxt').textContent = t('ui.over_txt', { w: info.wave, p: Math.round((1 - REBUILD_COIN_KEEP) * 100), n: REBUILD_WAVES_BACK });
     // reerguer de graça só aparece se houver anúncio com recompensa disponível
     $('rebuildFree').hidden = !sdk.adsAvailable;

@@ -53,6 +53,8 @@ export class GameScene extends Phaser.Scene {
   private wave = 0;
   private waveTimer = -1;
   private combo = 0;
+  private kills = 0;
+  private lastCount = -1;
   private comboAt = -1e9;
   private over = false;
   isOver() { return this.over; }
@@ -600,6 +602,7 @@ export class GameScene extends Phaser.Scene {
   private spawnWave() {
     this.wave++;
     bus.emit(Evt.Wave, this.wave);
+    this.noteBest();
     this.save();
     if (this.selected) this.emitSelect();
     const boss = isBossWave(this.wave);
@@ -656,6 +659,7 @@ export class GameScene extends Phaser.Scene {
     addCoins(reward);
     sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
+    this.kills++;
     // vários orcs derrotados em seguida viram um combo
     const now = this.time.now;
     this.combo = now - this.comboAt < 2500 ? this.combo + 1 : 1;
@@ -705,13 +709,22 @@ export class GameScene extends Phaser.Scene {
     this.save();
   }
 
+  /** guarda a melhor onda de todas as partidas e devolve o recorde */
+  private noteBest(): number {
+    const best = Number(store.get('hhk_best')) || 0;
+    if (this.wave > best) store.set('hhk_best', String(this.wave));
+    return Math.max(best, this.wave);
+  }
+
   private lose() {
     this.over = true;
     this.held = null;
     sdk.setPlaying(false);
     sfx.gameOver();
     audio.set('calma');
-    bus.emit(Evt.GameOver, { wave: this.wave });
+    const best = Math.max(this.noteBest(), this.wave);
+    bus.emit(Evt.Countdown, null);
+    bus.emit(Evt.GameOver, { wave: this.wave, kills: this.kills, best });
   }
 
   update(time: number, delta: number) {
@@ -771,6 +784,8 @@ export class GameScene extends Phaser.Scene {
     if (this.waveTimer >= 0) {
       this.waveTimer -= dt;
       if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.interval; }
+      const left = this.waveTimer >= 0 && this.waveTimer < 600 ? Math.ceil(this.waveTimer) : -1;
+      if (left !== this.lastCount) { this.lastCount = left; bus.emit(Evt.Countdown, left >= 0 ? left : null); }
     }
 
     const floor = WORLD_H;

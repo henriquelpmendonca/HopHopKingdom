@@ -7,6 +7,7 @@ import { setupTutorial } from './ui/Tutorial';
 import { setupBanner } from './ui/Banner';
 import { setupSwordCursor } from './ui/SwordCursor';
 import { sdk } from './sdk';
+import { bus, Evt } from './events';
 import { applyStaticTexts, setLocale } from './i18n';
 
 async function start() {
@@ -34,16 +35,18 @@ async function start() {
   // pausa o jogo (e o som) durante anúncios e quando a aba fica escondida
   let adPause = false;
   let hidden = false;
+  let userPause = false;
   const apply = () => {
-    const stop = adPause || hidden;
+    const stop = adPause || hidden || userPause;
     const scene = game.scene.getScene('Game');
     if (game.scene.isActive('Game') && stop) game.scene.pause('Game');
     else if (!stop && game.scene.isPaused('Game')) game.scene.resume('Game');
-    audio.duck(stop || sdk.muted);
+    audio.duck(adPause || hidden || sdk.muted);
     if (scene) sdk.setPlaying(!stop && !(scene as GameScene).isOver());
   };
   sdk.onPause(on => { adPause = on; apply(); });
   sdk.onMute(() => apply());
+  bus.on(Evt.Pause, (on: boolean) => { userPause = on; apply(); });
   if (sdk.muted) apply();
   document.addEventListener('visibilitychange', () => { hidden = document.hidden; apply(); });
 

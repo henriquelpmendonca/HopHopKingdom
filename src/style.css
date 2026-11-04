@@ -242,3 +242,15 @@ body.tuto #hint{display:none}
 @keyframes bannerout{to{transform:translateX(-50%) scale(1.15);opacity:0}}
 @keyframes bannershake{0%,100%{margin-left:0}20%{margin-left:-12px}40%{margin-left:12px}60%{margin-left:-8px}80%{margin-left:8px}}
 @media (max-width:640px){#banner b{font-size:42px}#banner.boss b{font-size:54px}#banner.combo b{font-size:34px}#banner span{font-size:17px}}
+
+/* pausa, contagem da próxima onda e estatísticas da derrota */
+#pause{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(40,20,5,.55)}
+#pause[hidden]{display:none}
+#pausebox{padding:24px 44px;border:6px solid #5a3418;border-radius:28px;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 10px 0 #5a3418;text-align:center;color:#5a3418;animation:popin .45s cubic-bezier(.2,2,.4,1)}
+#pausebox h1{margin:0 0 16px;font:900 40px "Trebuchet MS",Verdana,sans-serif}
+#resume{padding:12px 32px;border:5px solid #1f5a18;border-radius:30px;background:linear-gradient(#b8ff8a,#3fc13a);color:#fff;font:900 24px "Trebuchet MS",Verdana,sans-serif;text-shadow:0 3px 0 #1f5a18;box-shadow:0 6px 0 #1f5a18;cursor:pointer}
+#resume:active{transform:scale(1.1,.85)}
+#wave small.next{margin-left:10px;padding-left:10px;border-left:3px solid #d9b98a;color:#2f7ad0}
+#wave small.next:empty{display:none}
+#overStats{margin:-8px 0 16px!important;font-size:15px;color:#7a5a3a}
+@media (max-width:640px){#wave small.next{margin-left:6px;padding-left:6px;font-size:11px}#pausebox h1{font-size:30px}}

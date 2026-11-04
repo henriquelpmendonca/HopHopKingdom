@@ -46,6 +46,10 @@ export const Evt = {
   Tuto: 'tuto',
   /** jogo -> UI: faixa grande no meio da tela (onda, chefe, combo): { title, sub?, kind } */
   Banner: 'banner',
+  /** UI -> jogo: pausou (true) ou voltou (false) pelo botão de pausa */
+  Pause: 'pause',
+  /** jogo -> UI: segundos até a próxima onda (null = sem contagem) */
+  Countdown: 'countdown',
 } as const;
 
 export interface BannerInfo { title: string; sub?: string; kind: 'wave' | 'boss' | 'combo' }
