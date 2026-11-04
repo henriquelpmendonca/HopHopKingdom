@@ -6,8 +6,8 @@
 <title>Hop Hop Kingdom</title>
 <!-- SDK do CrazyGames: se não carregar (offline, outro site), o jogo funciona igual, sem anúncios -->
 <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
-  <script type="module" crossorigin src="./assets/index-Dgpgl9ve.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DxpjdM0y.css">
+  <script type="module" crossorigin src="./assets/index-vUy9WuKn.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BX8w6dIy.css">
 </head>
 <body>
 <div id="game"></div>
@@ -17,12 +17,13 @@
   <div id="mana" hidden><i class="gem"></i><span id="manaN">0</span><small id="manaInc"></small></div>
 </div>
 <button id="upgrade" class="slot green" hidden></button>
-<div id="audio"><button id="pauseBtn" data-i18n-title="ui.pause" title="Pause">⏸</button><button id="musicBtn" data-i18n-title="ui.music" title="Music">🎵</button><button id="sfxBtn" data-i18n-title="ui.sfx" title="Sound effects">🔊</button><button id="gift" data-i18n-title="ui.gift_title" title="Watch an ad for free coins">🎁</button></div>
+<div id="audio"><button id="pauseBtn" data-i18n-title="ui.pause" title="Pause">⏸</button><button id="forgeBtn" data-i18n-title="ui.forge" title="Royal Forge">⭐<b id="forgeBadge">0</b></button><button id="musicBtn" data-i18n-title="ui.music" title="Music">🎵</button><button id="sfxBtn" data-i18n-title="ui.sfx" title="Sound effects">🔊</button><button id="gift" data-i18n-title="ui.gift_title" title="Watch an ad for free coins">🎁</button></div>
 <div id="bar"></div>
 <div id="hint"></div>
 <div id="banner" hidden><b id="bannerT"></b><span id="bannerS"></span></div>
 <div id="tuto" hidden><span id="tutoTxt"></span><button id="tutoSkip" data-i18n="tuto.skip">Skip tutorial</button></div>
 <div id="pause" hidden><div id="pausebox"><h1 data-i18n="ui.paused">PAUSED</h1><button id="resume" data-i18n="ui.resume">Resume</button></div></div>
-<div id="over" hidden><div id="overbox" class="slot-like"><h1 data-i18n="ui.over_title">The city has fallen!</h1><p id="overTxt" data-i18n="ui.over_default">The orcs destroyed the Town Center.</p><p id="overStats"></p><button id="rebuild" data-i18n="ui.rebuild">Rebuild the city</button><button id="rebuildFree" class="alt" data-i18n="ui.rebuild_free">Rebuild for free (watch an ad)</button><button id="again" class="link" data-i18n="ui.restart">Start over</button></div></div>
+<div id="forge" hidden><div id="forgebox"><h1 data-i18n="ui.forge">Royal Forge</h1><p class="fsub" data-i18n="ui.forge_sub">Spend Royal Stars on upgrades that last forever, even in a brand-new city.</p><div id="forgeTop"><span>⭐ <b id="forgeStars">0</b></span><small data-i18n="ui.forge_earn">Earn stars: 1 per 10 orcs, new best waves, Orc King kills</small></div><div id="forgeList"></div><button id="forgeClose" data-i18n="ui.close">Close</button></div></div>
+<div id="over" hidden><div id="overbox" class="slot-like"><h1 data-i18n="ui.over_title">The city has fallen!</h1><p id="overTxt" data-i18n="ui.over_default">The orcs destroyed the Town Center.</p><p id="overStats"></p><p id="overStars"></p><button id="rebuild" data-i18n="ui.rebuild">Rebuild the city</button><button id="overForge" class="alt" data-i18n="ui.forge_open">Royal Forge</button><button id="rebuildFree" class="alt" data-i18n="ui.rebuild_free">Rebuild for free (watch an ad)</button><button id="again" class="link" data-i18n="ui.restart">Start over</button></div></div>
 </body>
 </html>

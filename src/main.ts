@@ -4,6 +4,7 @@ import { GameScene } from './scenes/GameScene';
 import { audio, unlockAudio } from './audio';
 import { setupHud } from './ui/Hud';
 import { setupTutorial } from './ui/Tutorial';
+import { setupForge } from './ui/Forge';
 import { setupBanner } from './ui/Banner';
 import { setupSwordCursor } from './ui/SwordCursor';
 import { sdk } from './sdk';
@@ -28,6 +29,7 @@ async function start() {
 
   setupHud();
   setupTutorial();
+  setupForge();
   setupBanner();
   setupSwordCursor();
   unlockAudio();

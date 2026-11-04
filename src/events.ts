@@ -50,6 +50,12 @@ export const Evt = {
   Pause: 'pause',
   /** jogo -> UI: segundos até a próxima onda (null = sem contagem) */
   Countdown: 'countdown',
+  /** jogo -> UI: estrelas reais (total, ganhas agora) */
+  Stars: 'stars',
+  /** meta -> jogo: uma melhoria da Forja foi comprada (id) */
+  Perks: 'perks',
+  /** UI -> UI: abrir a Forja Real */
+  OpenForge: 'openForge',
 } as const;
 
 export interface BannerInfo { title: string; sub?: string; kind: 'wave' | 'boss' | 'combo' }

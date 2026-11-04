@@ -19,6 +19,7 @@ import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
 import { store } from '../store';
+import { addStars, noteKill, perkMult, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
@@ -66,6 +67,7 @@ export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
   create() {
+    setMetaEnabled(this.persist);
     if (this.debugWave > 0) this.wave = this.debugWave - 1;
     // chão quadriculado
     const g = this.make.graphics({ x: 0, y: 0 }, false);
@@ -98,7 +100,11 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Rebuild, this.rebuild, this);
     bus.on(Evt.Power, this.usePower, this);
     bus.on(Evt.Gift, this.gift, this);
+    bus.on(Evt.Perks, this.onPerk, this);
+    bus.on(Evt.Stars, this.onStars, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.Perks, this.onPerk, this);
+      bus.off(Evt.Stars, this.onStars, this);
       bus.off(Evt.Gift, this.gift, this);
       bus.off(Evt.Power, this.usePower, this);
       bus.off(Evt.Rebuild, this.rebuild, this);
@@ -161,7 +167,11 @@ export class GameScene extends Phaser.Scene {
   private loadProgress() {
     if (!this.persist) return;
     const d = loadGame();
-    if (!d) return;
+    if (!d) {
+      // cidade nova: a melhoria "Começo rápido" da Forja Real dá moedas
+      state.coins += startBonus();
+      return;
+    }
     state.coins = d.coins;
     if (d.mana) state.mana = d.mana;
     if (d.sword) state.sword = Math.min(SWORD_MAX, d.sword);
@@ -191,6 +201,21 @@ export class GameScene extends Phaser.Scene {
       bus.emit(Evt.Hint, t('hint.mana_unlocked'));
       this.time.delayedCall(6000, () => bus.emit(Evt.Hint, null));
     }
+  }
+
+  /** Uma melhoria da Forja Real foi comprada: vale na hora para a cidade e os soldados que já existem. */
+  private onPerk() {
+    this.castle.rescale();
+    for (const h of this.huts) {
+      h.rescale();
+      for (const s of h.soldiers) s.rescale();
+    }
+  }
+
+  /** estrelas ganhas durante o jogo aparecem sobre o castelo */
+  private onStars(_total: number, gained: number) {
+    if (gained <= 0 || this.over) return;
+    floatText(this, this.castle.x + Phaser.Math.Between(-60, 60), this.castle.y - this.castle.h - 30, '+' + gained + ' ⭐', '#ffe45a');
   }
 
   private emitMana(perSec?: number) {
@@ -475,7 +500,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Golpe do clique: o mais perto leva o dano inteiro, os outros dentro da área levam uma parte. */
   private clickHit(targets: Orc[], x: number, y: number, touch: boolean) {
-    const dmg = swordDamage(state.sword);
+    const dmg = Math.round(swordDamage(state.sword) * perkMult('sword'));
     const radius = swordRadius(state.sword);
     targets.forEach((o, i) => {
       o.takeDamage(i === 0 ? dmg : Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
@@ -655,8 +680,11 @@ export class GameScene extends Phaser.Scene {
       bus.emit(Evt.Hint, t('hint.boss_dead'));
       this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
     }
-    const reward = Math.max(1, Math.round(o.stats.coins * KILL_COIN_MULT));
+    const reward = Math.max(1, Math.round(o.stats.coins * KILL_COIN_MULT * perkMult('treasure')));
     addCoins(reward);
+    // estrelas reais: uma a cada 10 orcs, e o Rei Orc vale mais
+    noteKill();
+    if (o.stats.boss) addStars(STARS_BOSS_KILL);
     sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
     this.kills++;
@@ -712,7 +740,11 @@ export class GameScene extends Phaser.Scene {
   /** guarda a melhor onda de todas as partidas e devolve o recorde */
   private noteBest(): number {
     const best = Number(store.get('hhk_best')) || 0;
-    if (this.wave > best) store.set('hhk_best', String(this.wave));
+    if (this.wave > best && this.persist) {
+      store.set('hhk_best', String(this.wave));
+      // cada onda nova (nunca alcançada antes) vale estrelas: perder e reerguer não rende estrelas repetidas
+      addStars(isBossWave(this.wave) ? STARS_RECORD_BOSS_WAVE : STARS_RECORD_WAVE);
+    }
     return Math.max(best, this.wave);
   }
 

@@ -3,6 +3,7 @@ import { sfx } from '../audio';
 import { CASTLE_LEVELS } from '../data/castle';
 import { Bars, Particles, popDamage } from '../fx';
 import { Outline } from '../outline';
+import { perkMult } from '../meta';
 import { Structure } from './Building';
 
 /** Centro da cidade. (x, y) é o centro da base. */
@@ -50,13 +51,20 @@ export class Castle implements Structure {
     this.scene.cameras.main.shake(250, 0.006);
   }
 
+  /** Uma melhoria da Forja Real foi comprada: a vida máxima muda, a proporção fica. */
+  rescale() {
+    const ratio = this.hp / this.maxHp;
+    this.maxHp = Math.round(this.data.hp * perkMult('wall'));
+    this.hp = Math.max(1, Math.round(this.maxHp * ratio));
+  }
+
   private apply(first: boolean) {
     const lv = this.data;
     const tex = this.scene.textures.get(lv.art).getSourceImage();
     this.w = lv.width;
     this.h = lv.width * tex.height / tex.width;
-    this.maxHp = lv.hp;
-    this.hp = lv.hp; // evoluir também conserta
+    this.maxHp = Math.round(lv.hp * perkMult('wall'));
+    this.hp = this.maxHp; // evoluir também conserta
     this.sprite.setTexture(lv.art).setDisplaySize(this.w, this.h);
     const sx = this.sprite.scaleX, sy = this.sprite.scaleY;
     this.base = { sx, sy };

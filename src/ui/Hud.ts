@@ -8,6 +8,7 @@ import { MAGIC_CASTLE_LEVEL } from '../data/castle';
 import { POWERS, POWER_FREEZE_SECONDS } from '../data/powers';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
 import { bus, Evt, SelectInfo } from '../events';
+import { anyAffordable, getStars } from '../meta';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const coinHtml = '<i class="coin"></i>';
@@ -201,6 +202,9 @@ export function setupHud() {
   bus.on(Evt.GameOver, (info: { wave: number; kills: number; best: number }) => {
     $('overStats').textContent = t('ui.over_stats', { k: info.kills, b: info.best });
     pauseBox.hidden = true;
+    const stars = getStars();
+    $('overStars').textContent = stars > 0 ? '⭐ ' + t('ui.over_stars', { n: stars }) : '';
+    $('overForge').classList.toggle('ready', anyAffordable());
     $('overTxt').textContent = t('ui.over_txt', { w: info.wave, p: Math.round((1 - REBUILD_COIN_KEEP) * 100), n: REBUILD_WAVES_BACK });
     // reerguer de graça só aparece se houver anúncio com recompensa disponível
     $('rebuildFree').hidden = !sdk.adsAvailable;
@@ -219,6 +223,12 @@ export function setupHud() {
       $('rebuildFree').hidden = !sdk.adsAvailable;
       if ($('over').hidden === false) { bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); }
     });
+  });
+  $('overForge').addEventListener('click', () => { sfx.ui(); bus.emit(Evt.OpenForge); });
+  // ao fechar a Forja a tela de derrota continua com os números novos
+  bus.on(Evt.Stars, () => {
+    const s = getStars();
+    $('overStars').textContent = s > 0 ? '⭐ ' + t('ui.over_stars', { n: s }) : '';
   });
   $('again').addEventListener('click', () => { clearSave(); sdk.midgame(() => location.reload()); });
 

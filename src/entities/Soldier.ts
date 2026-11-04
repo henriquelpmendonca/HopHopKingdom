@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { sfx } from '../audio';
 import { GRAVITY, SOLDIER_H } from '../config';
 import { SoldierSpec, UNIT_ART } from '../data/cabanas';
+import { perkMult } from '../meta';
 import { AGGRO_RANGE, FURIA, SPELL, type Spell, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
 import { Bars, Particles, popDamage } from '../fx';
 import { Building } from './Building';
@@ -63,6 +64,7 @@ export class Soldier implements Combatant {
   private rx = 0;
   private ry = 0;
   private respawnT = 0;
+  private spec!: SoldierSpec;
 
   readonly sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
@@ -96,6 +98,7 @@ export class Soldier implements Combatant {
 
   /** Troca o desenho (espada, lança, alabarda), o brilho e os números de combate. */
   setSpec(spec: SoldierSpec) {
+    this.spec = spec;
     const art = this.scene.textures.exists(UNIT_ART[spec.unit]) ? UNIT_ART[spec.unit] : 'soldado';
     const tex = this.scene.textures.get(art).getSourceImage();
     this.baseScale = SOLDIER_H / tex.height;
@@ -112,7 +115,7 @@ export class Soldier implements Combatant {
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
-    const pw = spec.power ?? 1;
+    const pw = (spec.power ?? 1) * perkMult('strong');
     this.maxHp = Math.round(st.hp * pw * (f ? FURIA.hp : 1));
     this.hp = this.maxHp; // evoluir também cura
     this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1));
@@ -124,6 +127,14 @@ export class Soldier implements Combatant {
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
+  }
+
+  /** Uma melhoria da Forja Real foi comprada: refaz os números sem curar nem reviver ninguém. */
+  rescale() {
+    const was = this.alive;
+    const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
+    this.setSpec(this.spec);
+    this.hp = was ? Math.max(1, Math.round(this.maxHp * ratio)) : 0;
   }
 
   /** Cidade reerguida: todo mundo volta inteiro para perto da cabana. */

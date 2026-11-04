@@ -5,6 +5,7 @@ import { Soldier } from './Soldier';
 import { HutDef, SoldierSpec } from '../data/cabanas';
 import { Bars, Particles, popDamage } from '../fx';
 import { Outline } from '../outline';
+import { perkMult } from '../meta';
 
 /** Uma cabana que evolui de nível e abriga soldados. (x, y) é o centro da base. */
 export class Hut implements Structure {
@@ -68,6 +69,13 @@ export class Hut implements Structure {
   }
 
   /** Cura devagar quando está tudo calmo. */
+  /** Uma melhoria da Forja Real foi comprada: a vida máxima muda, a proporção fica. */
+  rescale() {
+    const ratio = this.hp / this.maxHp;
+    this.maxHp = Math.round(this.def.levels[this.level].hp * perkMult('wall'));
+    this.hp = this.alive ? Math.max(1, Math.round(this.maxHp * ratio)) : this.hp;
+  }
+
   heal(n: number) { if (this.alive) this.hp = Math.min(this.maxHp, this.hp + n); }
 
   drawBar(bars: Bars) {
@@ -105,8 +113,8 @@ export class Hut implements Structure {
   private apply(first: boolean) {
     const lv = this.def.levels[this.level];
     const tex = this.scene.textures.get(lv.art).getSourceImage();
-    this.maxHp = lv.hp;
-    this.hp = lv.hp; // evoluir também conserta
+    this.maxHp = Math.round(lv.hp * perkMult('wall'));
+    this.hp = this.maxHp; // evoluir também conserta
     this.w = lv.width;
     this.h = lv.width * tex.height / tex.width;
     this.sprite.setTexture(lv.art).setDisplaySize(this.w, this.h);
