@@ -110,8 +110,8 @@ function troopLevels(tiers: (Tier & { unit: SoldierUnit })[], o: { first: number
       cost: reach(o.first, o.step, lv),
       art: t.art,
       hp: o.hp0 + (lv - 1) * 45,
-      // dentro do mesmo visual a cabana cresce um pouquinho a cada nível
-      width: t.width + (lv - t.from) * 4,
+      // o tamanho só muda quando o visual muda (5, 10): dentro do mesmo visual a cabana não cresce
+      width: t.width,
       soldiers: [{ unit: t.unit, furia: lv >= FURIA_LEVEL, count: Math.min(o.countBase + lv, o.countCap), power: 1 + 0.1 * (lv - 1) }],
     };
   });
@@ -160,7 +160,7 @@ function minaLevels(): HutLevel[] {
       cost: reach(100, 80, lv),
       art: t.art,
       hp: 260 + (lv - 1) * 45,
-      width: t.width + (lv - t.from) * 3,
+      width: t.width,
       soldiers: [],
       income: Math.round(5 + (lv - 1) * 1.4),
     };
@@ -215,7 +215,7 @@ function manaLevels(): HutLevel[] {
       cost: reach(60, 45, lv),
       art: t.art,
       hp: 240 + (lv - 1) * 40,
-      width: t.width + (lv - t.from) * 3,
+      width: t.width,
       soldiers: [],
       mana: Math.round((1.5 + (lv - 1) * 0.6) * 10) / 10,
     };
@@ -272,6 +272,8 @@ export function evolvedDef(kind: SpecialKind, base: HutDef): HutDef {
       return {
         ...l,
         art: SPECIAL_HOUSE_ART[kind],
+        // a casa especial é o último visual: mesmo tamanho em todos os níveis (o do nível 15 da cabana de origem)
+        width: base.levels[14].width,
         soldiers: [{
           unit: b.unit,
           furia: true,
