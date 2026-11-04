@@ -3,6 +3,7 @@ import { sfx } from '../audio';
 import { GRAVITY, SOLDIER_H } from '../config';
 import { SoldierSpec, UNIT_ART } from '../data/cabanas';
 import { perkMult } from '../meta';
+import { GIANT, SPECIAL_ART, SPECIAL_SIZE, type SpecialKind } from '../data/special';
 import { AGGRO_RANGE, FURIA, SPELL, type Spell, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
 import { Bars, Particles, popDamage } from '../fx';
 import { Building } from './Building';
@@ -10,7 +11,7 @@ import { Combatant } from './Combatant';
 import type { Orc } from './Orc';
 import { FIRE, ICE, type Projectiles } from './Projectile';
 
-export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead';
+export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead' | 'bounce';
 
 const ATTACK_TIME = 0.35;
 
@@ -65,6 +66,11 @@ export class Soldier implements Combatant {
   private ry = 0;
   private respawnT = 0;
   private spec!: SoldierSpec;
+  /** poder da barra: bombardeiro, gigante ou quicador (some depois do arremesso) */
+  special: SpecialKind | null = null;
+  /** pousou agora (o jogo lê isto uma vez para a bomba explodir e o gigante crescer) */
+  justLanded = false;
+  private giantT = 0;
 
   readonly sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
@@ -99,6 +105,8 @@ export class Soldier implements Combatant {
   /** Troca o desenho (espada, lança, alabarda), o brilho e os números de combate. */
   setSpec(spec: SoldierSpec) {
     this.spec = spec;
+    this.special = null;
+    this.giantT = 0;
     const art = this.scene.textures.exists(UNIT_ART[spec.unit]) ? UNIT_ART[spec.unit] : 'soldado';
     const tex = this.scene.textures.get(art).getSourceImage();
     this.baseScale = SOLDIER_H / tex.height;
@@ -127,6 +135,58 @@ export class Soldier implements Combatant {
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
+  }
+
+  /** A barra de poder encheu: este soldado vira especial (desenho, tamanho e brilho dourado). */
+  makeSpecial(kind: SpecialKind) {
+    const art = SPECIAL_ART[kind];
+    if (!this.scene.textures.exists(art)) return;
+    this.special = kind;
+    this.giantT = 0;
+    const tex = this.scene.textures.get(art).getSourceImage();
+    this.baseScale = SOLDIER_H / tex.height;
+    this.sprite.setTexture(art);
+    this.size = SPECIAL_SIZE[kind];
+    this.glow = kind === 'bomba' ? 0xff8a2a : kind === 'gigante' ? 0xffd84a : 0x4ac8ff;
+    this.aura.setVisible(true).setTint(this.glow);
+    this.sprite.clearTint();
+    this.fx.burst(this.x, this.y - this.z - SOLDIER_H * 0.5, 14, this.glow, true);
+  }
+
+  /** Volta a ser um soldado comum (mantém a proporção de vida). */
+  clearSpecial() {
+    if (!this.special) return;
+    this.special = null;
+    this.giantT = 0;
+    const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
+    this.setSpec(this.spec);
+    this.hp = Math.max(1, Math.round(this.maxHp * ratio));
+  }
+
+  /** O gigante pousou: fica enorme e forte por alguns segundos. */
+  becomeGiant() {
+    this.giantT = GIANT.seconds;
+    this.maxHp = Math.round(this.maxHp * GIANT.hp);
+    this.hp = this.maxHp;
+    this.dmg = Math.round(this.dmg * GIANT.dmg);
+    this.reach = Math.round(this.reach * GIANT.reach);
+  }
+
+  /** Começa a pular de orc em orc (o jogo move o soldado a cada pulo). */
+  startBounce() {
+    this.state = 'bounce';
+    this.vx = this.vy = this.vz = 0;
+    this.target = null;
+  }
+
+  /** Acabou o pulo em cadeia: cai tonto um instante e volta para a cabana. */
+  endBounce() {
+    if (this.state !== 'bounce') return;
+    this.state = 'dizzy';
+    this.timer = 0.5;
+    this.z = 0;
+    this.rot = 0;
+    this.clearSpecial();
   }
 
   /** Uma melhoria da Forja Real foi comprada: refaz os números sem curar nem reviver ninguém. */
@@ -284,6 +344,7 @@ export class Soldier implements Combatant {
       if (this.respawnT <= 0) this.revive();
       return;
     }
+    if (this.giantT > 0) { this.giantT -= dt; if (this.giantT <= 0) { this.fx.burst(this.x, this.y - SOLDIER_H, 16, 0xffd84a, true); this.clearSpecial(); } }
     this.cdT -= dt;
     this.hitCd -= dt;
     this.hitT = Math.max(0, this.hitT - dt);
@@ -352,11 +413,13 @@ export class Soldier implements Combatant {
             this.timer = 0.7;
             this.rot = 0;
             this.vz = 0;
+            this.justLanded = true;
             this.fx.burst(this.x, this.y, 9, 0xb7d08a);
           }
         }
         break;
       }
+      case 'bounce': this.rot += dt * 14; break;
       case 'dizzy': {
         this.timer -= dt;
         this.z = 0;

@@ -57,6 +57,8 @@ export const Evt = {
   /** UI -> jogo: vender / mover a cabana selecionada */
   Sell: 'sell',
   Move: 'move',
+  /** jogo -> UI: barra de poder dos soldados especiais (0 a 100) */
+  Charge: 'charge',
   /** UI -> UI: abrir a Forja Real */
   OpenForge: 'openForge',
 } as const;

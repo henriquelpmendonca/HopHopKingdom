@@ -19,6 +19,7 @@ import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
 import { store } from '../store';
+import { BOMB_RADIUS, BOUNCE, bombDamage, CHEST, chestCoins, GIANT, POWER, SPECIAL_KINDS, type SpecialKind } from '../data/special';
 import { addStars, noteKill, perkMult, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
@@ -38,6 +39,11 @@ export class GameScene extends Phaser.Scene {
   /** desenho (e largura) da cabana no cursor: o nível 1 ao construir, o nível dela ao mover */
   private ghostLv: { art: string; width: number } | null = null;
   private calmShown = true;
+  /** barra de poder: com ela cheia, o próximo soldado pego vira especial */
+  private charge = 0;
+  private specialIdx = Math.floor(Math.random() * 3);
+  /** baús que caem dos orcs: clique para abrir antes que sumam */
+  private chests: { img: Phaser.GameObjects.Image; life: number; boss: boolean; open: boolean }[] = [];
   private selected: Hut | Castle | null = null;
   private held: Soldier | null = null;
   private samples: { x: number; y: number; t: number }[] = [];
@@ -412,6 +418,126 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
   }
 
+  /* ---------- soldados especiais e baús ---------- */
+
+  private addCharge(n: number) {
+    if (tuto.on || this.over) return;
+    const was = this.charge;
+    this.charge = Math.min(POWER.max, this.charge + n);
+    bus.emit(Evt.Charge, this.charge);
+    if (was < POWER.max && this.charge >= POWER.max) {
+      sfx.upgrade(true);
+      bus.emit(Evt.Banner, { title: t('banner.power'), sub: t('banner.power_sub'), kind: 'combo' });
+    }
+  }
+
+  /** O próximo especial da fila (bomba, gigante, quicador, em rodízio). */
+  private armSoldier(s: Soldier) {
+    const kind: SpecialKind = SPECIAL_KINDS[this.specialIdx++ % SPECIAL_KINDS.length];
+    s.makeSpecial(kind);
+    this.charge = 0;
+    bus.emit(Evt.Charge, 0);
+    const label = kind === 'bomba' ? t('fl.special_bomb') : kind === 'gigante' ? t('fl.special_giant') : t('fl.special_bounce');
+    floatText(this, s.x, s.y - 90, label, '#ffd84a');
+  }
+
+  /** Imagem que cresce e some (explosão e afins). */
+  private puff(x: number, y: number, key: string, width: number, ms = 520) {
+    const img = this.add.image(x, y, key).setOrigin(0.5, 0.6).setDepth(y + 2000);
+    const full = width / img.width;
+    img.setScale(full * 0.25);
+    this.tweens.add({ targets: img, scale: full, duration: ms * 0.45, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: img, alpha: 0, delay: ms * 0.5, duration: ms * 0.5, onComplete: () => img.destroy() });
+  }
+
+  private explode(s: Soldier) {
+    const x = s.x, y = s.y;
+    s.clearSpecial();
+    const dmg = bombDamage(this.wave);
+    for (const o of this.orcs) {
+      if (o.alive && Math.hypot(o.x - x, (o.y - y) * 2) < BOMB_RADIUS) o.takeDamage(dmg, x, y);
+    }
+    this.puff(x, y - 24, 'explosao', BOMB_RADIUS * 2.3);
+    this.fx.burst(x, y - 24, 26, 0xffa63a, true);
+    this.cameras.main.shake(240, 0.008);
+    sfx.crush();
+  }
+
+  private giantLand(s: Soldier) {
+    s.becomeGiant();
+    const dmg = Math.round(bombDamage(this.wave) * GIANT.shockMult);
+    for (const o of this.orcs) {
+      if (o.alive && Math.hypot(o.x - s.x, (o.y - s.y) * 2) < GIANT.shockRadius) o.takeDamage(dmg, s.x, s.y);
+    }
+    const ring = this.add.ellipse(s.x, s.y, GIANT.shockRadius * 1.6, GIANT.shockRadius * 0.9).setStrokeStyle(6, 0xffe28a).setDepth(s.y + 1);
+    this.tweens.add({ targets: ring, scale: 1.7, alpha: 0, duration: 420, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    this.fx.burst(s.x, s.y - 20, 22, 0xe8d9b8, true);
+    this.cameras.main.shake(260, 0.01);
+    sfx.slam();
+  }
+
+  /** O quicador pula de orc em orc, machucando cada um, e depois cai tonto. */
+  private bounce(s: Soldier, first: Orc) {
+    const hits: Orc[] = [first];
+    let from = first;
+    for (let j = 1; j < BOUNCE.jumps; j++) {
+      let best: Orc | null = null, bd = BOUNCE.range;
+      for (const o of this.orcs) {
+        if (!o.alive || hits.includes(o)) continue;
+        const d = Math.hypot(o.x - from.x, o.y - from.y);
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (!best) break;
+      hits.push(best);
+      from = best;
+    }
+    s.startBounce();
+    const dmg = Math.round(bombDamage(this.wave) * BOUNCE.mult);
+    hits.forEach((o, i) => {
+      this.time.delayedCall(i * BOUNCE.step * 1000, () => {
+        if (s.state !== 'bounce') return;
+        s.x = o.x;
+        s.y = o.y + 6;
+        s.z = 34;
+        if (o.alive) o.takeDamage(dmg, s.x, s.y);
+        this.fx.burst(s.x, s.y - 30, 8, 0x4ac8ff, true);
+        sfx.swordHit();
+        if (i === hits.length - 1) this.time.delayedCall(200, () => s.endBounce());
+      });
+    });
+  }
+
+  private spawnChest(x: number, y: number, boss: boolean) {
+    if (!this.textures.exists('bau')) return;
+    const img = this.add.image(x, y - 90, 'bau').setOrigin(0.5, 1).setDepth(y);
+    const sc = CHEST.height / img.height;
+    img.setScale(sc);
+    this.tweens.add({ targets: img, y, duration: 420, ease: 'Bounce.easeOut' });
+    this.fx.burst(x, y - 30, 10, 0xffe28a, true);
+    this.chests.push({ img, life: CHEST.life, boss, open: false });
+  }
+
+  private openChest(c: { img: Phaser.GameObjects.Image; life: number; boss: boolean; open: boolean }) {
+    c.open = true;
+    const n = chestCoins(this.wave, c.boss);
+    addCoins(n);
+    const x = c.img.x, y = c.img.y;
+    const h = c.img.displayHeight;
+    c.img.setTexture('bau_aberto').setScale(h / c.img.height);
+    floatText(this, x, y - h - 10, t('fl.chest', { n }), '#ffd84a');
+    this.fx.burst(x, y - h * 0.6, 30, 0xffd84a, true);
+    sfx.upgrade(true);
+    sfx.coin();
+    // às vezes vem uma Estrela Real (o Rei Orc sempre dá uma)
+    if (c.boss || Math.random() < 0.35) { addStars(1); }
+    this.tweens.add({ targets: c.img, alpha: 0, delay: 900, duration: 300, onComplete: () => c.img.destroy() });
+  }
+
+  private clearChests() {
+    for (const c of this.chests) c.img.destroy();
+    this.chests = [];
+  }
+
   /* ---------- vender e mover ---------- */
 
   /** sem inimigos (nem por entrar): só então dá para vender ou mover cabanas */
@@ -680,11 +806,15 @@ export class GameScene extends Phaser.Scene {
     if (best) {
       this.held = best;
       best.grab();
+      if (this.charge >= POWER.max && !best.special && !tuto.on) this.armSoldier(best);
       bus.emit(Evt.Tuto, 'grab');
       this.samples = [{ x: wp.x, y: wp.y, t: performance.now() }];
       bus.emit(Evt.Hint, null);
       return;
     }
+    // baú no chão: abre
+    const chest = this.chests.find(c => !c.open && Math.hypot(wp.x - c.img.x, wp.y - (c.img.y - c.img.displayHeight / 2)) < c.img.displayHeight * 0.8);
+    if (chest) { this.openChest(chest); return; }
     // inimigo: o clique bate nele
     // a área da espada é generosa: acerta quem estiver sob o clique ou bem pertinho
     const foes = this.orcsNear(wp.x, wp.y, swordRadius(state.sword) * 0.6);
@@ -796,6 +926,9 @@ export class GameScene extends Phaser.Scene {
     // estrelas reais: uma a cada 10 orcs, e o Rei Orc vale mais
     noteKill();
     if (o.stats.boss) addStars(STARS_BOSS_KILL);
+    this.addCharge(o.stats.boss ? POWER.perBossKill : POWER.perKill);
+    const elite = o.stats.boss || o.stats.coins >= 60;
+    if (!tuto.on && Math.random() < (o.stats.boss ? 1 : elite ? CHEST.chanceElite : CHEST.chance)) this.spawnChest(o.x, o.y, !!o.stats.boss);
     sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
     this.kills++;
@@ -846,6 +979,7 @@ export class GameScene extends Phaser.Scene {
       h.hp = h.maxHp;
       for (const s of h.soldiers) s.renew();
     }
+    this.clearChests();
     this.fx.burst(this.castle.x, this.castle.y - this.castle.h * 0.5, 40, 0xffd84a, true);
     this.cameras.main.shake(250, 0.006);
     sfx.upgrade(true);
@@ -988,12 +1122,31 @@ export class GameScene extends Phaser.Scene {
       if (s.state !== 'fly' || s.z > 50 || s.hitCd > 0) continue;
       for (const o of alive) {
         if (o.alive && Math.hypot(o.x - s.x, o.y - s.y) < 40) {
-          o.takeDamage(Math.max(6, Math.round(s.speed * 0.03)), s.x, s.y);
           s.hitCd = 0.3;
+          if (s.special === 'bomba') { this.explode(s); break; }
+          if (s.special === 'quicador') { this.bounce(s, o); break; }
+          o.takeDamage(Math.max(6, Math.round(s.speed * 0.03)), s.x, s.y);
+          if (!s.special) this.addCharge(POWER.perThrowHit);
           break;
         }
       }
     }
+    // pousou: a bomba explode no chão e o gigante cresce
+    for (const s of soldiers) {
+      if (!s.justLanded) continue;
+      s.justLanded = false;
+      if (s.special === 'bomba') this.explode(s);
+      else if (s.special === 'gigante') this.giantLand(s);
+      else if (s.special === 'quicador') s.clearSpecial();
+    }
+    // baús no chão: piscam antes de sumir
+    for (const c of this.chests) {
+      if (c.open) continue;
+      c.life -= dt;
+      if (c.life < 4) c.img.setAlpha(Math.sin(c.life * 14) > 0 ? 1 : 0.35);
+      if (c.life <= 0) { c.open = true; this.tweens.add({ targets: c.img, alpha: 0, duration: 250, onComplete: () => c.img.destroy() }); }
+    }
+    this.chests = this.chests.filter(c => c.img.active);
 
     // o castelo se cura devagar quando está tudo calmo
     if (alive.length === 0 && this.castle.hp < this.castle.maxHp) {

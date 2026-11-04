@@ -151,6 +151,16 @@ export function setupHud() {
   $('resume').addEventListener('click', () => { sfx.ui(); setPause(false); });
   window.addEventListener('keydown', e => { if (e.code === 'KeyP' && !e.repeat) setPause(pauseBox.hidden !== false); });
 
+  // barra de poder dos soldados especiais
+  const powerBox = $('power'), powerFill = $('powerFill'), powerTxt = $('powerTxt');
+  powerBox.title = t('ui.power');
+  bus.on(Evt.Charge, (v: number) => {
+    powerFill.style.width = Math.min(100, v) + '%';
+    const full = v >= 100;
+    powerBox.classList.toggle('ready', full);
+    powerTxt.textContent = full ? t('ui.power_ready') : '';
+  });
+
   bus.on(Evt.Wave, (n: number) => {
     const el = $('waveN');
     if (el.textContent !== String(n)) boing($('wave'), 'bump');
