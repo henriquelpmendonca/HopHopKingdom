@@ -66,19 +66,21 @@ class Sdk {
   /** armazenamento do SDK (acompanha o jogador); fora do CrazyGames, o do navegador */
   get cloud() { return this.active ? raw()?.data : undefined; }
 
-  loadingStart() { try { raw()?.game.loadingStart(); } catch { /* ignora */ } }
-  loadingStop() { try { raw()?.game.loadingStop(); } catch { /* ignora */ } }
+  // fora do CrazyGames o SDK não inicia: não chama nada dele (senão o console enche de erros)
+  loadingStart() { if (!this.active) return; try { raw()?.game.loadingStart(); } catch { /* ignora */ } }
+  loadingStop() { if (!this.active) return; try { raw()?.game.loadingStop(); } catch { /* ignora */ } }
 
   /** O jogador está jogando (true) ou está em menu/tela de derrota/pausa (false). Só avisa quando muda. */
   setPlaying(on: boolean) {
     if (on === this.playing) return;
     this.playing = on;
+    if (!this.active) return;
     try { on ? raw()?.game.gameplayStart() : raw()?.game.gameplayStop(); } catch { /* ignora */ }
   }
 
   get isPlaying() { return this.playing; }
 
-  happytime() { try { raw()?.game.happytime?.(); } catch { /* ignora */ } }
+  happytime() { if (!this.active) return; try { raw()?.game.happytime?.(); } catch { /* ignora */ } }
 
   private pause(on: boolean) {
     this.inAd = on;
