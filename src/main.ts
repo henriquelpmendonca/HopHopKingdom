@@ -35,10 +35,12 @@ async function start() {
     const scene = game.scene.getScene('Game');
     if (game.scene.isActive('Game') && stop) game.scene.pause('Game');
     else if (!stop && game.scene.isPaused('Game')) game.scene.resume('Game');
-    audio.duck(stop);
+    audio.duck(stop || sdk.muted);
     if (scene) sdk.setPlaying(!stop && !(scene as GameScene).isOver());
   };
   sdk.onPause(on => { adPause = on; apply(); });
+  sdk.onMute(() => apply());
+  if (sdk.muted) apply();
   document.addEventListener('visibilitychange', () => { hidden = document.hidden; apply(); });
 
   // só no modo de desenvolvimento: ajuda a inspecionar o jogo pelo console

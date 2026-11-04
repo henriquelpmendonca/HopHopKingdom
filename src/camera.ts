@@ -9,7 +9,8 @@ import { barH, EDGE_SCROLL_PX, SCROLL_SPEED, WORLD_H, WORLD_W, ZOOM_MAX } from '
  */
 export class CameraRig {
   private cam: Phaser.Cameras.Scene2D.Camera;
-  private keys?: Record<string, Phaser.Input.Keyboard.Key>;
+  /** teclas apertadas, pela posição física (KeyW, ArrowUp...): funciona em qualquer layout, como ZQSD no AZERTY */
+  private keysDown = new Set<string>();
   /** posição do ponteiro na janela (px) */
   private sx = 0;
   private sy = 0;
@@ -33,7 +34,14 @@ export class CameraRig {
 
   constructor(private scene: Phaser.Scene) {
     this.cam = scene.cameras.main;
-    this.keys = scene.input.keyboard?.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as Record<string, Phaser.Input.Keyboard.Key>;
+    const MOVE = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    window.addEventListener('keydown', e => {
+      if (!MOVE.includes(e.code)) return;
+      if (e.code.startsWith('Arrow')) e.preventDefault();
+      this.keysDown.add(e.code);
+    });
+    window.addEventListener('keyup', e => this.keysDown.delete(e.code));
+    window.addEventListener('blur', () => this.keysDown.clear());
 
     const move = (e: PointerEvent) => {
       this.touch = e.pointerType === 'touch';
@@ -173,13 +181,11 @@ export class CameraRig {
 
   update(dt: number) {
     let dx = 0, dy = 0;
-    const k = this.keys;
-    if (k) {
-      if (k.A.isDown || k.LEFT.isDown) dx -= 1;
-      if (k.D.isDown || k.RIGHT.isDown) dx += 1;
-      if (k.W.isDown || k.UP.isDown) dy -= 1;
-      if (k.S.isDown || k.DOWN.isDown) dy += 1;
-    }
+    const k = this.keysDown;
+    if (k.has('KeyA') || k.has('ArrowLeft')) dx -= 1;
+    if (k.has('KeyD') || k.has('ArrowRight')) dx += 1;
+    if (k.has('KeyW') || k.has('ArrowUp')) dy -= 1;
+    if (k.has('KeyS') || k.has('ArrowDown')) dy += 1;
     // mouse encostado na borda da janela
     if (this.inside) {
       if (this.sx <= EDGE_SCROLL_PX) dx -= 1;

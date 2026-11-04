@@ -106,7 +106,9 @@ class AudioEngine {
   }
 
   /** Anúncio rodando: silencia tudo e volta depois. */
+  private ducked = false;
   duck(on: boolean) {
+    this.ducked = on;
     if (!this.ctx) return;
     this.master.gain.setTargetAtTime(on ? 0 : 0.8, this.ctx.currentTime, 0.02);
   }
@@ -123,7 +125,7 @@ class AudioEngine {
       this.musicGain = this.ctx.createGain();
       this.sfxGain.gain.value = this.sfxOn ? 0.9 : 0;
       this.musicGain.gain.value = this.musicOn ? 0.5 : 0;
-      this.master.gain.value = 0.8;
+      this.master.gain.value = this.ducked ? 0 : 0.8;
       this.sfxGain.connect(this.master);
       this.musicGain.connect(this.master);
       this.master.connect(comp);

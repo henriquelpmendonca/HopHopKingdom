@@ -121,7 +121,10 @@ export class GameScene extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
     this.input.keyboard?.on('keydown-ESC', () => this.stopPlacing());
     // atalhos dos poderes: 1, 2 e 3
-    POWERS.forEach((p, i) => this.input.keyboard?.on('keydown-' + ['ONE', 'TWO', 'THREE'][i], () => this.usePower(p.id)));
+    window.addEventListener('keydown', e => {
+      const i = ['1', '2', '3'].findIndex(n => e.code === 'Digit' + n || e.code === 'Numpad' + n);
+      if (i >= 0 && !e.repeat && POWERS[i]) this.usePower(POWERS[i].id);
+    });
     this.input.on('pointermove', this.onMove, this);
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);

@@ -11,7 +11,7 @@
 interface CgSdk {
   init(): Promise<void>;
   environment?: string;
-  game: { gameplayStart(): void; gameplayStop(): void; loadingStart(): void; loadingStop(): void; happytime?(): void };
+  game: { settings?: { muteAudio?: boolean }; addSettingsChangeListener?(fn: (s: { muteAudio?: boolean }) => void): void; gameplayStart(): void; gameplayStop(): void; loadingStart(): void; loadingStop(): void; happytime?(): void };
   ad: { requestAd(type: 'midgame' | 'rewarded', cb: { adStarted?: () => void; adFinished?: () => void; adError?: (e: unknown) => void }): void };
   data?: { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void };
   user?: { systemInfo?: { locale?: string } };
@@ -29,9 +29,15 @@ class Sdk {
   /** o anúncio com recompensa falhou sem nem começar (ex.: Basic Launch, sem anúncios): esconde os botões */
   private noAds = false;
   private listeners: Listener[] = [];
+  private muteListeners: Listener[] = [];
+  /** o CrazyGames pediu para silenciar o jogo (botão de som do site) */
+  muted = false;
 
   /** Chamado quando o jogo precisa pausar e silenciar (anúncio) ou voltar. */
   onPause(fn: Listener) { this.listeners.push(fn); }
+
+  /** Avisa quando o jogador liga ou desliga o som pelo botão do CrazyGames. */
+  onMute(fn: Listener) { this.muteListeners.push(fn); }
 
   async init() {
     const s = raw();
@@ -40,6 +46,13 @@ class Sdk {
       // não deixa o jogo esperando para sempre se o SDK demorar
       await Promise.race([s.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
       this.active = s.environment === 'crazygames' || s.environment === 'local';
+      if (this.active) {
+        this.muted = !!s.game.settings?.muteAudio;
+        s.game.addSettingsChangeListener?.(cfg => {
+          this.muted = !!cfg.muteAudio;
+          for (const l of this.muteListeners) l(this.muted);
+        });
+      }
     } catch {
       this.active = false;
     }
