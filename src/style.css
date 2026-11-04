@@ -340,3 +340,5 @@ body.tuto #hint{display:none}
 .slot.green.evo .cost{border-color:#4b2a80;color:#4b2a80;font-size:14px}
 .slot.green.ringbtn.evo{width:68px;height:68px}
 @media (max-width:640px){.slot.green.ringbtn.evo{width:58px;height:58px}}
+
+.slot.gone{display:none}

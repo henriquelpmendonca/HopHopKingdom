@@ -314,7 +314,11 @@ export class GameScene extends Phaser.Scene {
 
   private emitCosts() {
     const costs: Record<string, number> = {};
-    for (const d of BUILDABLES) costs[d.id] = this.costOf(d);
+    for (const d of BUILDABLES) {
+      // construção única (Casa de Estudo) já de pé: o preço vai como -1 e a carta some da barra
+      const owned = this.huts.filter(h => h.def === d).length;
+      costs[d.id] = d.maxCount && owned >= d.maxCount ? -1 : this.costOf(d);
+    }
     bus.emit(Evt.BuildCosts, costs);
   }
 

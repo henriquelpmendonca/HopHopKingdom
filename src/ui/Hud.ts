@@ -93,6 +93,9 @@ export function setupHud() {
     for (const [id, cost] of Object.entries(costs)) {
       const s = slots.get(id);
       if (!s) continue;
+      // preço -1 = construção única que já existe: a carta sai da barra (e volta se ela for destruída ou vendida)
+      s.el.classList.toggle('gone', cost < 0);
+      if (cost < 0) continue;
       s.cost = cost;
       const label = s.el.querySelector('.cost');
       if (label) label.innerHTML = (s.mana ? gemHtml : coinHtml) + cost;
