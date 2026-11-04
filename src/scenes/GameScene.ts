@@ -12,14 +12,14 @@ import { Hut } from '../entities/Hut';
 import { Orc } from '../entities/Orc';
 import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
-import { BUILDABLES, buildCost, EVOLUTIONS, HutDef, hutDef } from '../data/cabanas';
+import { BUILDABLES, buildCost, EVOLVABLE, evolvedDef, HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
 import { isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
 import { store } from '../store';
-import { BOMB_RADIUS, BOUNCE, bombDamage, CHEST, chestCoins, EVOLVE_COST, EVOLVE_LEVEL, GIANT, SPECIAL_ART } from '../data/special';
+import { BOMB_RADIUS, BOUNCE, bombDamage, CHEST, chestCoins, EVOLVE_COST, EVOLVE_LEVEL, FREEZE, GIANT, SPECIAL_ART, SPECIAL_KINDS, type SpecialKind } from '../data/special';
 import { addStars, noteKill, perkMult, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
@@ -458,6 +458,24 @@ export class GameScene extends Phaser.Scene {
     sfx.slam();
   }
 
+  /** O mago do gelo congela os orcs numa grande área e machuca de leve. */
+  private freezeBurst(s: Soldier) {
+    const x = s.x, y = s.y, pw = s.power;
+    s.clearSpecial();
+    const dmg = Math.round(bombDamage(this.wave) * FREEZE.mult * pw);
+    for (const o of this.orcs) {
+      if (o.alive && Math.hypot(o.x - x, (o.y - y) * 2) < FREEZE.radius) {
+        o.takeDamage(dmg, x, y);
+        if (o.alive) o.freeze(FREEZE.seconds);
+      }
+    }
+    const ring = this.add.ellipse(x, y, FREEZE.radius * 1.7, FREEZE.radius * 0.95, 0xbfe9ff, 0.28).setStrokeStyle(6, 0xe6f7ff).setDepth(y + 1);
+    this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 650, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    this.fx.burst(x, y - 24, 30, 0xcfeeff, true);
+    this.cameras.main.shake(180, 0.005);
+    sfx.magic();
+  }
+
   /** O quicador pula de orc em orc, machucando cada um, e depois cai tonto. */
   private bounce(s: Soldier, first: Orc) {
     const hits: Orc[] = [first];
@@ -526,30 +544,25 @@ export class GameScene extends Phaser.Scene {
     return this.huts.some(h => h.def.id === 'casa_estudo' && h.alive);
   }
 
-  /** casas novas em que esta cabana pode virar (só aparecem com a Casa de Estudo de pé) */
+  /** os 4 especiais em que esta cabana pode se transformar (só aparecem com a Casa de Estudo de pé) */
   private evolveOptions(h: Hut) {
-    const targets = EVOLUTIONS[h.def.id];
-    if (!targets || !this.hasStudy()) return undefined;
-    return targets.map(id => {
-      const d = hutDef(id);
-      const kind = d.levels[0].soldiers.find(sp => sp.special)?.special ?? 'gigante';
-      const tooLow = h.level + 1 < EVOLVE_LEVEL;
-      return {
-        id,
-        art: SPECIAL_ART[kind],
-        name: t(`name.${id}` as Key),
-        cost: EVOLVE_COST[id] ?? 100,
-        ok: this.calm() && !tooLow,
-        lock: tooLow ? t('ui.level', { n: EVOLVE_LEVEL }) : undefined,
-      };
-    });
+    if (!EVOLVABLE.includes(h.def.id) || !this.hasStudy()) return undefined;
+    const tooLow = h.level + 1 < EVOLVE_LEVEL;
+    return SPECIAL_KINDS.map(kind => ({
+      id: kind,
+      art: SPECIAL_ART[kind],
+      name: t(`name.cabana_${kind}` as Key),
+      cost: EVOLVE_COST,
+      ok: this.calm() && !tooLow,
+      lock: tooLow ? t('ui.level', { n: EVOLVE_LEVEL }) : undefined,
+    }));
   }
 
   /** A cabana vira uma casa de soldados especiais: mesma posição e mesmo nível, pagando mana. */
   private evolveSelected(id: string) {
     const h = this.selected;
     if (!(h instanceof Hut) || this.over) return;
-    if (!EVOLUTIONS[h.def.id]?.includes(id)) return;
+    if (!EVOLVABLE.includes(h.def.id) || !SPECIAL_KINDS.includes(id as SpecialKind)) return;
     if (!this.hasStudy()) {
       bus.emit(Evt.Broke, 'tools');
       bus.emit(Evt.Hint, t('hint.evolve_study'));
@@ -563,14 +576,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!this.calm()) { this.notCalm(); return; }
-    if (!spendMana(EVOLVE_COST[id] ?? 100)) {
+    if (!spendMana(EVOLVE_COST)) {
       bus.emit(Evt.Broke, 'tools');
       bus.emit(Evt.Hint, t('hint.no_mana'));
       this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
       return;
     }
     this.emitMana();
-    const def = hutDef(id);
+    const def = evolvedDef(id as SpecialKind, h.def);
     const { x, y, level } = h;
     this.huts = this.huts.filter(q => q !== h);
     h.dismantle();
@@ -1175,6 +1188,7 @@ export class GameScene extends Phaser.Scene {
           // só um arremesso de verdade gasta o poder; soltar de leve deixa ele guardado
           if (s.special === 'bomba' && !s.gentle) { this.explode(s); break; }
           if (s.special === 'quicador' && !s.gentle) { this.bounce(s, o); break; }
+          if (s.special === 'gelo' && !s.gentle) { this.freezeBurst(s); break; }
           o.takeDamage(Math.max(6, Math.round(s.speed * 0.03)), s.x, s.y);
           break;
         }
@@ -1185,7 +1199,8 @@ export class GameScene extends Phaser.Scene {
       if (!s.justLanded) continue;
       s.justLanded = false;
       if (s.special === 'bomba') this.explode(s);
-      else if (s.special === 'gigante') this.giantLand(s);
+      else if (s.special === 'gigante') { if (!s.buffed) this.giantLand(s); }
+      else if (s.special === 'gelo') this.freezeBurst(s);
       else if (s.special === 'quicador') s.clearSpecial();
     }
     // baús no chão: piscam antes de sumir

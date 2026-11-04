@@ -161,9 +161,10 @@ export function setupHud() {
   });
 
   // roda de botões ao redor da cabana: evoluir em cima, mover e vender embaixo dos lados
-  const mv = $('moveBtn'), sl = $('sellBtn'), evoA = $('evoA'), evoB = $('evoB');
-  const evoBtns = [evoA, evoB];
-  const ringItems: [HTMLElement, number][] = [[up, -90], [mv, 150], [sl, 30], [evoA, -150], [evoB, -30]];
+  const mv = $('moveBtn'), sl = $('sellBtn');
+  const evoBtns = ['evoA', 'evoB', 'evoC', 'evoD'].map(id => $(id));
+  // [botão, ângulo, fator do raio]: os de evoluir ficam num arco mais afastado, em cima
+  const ringItems: [HTMLElement, number, number][] = [[up, -90, 1], [mv, 150, 1], [sl, 30, 1], ...evoBtns.map((b, i): [HTMLElement, number, number] => [b, -150 + i * 40, 1.55])];
   let evo: SelectInfo['evolve'];
   let ring = { x: 0, y: 0, r: 90 };
   let selKey = '';
@@ -174,12 +175,12 @@ export function setupHud() {
 
   function placeRing(center: boolean) {
     const maxY = window.innerHeight - bar.offsetHeight - 24;
-    for (const [el, deg] of ringItems) {
+    for (const [el, deg, rm] of ringItems) {
       if (el.hidden) continue;
       const a = deg * Math.PI / 180;
-      const x = center ? ring.x : ring.x + Math.cos(a) * ring.r;
-      let y = center ? ring.y : ring.y + Math.sin(a) * ring.r;
-      y = Math.min(y, maxY);
+      const x = center ? ring.x : ring.x + Math.cos(a) * ring.r * rm;
+      let y = center ? ring.y : ring.y + Math.sin(a) * ring.r * rm;
+      y = Math.max(54, Math.min(y, maxY));
       el.style.left = x + 'px';
       // os botões ancoram pela base: soma meia altura para o centro cair no círculo
       el.style.top = (y + el.offsetHeight / 2) + 'px';
@@ -263,7 +264,7 @@ export function setupHud() {
 
   bus.on(Evt.Select, (info: SelectInfo | null) => {
     sel = info;
-    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; evoA.hidden = true; evoB.hidden = true; tools = undefined; evo = undefined; selKey = ''; disarm(); return; }
+    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; evoBtns.forEach(b => { b.hidden = true; }); tools = undefined; evo = undefined; selKey = ''; disarm(); return; }
     if (info.key !== selKey) { selKey = info.key; emerge = true; disarm(); }
     tools = info.tools;
     mv.hidden = sl.hidden = !tools;
@@ -371,5 +372,5 @@ export function setupHud() {
   }, true);
 
   // clicar no botão não pode contar como clique no mapa
-  for (const el of [bar, up, mv, sl, evoA, evoB, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
+  for (const el of [bar, up, mv, sl, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
 }

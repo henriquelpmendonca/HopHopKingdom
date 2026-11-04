@@ -26,6 +26,8 @@ export const CASTLE_LEVELS: CastleLevel[] = [
   // a partir daqui: magia (mana, Cabana do Mago e poderes)
   { cost: 14000, art: 'castelo_4', width: 480, hp: 3300, minWave: 28, income: 18, hutMax: 15 },
   { cost: 45000, art: 'castelo_5', width: 500, hp: 4800, minWave: 45, income: 26, hutMax: 25 },
+  // o último: palácio real, libera as cabanas do nível 26 ao 35
+  { cost: 120000, art: 'castelo_6', width: 520, hp: 6800, minWave: 65, income: 36, hutMax: 35 },
 ];
 
 /** nível do Centro da Vila que libera a mana, a Cabana do Mago e os poderes */

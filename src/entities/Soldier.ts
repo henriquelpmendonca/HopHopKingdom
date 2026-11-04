@@ -3,7 +3,7 @@ import { sfx } from '../audio';
 import { GRAVITY, SOLDIER_H } from '../config';
 import { SoldierSpec, UNIT_ART } from '../data/cabanas';
 import { perkMult } from '../meta';
-import { GIANT, SPECIAL_ART, SPECIAL_SIZE, type SpecialKind } from '../data/special';
+import { GIANT, SPECIAL_ART, SPECIAL_GLOW, SPECIAL_MIGHT, SPECIAL_SIZE, type SpecialKind } from '../data/special';
 import { AGGRO_RANGE, FURIA, SPELL, type Spell, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
 import { Bars, Particles, popDamage } from '../fx';
 import { Building } from './Building';
@@ -116,26 +116,31 @@ export class Soldier implements Combatant {
     this.spec = spec;
     this.special = null;
     this.giantT = 0;
-    const art = this.scene.textures.exists(UNIT_ART[spec.unit]) ? UNIT_ART[spec.unit] : 'soldado';
+    const kind = spec.special;
+    const own = kind && this.scene.textures.exists(SPECIAL_ART[kind]) ? SPECIAL_ART[kind] : null;
+    const art = own ?? (this.scene.textures.exists(UNIT_ART[spec.unit]) ? UNIT_ART[spec.unit] : 'soldado');
     const tex = this.scene.textures.get(art).getSourceImage();
     this.baseScale = SOLDIER_H / tex.height;
     this.sprite.setTexture(art);
     // unidades melhores são um pouco maiores
     // os soldados de corpo a corpo são maiores que o arqueiro; lança e alabarda crescem junto
     const unitSize = { espada: 1.7, lanca: 1.8, alabarda: 1.9, arqueiro: 1.4, arqueiro2: 1.5, arqueiro3: 1.6, magoA1: 1.5, magoA2: 1.6, magoA3: 1.8 }[spec.unit];
-    this.size = unitSize * (spec.furia ? 1.1 : 1);
+    this.size = kind && own ? SPECIAL_SIZE[kind] : unitSize * (spec.furia ? 1.1 : 1);
     this.hopSpeed = this.hopBase * (spec.furia ? 1.35 : 1);
-    this.glow = spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
+    this.glow = kind ? 0 : spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
     this.aura.setVisible(this.glow !== 0 && this.alive);
     if (this.glow) this.aura.setTint(this.glow);
-    if (spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
+    // especial: cinza enquanto recarrega (sem brilho); a cor volta quando o poder está pronto
+    if (kind) this.sprite.setTint(0xb8b8b8);
+    else if (spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
     const pw = (spec.power ?? 1) * perkMult('strong');
-    this.maxHp = Math.round(st.hp * pw * (f ? FURIA.hp : 1));
+    const mh = kind ? SPECIAL_MIGHT[kind].hp : 1, md = kind ? SPECIAL_MIGHT[kind].dmg : 1;
+    this.maxHp = Math.round(st.hp * pw * (f ? FURIA.hp : 1) * mh);
     this.hp = this.maxHp; // evoluir também cura
-    this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1));
+    this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1) * md);
     this.reach = st.reach;
     this.range = st.range ?? 0;
     this.bolt = !!st.bolt;
@@ -145,26 +150,25 @@ export class Soldier implements Combatant {
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
     // soldado de uma casa evoluída: já nasce com o poder
-    if (arm && spec.special) { this.rechargeT = 0; this.makeSpecial(spec.special); }
+    if (arm && spec.special) { this.rechargeT = 0; this.armSpecial(); }
   }
 
-  /** A barra de poder encheu: este soldado vira especial (desenho, tamanho e brilho dourado). */
-  makeSpecial(kind: SpecialKind) {
-    const art = SPECIAL_ART[kind];
-    if (!this.scene.textures.exists(art)) return;
+  /** O poder está pronto: o soldado volta à cor, ganha o brilho e pode ser arremessado. */
+  armSpecial() {
+    const kind = this.spec.special;
+    if (!kind) return;
     this.special = kind;
     this.giantT = 0;
-    const tex = this.scene.textures.get(art).getSourceImage();
-    this.baseScale = SOLDIER_H / tex.height;
-    this.sprite.setTexture(art);
-    this.size = SPECIAL_SIZE[kind];
-    this.glow = kind === 'bomba' ? 0xff8a2a : kind === 'gigante' ? 0xffd84a : 0x4ac8ff;
-    this.aura.setVisible(true).setTint(this.glow);
+    this.glow = SPECIAL_GLOW[kind];
+    this.aura.setVisible(this.alive).setTint(this.glow);
     this.sprite.clearTint();
     this.fx.burst(this.x, this.y - this.z - SOLDIER_H * 0.5, 14, this.glow, true);
   }
 
-  /** Volta a ser um soldado comum (mantém a proporção de vida). */
+  /** Buff do gigante ainda ligado? */
+  get buffed() { return this.giantT > 0; }
+
+  /** Poder usado: números normais, sem brilho e cinza até a casa recarregar (mantém a proporção de vida). */
   clearSpecial() {
     if (!this.special) return;
     this.special = null;
@@ -172,7 +176,7 @@ export class Soldier implements Combatant {
     const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
     this.setSpec(this.spec, false);
     this.hp = Math.max(1, Math.round(this.maxHp * ratio));
-    // soldado de casa evoluída: volta ao normal e a casa prepara o próximo poder
+    // a casa prepara o próximo poder
     if (this.spec.special) this.rechargeT = this.spec.recharge ?? 20;
   }
 
@@ -208,7 +212,7 @@ export class Soldier implements Combatant {
     const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
     const sp = this.special, rt = this.rechargeT;
     this.setSpec(this.spec, false);
-    if (sp) this.makeSpecial(sp);
+    if (sp) this.armSpecial();
     this.rechargeT = rt;
     this.hp = was ? Math.max(1, Math.round(this.maxHp * ratio)) : 0;
   }
@@ -369,7 +373,7 @@ export class Soldier implements Combatant {
     if (this.giantT > 0) { this.giantT -= dt; if (this.giantT <= 0) { this.fx.burst(this.x, this.y - SOLDIER_H, 16, 0xffd84a, true); this.clearSpecial(); } }
     if (this.rechargeT > 0 && this.state !== 'held' && this.state !== 'fly') {
       this.rechargeT -= dt;
-      if (this.rechargeT <= 0 && this.spec.special) { this.rechargeT = 0; this.makeSpecial(this.spec.special); }
+      if (this.rechargeT <= 0 && this.spec.special) { this.rechargeT = 0; this.armSpecial(); }
     }
     this.cdT -= dt;
     this.hitCd -= dt;
