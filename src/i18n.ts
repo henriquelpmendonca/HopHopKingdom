@@ -1,8 +1,21 @@
+import { DE, ES, FR, RU } from './locales';
+import { store } from './store';
+
 /**
- * Idiomas: inglês (padrão e obrigatório no CrazyGames) e português.
- * O idioma vem do SDK do CrazyGames (ou do navegador); se não for português, usa inglês.
+ * Idiomas: inglês (padrão e obrigatório no CrazyGames), português, espanhol, francês, alemão e russo.
+ * Vale, nesta ordem: ?lang= no endereço, o idioma escolhido no menu, o do SDK do CrazyGames; senão, inglês.
  */
-export type Lang = 'en' | 'pt';
+export type Lang = 'en' | 'pt' | 'es' | 'fr' | 'de' | 'ru';
+
+/** idiomas do menu: código, nome no próprio idioma e código do HTML */
+export const LANGS: { code: Lang; name: string; html: string }[] = [
+  { code: 'en', name: 'English', html: 'en' },
+  { code: 'pt', name: 'Português', html: 'pt-BR' },
+  { code: 'es', name: 'Español', html: 'es' },
+  { code: 'fr', name: 'Français', html: 'fr' },
+  { code: 'de', name: 'Deutsch', html: 'de' },
+  { code: 'ru', name: 'Русский', html: 'ru' },
+];
 
 const EN = {
   // nomes das construções
@@ -82,6 +95,7 @@ const EN = {
   'ui.forge_sub': 'Spend Royal Stars on upgrades that last forever, even in a brand-new city.',
   'ui.forge_earn': 'Earn stars: 1 per 10 orcs, new best waves, Orc King kills',
   'ui.close': 'Close',
+  'ui.language': 'Language',
   'ui.over_stars': 'You have {n} Royal Stars to spend!',
   'perk.next': 'next {v}',
   'perk.treasure': 'Royal Treasure',
@@ -187,6 +201,7 @@ const PT: Record<Key, string> = {
   'ui.forge_sub': 'Gaste Estrelas Reais em melhorias que duram para sempre, até numa cidade nova.',
   'ui.forge_earn': 'Ganhe estrelas: 1 a cada 10 orcs, ondas novas e o Rei Orc',
   'ui.close': 'Fechar',
+  'ui.language': 'Idioma',
   'ui.over_stars': 'Você tem {n} Estrelas Reais para gastar!',
   'perk.next': 'próximo {v}',
   'perk.treasure': 'Tesouro Real',
@@ -217,14 +232,35 @@ const PT: Record<Key, string> = {
   'tuto.done': 'Muito bem! Continue construindo, evoluindo e defendendo o seu reino!',
 };
 
-const DICT: Record<Lang, Record<Key, string>> = { en: EN as unknown as Record<Key, string>, pt: PT };
+const DICT: Record<Lang, Partial<Record<Key, string>>> = { en: EN, pt: PT, es: ES, fr: FR, de: DE, ru: RU };
 
 export let lang: Lang = 'en';
 
-/** Escolhe o idioma a partir de um código como "pt-BR" ou "en-US". */
+const K_LANG = 'hhk_lang';
+
+/** converte um código como "pt-BR" ou "en-US" num idioma que o jogo tem (ou undefined) */
+function match(code: string | null | undefined): Lang | undefined {
+  const c = (code ?? '').toLowerCase().slice(0, 2);
+  return LANGS.find(l => l.code === c)?.code;
+}
+
+/** idioma que o jogador escolheu no menu, se houver */
+export const savedLang = () => match(store.get(K_LANG));
+
+/** Escolhe o idioma (código como "pt-BR"); sem código válido, inglês. */
 export function setLocale(code: string | undefined) {
-  lang = (code ?? '').toLowerCase().startsWith('pt') ? 'pt' : 'en';
-  document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en';
+  lang = match(code) ?? 'en';
+  document.documentElement.lang = LANGS.find(l => l.code === lang)!.html;
+}
+
+/** O jogador escolheu um idioma no menu: guarda e recarrega (o jogo salva o progresso ao sair da página). */
+export function chooseLang(code: Lang) {
+  store.set(K_LANG, code);
+  // ?lang= na barra de endereço mandaria mais que a escolha: tira
+  const u = new URL(location.href);
+  u.searchParams.delete('lang');
+  history.replaceState(null, '', u.toString());
+  location.reload();
 }
 
 export function t(key: Key, vars?: Record<string, string | number>): string {

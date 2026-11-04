@@ -289,3 +289,12 @@ body.tuto #hint{display:none}
 #overStars:empty{display:none}
 @media (max-width:640px){#forgebox{padding:14px 12px}#forgebox h1{font-size:26px}.perk{gap:6px;padding:6px}.perk .pe{display:none}.perk .pi{font-size:24px;width:28px}.perk .pt b{font-size:15px}#forgeTop small{font-size:11px}}
 @media (max-height:520px){#forgebox{padding:10px 16px}#forgebox h1{font-size:22px}#forgebox .fsub{display:none}.perk{margin-bottom:5px;padding:4px 8px}}
+
+/* menu de idiomas */
+#langMenu{position:fixed;top:72px;right:14px;z-index:30;display:flex;flex-direction:column;gap:6px;padding:10px;border:5px solid #5a3418;border-radius:20px;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 6px 0 #5a3418;animation:popin .3s cubic-bezier(.2,2,.4,1);transform-origin:top right}
+#langMenu[hidden]{display:none}
+#langMenu button{min-width:140px;padding:8px 14px;border:3px solid #c9a15f;border-radius:14px;background:#fffaf0;color:#5a3418;font:900 16px "Trebuchet MS",Verdana,sans-serif;text-align:left;cursor:pointer}
+#langMenu button:hover{background:#fff1c4}
+#langMenu button.on{border-color:#1f5a18;background:linear-gradient(#d8ffb8,#8be07a)}
+@media (max-width:640px){#langMenu{top:60px;right:10px}}
+@media (max-height:520px){#langMenu{top:48px;right:8px;flex-direction:row;flex-wrap:wrap;max-width:calc(100vw - 16px);padding:6px;gap:4px}#langMenu button{min-width:0;padding:5px 9px;font-size:13px}}

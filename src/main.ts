@@ -5,17 +5,18 @@ import { audio, unlockAudio } from './audio';
 import { setupHud } from './ui/Hud';
 import { setupTutorial } from './ui/Tutorial';
 import { setupForge } from './ui/Forge';
+import { setupLangMenu } from './ui/LangMenu';
 import { setupBanner } from './ui/Banner';
 import { setupSwordCursor } from './ui/SwordCursor';
 import { sdk } from './sdk';
 import { bus, Evt } from './events';
-import { applyStaticTexts, setLocale } from './i18n';
+import { applyStaticTexts, savedLang, setLocale } from './i18n';
 
 async function start() {
   await sdk.init();
   sdk.loadingStart();
   // idioma do jogador pelo SDK do CrazyGames; fora dele (ou sem idioma) é inglês. ?lang=pt ou ?lang=en força um
-  setLocale(new URLSearchParams(location.search).get('lang') ?? (sdk.active ? sdk.locale : 'en'));
+  setLocale(new URLSearchParams(location.search).get('lang') ?? savedLang() ?? (sdk.active ? sdk.locale : 'en'));
   applyStaticTexts();
   audio.loadPrefs();
 
@@ -30,6 +31,7 @@ async function start() {
   setupHud();
   setupTutorial();
   setupForge();
+  setupLangMenu();
   setupBanner();
   setupSwordCursor();
   unlockAudio();
