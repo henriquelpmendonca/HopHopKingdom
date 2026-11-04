@@ -76,7 +76,7 @@ export class GameScene extends Phaser.Scene {
   private over = false;
   isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
-  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
+  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana', 'poder'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
   /** atalho de teste: ?onda=5 começa na onda 5 */
   private debugWave = Number(new URLSearchParams(import.meta.env.DEV ? location.search : '').get('onda')) || 0;
 
@@ -150,6 +150,8 @@ export class GameScene extends Phaser.Scene {
     this.onCastleLevel(false);
     this.emitCosts();
     bus.emit(Evt.Wave, this.wave);
+    // atalho de teste: ?poder=1 começa com a barra de poder cheia (e a cada pouco, enche de novo)
+    if (new URLSearchParams(import.meta.env.DEV ? location.search : '').has('poder')) this.addCharge(POWER.max);
     bus.emit(Evt.Sword, state.sword);
     this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
     const flush = () => this.save();
@@ -1123,8 +1125,9 @@ export class GameScene extends Phaser.Scene {
       for (const o of alive) {
         if (o.alive && Math.hypot(o.x - s.x, o.y - s.y) < 40) {
           s.hitCd = 0.3;
-          if (s.special === 'bomba') { this.explode(s); break; }
-          if (s.special === 'quicador') { this.bounce(s, o); break; }
+          // só um arremesso de verdade gasta o poder; soltar de leve deixa ele guardado
+          if (s.special === 'bomba' && !s.gentle) { this.explode(s); break; }
+          if (s.special === 'quicador' && !s.gentle) { this.bounce(s, o); break; }
           o.takeDamage(Math.max(6, Math.round(s.speed * 0.03)), s.x, s.y);
           if (!s.special) this.addCharge(POWER.perThrowHit);
           break;

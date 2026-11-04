@@ -14,6 +14,8 @@ import { FIRE, ICE, type Projectiles } from './Projectile';
 export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead' | 'bounce';
 
 const ATTACK_TIME = 0.35;
+/** abaixo desta velocidade (px/s) é só soltar o soldado, não arremessar */
+const GENTLE_SPEED = 220;
 
 export class Soldier implements Combatant {
   state: SoldierState = 'orbit';
@@ -70,6 +72,8 @@ export class Soldier implements Combatant {
   special: SpecialKind | null = null;
   /** pousou agora (o jogo lê isto uma vez para a bomba explodir e o gigante crescer) */
   justLanded = false;
+  /** soltou sem arremessar de verdade: o poder especial fica guardado */
+  gentle = false;
   private giantT = 0;
 
   readonly sprite: Phaser.GameObjects.Image;
@@ -255,6 +259,7 @@ export class Soldier implements Combatant {
 
   throwWith(vx: number, vy: number) {
     const sp = Math.hypot(vx, vy);
+    this.gentle = sp < GENTLE_SPEED;
     sfx.throw();
     this.state = 'fly';
     this.vx = vx;
@@ -413,7 +418,7 @@ export class Soldier implements Combatant {
             this.timer = 0.7;
             this.rot = 0;
             this.vz = 0;
-            this.justLanded = true;
+            this.justLanded = !this.gentle;
             this.fx.burst(this.x, this.y, 9, 0xb7d08a);
           }
         }
