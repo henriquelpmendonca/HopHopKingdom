@@ -1,5 +1,5 @@
 import { MAGIC_CASTLE_LEVEL } from './castle';
-import { rechargeSeconds, SPECIAL_HOUSE_ART, specialCount, type SpecialKind } from './special';
+import { SPECIAL_HOUSE_ART, specialCount, type SpecialKind } from './special';
 
 /** Cada tipo de soldado tem o seu desenho. Se o PNG ainda não existir, usa o soldado de espada. */
 export type SoldierUnit = 'espada' | 'lanca' | 'alabarda' | 'arqueiro' | 'arqueiro2' | 'arqueiro3' | 'magoA1' | 'magoA2' | 'magoA3';
@@ -23,10 +23,8 @@ export interface SoldierSpec {
   count: number;
   /** multiplicador de vida e dano: cada nível da cabana deixa os soldados um pouco mais fortes */
   power?: number;
-  /** soldado especial de uma casa evoluída: fica brilhando até ser arremessado e depois leva um tempo para recarregar */
+  /** soldado especial de uma casa evoluída: tem desenho e jeito de lutar próprios */
   special?: SpecialKind;
-  /** segundos para recarregar o poder */
-  recharge?: number;
 }
 
 export interface HutLevel {
@@ -278,7 +276,6 @@ export function evolvedDef(kind: SpecialKind, base: HutDef): HutDef {
           unit: b.unit,
           furia: true,
           special: kind,
-          recharge: rechargeSeconds(i + 1),
           count: specialCount(i + 1),
           power: b.power,
         }],

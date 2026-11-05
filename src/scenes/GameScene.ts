@@ -19,7 +19,7 @@ import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
 import { store } from '../store';
-import { BOMB_RADIUS, BOUNCE, bombDamage, CHEST, chestCoins, EVOLVE_COST, EVOLVE_LEVEL, FREEZE, GIANT, SPECIAL_ART, SPECIAL_KINDS, type SpecialKind } from '../data/special';
+import { CHEST, chestCoins, EVOLVE_COST, EVOLVE_LEVEL, SPECIAL_ART, SPECIAL_KINDS, type SpecialKind } from '../data/special';
 import { addStars, noteKill, perkMult, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
@@ -422,90 +422,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   /* ---------- soldados especiais e baús ---------- */
-
-  /** Imagem que cresce e some (explosão e afins). */
-  private puff(x: number, y: number, key: string, width: number, ms = 520) {
-    const img = this.add.image(x, y, key).setOrigin(0.5, 0.6).setDepth(y + 2000);
-    const full = width / img.width;
-    img.setScale(full * 0.25);
-    this.tweens.add({ targets: img, scale: full, duration: ms * 0.45, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: img, alpha: 0, delay: ms * 0.5, duration: ms * 0.5, onComplete: () => img.destroy() });
-  }
-
-  private explode(s: Soldier) {
-    const x = s.x, y = s.y, pw = s.power;
-    s.clearSpecial();
-    const dmg = Math.round(bombDamage(this.wave) * pw);
-    for (const o of this.orcs) {
-      if (o.alive && Math.hypot(o.x - x, (o.y - y) * 2) < BOMB_RADIUS) o.takeDamage(dmg, x, y);
-    }
-    this.puff(x, y - 24, 'explosao', BOMB_RADIUS * 2.3);
-    this.fx.burst(x, y - 24, 26, 0xffa63a, true);
-    this.cameras.main.shake(240, 0.008);
-    sfx.crush();
-  }
-
-  private giantLand(s: Soldier) {
-    s.becomeGiant();
-    const dmg = Math.round(bombDamage(this.wave) * GIANT.shockMult * s.power);
-    for (const o of this.orcs) {
-      if (o.alive && Math.hypot(o.x - s.x, (o.y - s.y) * 2) < GIANT.shockRadius) o.takeDamage(dmg, s.x, s.y);
-    }
-    const ring = this.add.ellipse(s.x, s.y, GIANT.shockRadius * 1.6, GIANT.shockRadius * 0.9).setStrokeStyle(6, 0xffe28a).setDepth(s.y + 1);
-    this.tweens.add({ targets: ring, scale: 1.7, alpha: 0, duration: 420, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
-    this.fx.burst(s.x, s.y - 20, 22, 0xe8d9b8, true);
-    this.cameras.main.shake(260, 0.01);
-    sfx.slam();
-  }
-
-  /** O mago do gelo congela os orcs numa grande área e machuca de leve. */
-  private freezeBurst(s: Soldier) {
-    const x = s.x, y = s.y, pw = s.power;
-    s.clearSpecial();
-    const dmg = Math.round(bombDamage(this.wave) * FREEZE.mult * pw);
-    for (const o of this.orcs) {
-      if (o.alive && Math.hypot(o.x - x, (o.y - y) * 2) < FREEZE.radius) {
-        o.takeDamage(dmg, x, y);
-        if (o.alive) o.freeze(FREEZE.seconds);
-      }
-    }
-    const ring = this.add.ellipse(x, y, FREEZE.radius * 1.7, FREEZE.radius * 0.95, 0xbfe9ff, 0.28).setStrokeStyle(6, 0xe6f7ff).setDepth(y + 1);
-    this.tweens.add({ targets: ring, scale: 1.25, alpha: 0, duration: 650, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
-    this.fx.burst(x, y - 24, 30, 0xcfeeff, true);
-    this.cameras.main.shake(180, 0.005);
-    sfx.magic();
-  }
-
-  /** O quicador pula de orc em orc, machucando cada um, e depois cai tonto. */
-  private bounce(s: Soldier, first: Orc) {
-    const hits: Orc[] = [first];
-    let from = first;
-    for (let j = 1; j < BOUNCE.jumps; j++) {
-      let best: Orc | null = null, bd = BOUNCE.range;
-      for (const o of this.orcs) {
-        if (!o.alive || hits.includes(o)) continue;
-        const d = Math.hypot(o.x - from.x, o.y - from.y);
-        if (d < bd) { bd = d; best = o; }
-      }
-      if (!best) break;
-      hits.push(best);
-      from = best;
-    }
-    s.startBounce();
-    const dmg = Math.round(bombDamage(this.wave) * BOUNCE.mult * s.power);
-    hits.forEach((o, i) => {
-      this.time.delayedCall(i * BOUNCE.step * 1000, () => {
-        if (s.state !== 'bounce') return;
-        s.x = o.x;
-        s.y = o.y + 6;
-        s.z = 34;
-        if (o.alive) o.takeDamage(dmg, s.x, s.y);
-        this.fx.burst(s.x, s.y - 30, 8, 0x4ac8ff, true);
-        sfx.swordHit();
-        if (i === hits.length - 1) this.time.delayedCall(200, () => s.endBounce());
-      });
-    });
-  }
 
   private spawnChest(x: number, y: number, boss: boolean) {
     if (!this.textures.exists('bau')) return;
@@ -1185,23 +1101,10 @@ export class GameScene extends Phaser.Scene {
       for (const o of alive) {
         if (o.alive && Math.hypot(o.x - s.x, o.y - s.y) < 40) {
           s.hitCd = 0.3;
-          // só um arremesso de verdade gasta o poder; soltar de leve deixa ele guardado
-          if (s.special === 'bomba' && !s.gentle) { this.explode(s); break; }
-          if (s.special === 'quicador' && !s.gentle) { this.bounce(s, o); break; }
-          if (s.special === 'gelo' && !s.gentle) { this.freezeBurst(s); break; }
           o.takeDamage(Math.max(6, Math.round(s.speed * 0.03)), s.x, s.y);
           break;
         }
       }
-    }
-    // pousou: a bomba explode no chão e o gigante cresce
-    for (const s of soldiers) {
-      if (!s.justLanded) continue;
-      s.justLanded = false;
-      if (s.special === 'bomba') this.explode(s);
-      else if (s.special === 'gigante') { if (!s.buffed) this.giantLand(s); }
-      else if (s.special === 'gelo') this.freezeBurst(s);
-      else if (s.special === 'quicador') s.clearSpecial();
     }
     // baús no chão: piscam antes de sumir
     for (const c of this.chests) {

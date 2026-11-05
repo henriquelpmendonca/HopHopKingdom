@@ -3,21 +3,24 @@ import { sfx } from '../audio';
 import { GRAVITY, SOLDIER_H } from '../config';
 import { SoldierSpec, UNIT_ART } from '../data/cabanas';
 import { perkMult } from '../meta';
-import { GIANT, SPECIAL_ART, SPECIAL_GLOW, SPECIAL_MIGHT, SPECIAL_SIZE, type SpecialKind } from '../data/special';
+import { COMBAT, SPECIAL_ART, SPECIAL_MIGHT, SPECIAL_SIZE } from '../data/special';
+import { t } from '../i18n';
 import { AGGRO_RANGE, FURIA, SPELL, type Spell, LEASH_RANGE, RESPAWN_TIME, SOLDIER_RUN_SPEED, UNIT_STATS } from '../data/units';
-import { Bars, Particles, popDamage } from '../fx';
+import { Bars, floatText, Particles, popDamage } from '../fx';
 import { Building } from './Building';
 import { Combatant } from './Combatant';
 import type { Orc } from './Orc';
 import { FIRE, ICE, type Projectiles } from './Projectile';
 
-export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead' | 'bounce';
+export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'fight' | 'dead';
 
 const ATTACK_TIME = 0.35;
-/** abaixo desta velocidade (px/s) é só soltar o soldado, não arremessar */
-const GENTLE_SPEED = 220;
 
 export class Soldier implements Combatant {
+  /** todos os soldados vivos no mapa (o quicador chama os aliados de perto para pular junto) */
+  private static all = new Set<Soldier>();
+  /** segundos que ainda está pulando para desviar (não leva dano enquanto isso) */
+  private evadeT = 0;
   state: SoldierState = 'orbit';
   /** posição no chão; z é a altura acima do chão */
   x: number;
@@ -68,19 +71,6 @@ export class Soldier implements Combatant {
   private ry = 0;
   private respawnT = 0;
   private spec!: SoldierSpec;
-  /** poder da barra: bombardeiro, gigante ou quicador (some depois do arremesso) */
-  special: SpecialKind | null = null;
-  /** pousou agora (o jogo lê isto uma vez para a bomba explodir e o gigante crescer) */
-  justLanded = false;
-  /** soltou sem arremessar de verdade: o poder especial fica guardado */
-  gentle = false;
-  private giantT = 0;
-  /** segundos até a casa recarregar o poder deste soldado (0 = não está recarregando) */
-  private rechargeT = 0;
-
-  /** força do poder: cresce com o nível da casa */
-  get power() { return this.spec?.power ?? 1; }
-
   readonly sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
   private aura: Phaser.GameObjects.Image;
@@ -104,6 +94,7 @@ export class Soldier implements Combatant {
     this.shadow = scene.add.image(this.x, this.y, 'soft').setTint(0x000000).setAlpha(0.32).setScale(...this.shadowBase);
     this.sprite = scene.add.image(this.x, this.y, 'soldado').setOrigin(0.5, 1).setScale(this.baseScale);
     this.setSpec(spec);
+    Soldier.all.add(this);
   }
 
   get alive() { return this.state !== 'dead' && this.hp > 0; }
@@ -112,10 +103,8 @@ export class Soldier implements Combatant {
   get speed() { return Math.hypot(this.vx, this.vy); }
 
   /** Troca o desenho (espada, lança, alabarda), o brilho e os números de combate. */
-  setSpec(spec: SoldierSpec, arm = true) {
+  setSpec(spec: SoldierSpec) {
     this.spec = spec;
-    this.special = null;
-    this.giantT = 0;
     const kind = spec.special;
     const own = kind && this.scene.textures.exists(SPECIAL_ART[kind]) ? SPECIAL_ART[kind] : null;
     const art = own ?? (this.scene.textures.exists(UNIT_ART[spec.unit]) ? UNIT_ART[spec.unit] : 'soldado');
@@ -130,9 +119,7 @@ export class Soldier implements Combatant {
     this.glow = kind ? 0 : spec.furia ? 0xff3b30 : spec.unit === 'alabarda' ? 0xffd84a : 0;
     this.aura.setVisible(this.glow !== 0 && this.alive);
     if (this.glow) this.aura.setTint(this.glow);
-    // especial: cinza enquanto recarrega (sem brilho); a cor volta quando o poder está pronto
-    if (kind) this.sprite.setTint(0xb8b8b8);
-    else if (spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
+    if (!kind && spec.furia) this.sprite.setTint(0xff9a9a); else this.sprite.clearTint();
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
@@ -149,71 +136,24 @@ export class Soldier implements Combatant {
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
     this.cd = st.cd * (f ? FURIA.cd : 1);
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
-    // soldado de uma casa evoluída: já nasce com o poder
-    if (arm && spec.special) { this.rechargeT = 0; this.armSpecial(); }
-  }
-
-  /** O poder está pronto: o soldado volta à cor, ganha o brilho e pode ser arremessado. */
-  armSpecial() {
-    const kind = this.spec.special;
-    if (!kind) return;
-    this.special = kind;
-    this.giantT = 0;
-    this.glow = SPECIAL_GLOW[kind];
-    this.aura.setVisible(this.alive).setTint(this.glow);
-    this.sprite.clearTint();
-    this.fx.burst(this.x, this.y - this.z - SOLDIER_H * 0.5, 14, this.glow, true);
-  }
-
-  /** Buff do gigante ainda ligado? */
-  get buffed() { return this.giantT > 0; }
-
-  /** Poder usado: números normais, sem brilho e cinza até a casa recarregar (mantém a proporção de vida). */
-  clearSpecial() {
-    if (!this.special) return;
-    this.special = null;
-    this.giantT = 0;
-    const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
-    this.setSpec(this.spec, false);
-    this.hp = Math.max(1, Math.round(this.maxHp * ratio));
-    // a casa prepara o próximo poder
-    if (this.spec.special) this.rechargeT = this.spec.recharge ?? 20;
-  }
-
-  /** O gigante pousou: fica enorme e forte por alguns segundos. */
-  becomeGiant() {
-    this.giantT = GIANT.seconds;
-    this.maxHp = Math.round(this.maxHp * GIANT.hp);
-    this.hp = this.maxHp;
-    this.dmg = Math.round(this.dmg * GIANT.dmg);
-    this.reach = Math.round(this.reach * GIANT.reach);
-  }
-
-  /** Começa a pular de orc em orc (o jogo move o soldado a cada pulo). */
-  startBounce() {
-    this.state = 'bounce';
-    this.vx = this.vy = this.vz = 0;
-    this.target = null;
-  }
-
-  /** Acabou o pulo em cadeia: cai tonto um instante e volta para a cabana. */
-  endBounce() {
-    if (this.state !== 'bounce') return;
-    this.state = 'dizzy';
-    this.timer = 0.5;
-    this.z = 0;
-    this.rot = 0;
-    this.clearSpecial();
+    if (kind === 'bomba') this.cd *= COMBAT.bombCdMult;
+    if (kind === 'gigante') { this.cd *= COMBAT.giantCdMult; this.reach = Math.round(this.reach * COMBAT.giantReach); }
+    if (kind === 'gelo') {
+      // ataca de longe com bolas de gelo
+      this.range = COMBAT.iceRange;
+      this.bolt = true;
+      this.spells = ['ice'];
+      this.aggro = Math.max(this.aggro, 620);
+      this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
+      this.cd = Math.max(this.cd, COMBAT.iceCdMin);
+    }
   }
 
   /** Uma melhoria da Forja Real foi comprada: refaz os números sem curar nem reviver ninguém. */
   rescale() {
     const was = this.alive;
     const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 0;
-    const sp = this.special, rt = this.rechargeT;
-    this.setSpec(this.spec, false);
-    if (sp) this.armSpecial();
-    this.rechargeT = rt;
+    this.setSpec(this.spec);
     this.hp = was ? Math.max(1, Math.round(this.maxHp * ratio)) : 0;
   }
 
@@ -238,7 +178,7 @@ export class Soldier implements Combatant {
       proj.fire(sx, sy, tg, aim, this.dmg, 400, 1, 'magic', FIRE, t => (t as Orc).ignite(this.dmg * SPELL.burnDps, SPELL.burnSeconds));
     } else if (spell === 'ice') {
       sfx.magic();
-      proj.fire(sx, sy, tg, aim, Math.round(this.dmg * 0.8), 440, 0.9, 'magic', ICE, t => (t as Orc).freeze(SPELL.freezeSeconds));
+      proj.fire(sx, sy, tg, aim, Math.round(this.dmg * 0.8), 440, 0.9, 'magic', ICE, t => (t as Orc).freeze(this.spec.special === 'gelo' ? COMBAT.iceFreeze : SPELL.freezeSeconds));
     } else {
       // raio: acerta o alvo e pula para os inimigos mais perto, um depois do outro
       const hit: Orc[] = [tg];
@@ -275,7 +215,6 @@ export class Soldier implements Combatant {
 
   throwWith(vx: number, vy: number) {
     const sp = Math.hypot(vx, vy);
-    this.gentle = sp < GENTLE_SPEED;
     sfx.throw();
     this.state = 'fly';
     this.vx = vx;
@@ -287,6 +226,11 @@ export class Soldier implements Combatant {
 
   takeDamage(n: number, fromX: number, fromY: number) {
     if (!this.attackable) return;
+    // pulando para desviar (por conta própria ou junto com um quicador): nada acerta
+    if (this.evadeT > 0) return;
+    if (this.spec.special === 'quicador' && Math.random() < COMBAT.dodgeChance) { this.dodge(); return; }
+    // o gigante aguenta pancada: só leva uma parte do dano
+    if (this.spec.special === 'gigante') n = Math.max(1, Math.round(n * COMBAT.giantArmor));
     this.hp = Math.max(0, this.hp - n);
     this.hitT = 0.2;
     popDamage(this.scene, this.x, this.y - this.z - SOLDIER_H * this.size - 4, n, true);
@@ -297,6 +241,34 @@ export class Soldier implements Combatant {
     this.rx = (this.x - fromX) / d * 14;
     this.ry = (this.y - fromY) / d * 7;
     if (this.hp <= 0) this.die();
+  }
+
+  /** O quicador pulou e desviou do golpe; quem está perto dele pula junto e também escapa. */
+  private dodge() {
+    this.evadeT = COMBAT.evadeSeconds;
+    floatText(this.scene, this.x, this.y - SOLDIER_H * this.size - 12, t('fl.dodge'), '#9ad8ff');
+    this.fx.burst(this.x, this.y - 6, 6, 0x9ad8ff);
+    for (const a of Soldier.all) {
+      if (a === this || !a.alive || !a.attackable || a.evadeT > 0) continue;
+      if (Math.hypot(a.x - this.x, a.y - this.y) < COMBAT.dodgeShare) a.evadeT = COMBAT.evadeSeconds;
+    }
+  }
+
+  /** O bombardeiro joga uma bomba: explode em área em volta do alvo. */
+  private bombBlast(tg: Orc, foes: Orc[]) {
+    const x = tg.x, y = tg.y;
+    for (const o of foes) {
+      if (o.alive && Math.hypot(o.x - x, (o.y - y) * 2) < COMBAT.bombRadius) o.takeDamage(this.dmg, x, y);
+    }
+    if (this.scene.textures.exists('explosao')) {
+      const img = this.scene.add.image(x, y - 18, 'explosao').setOrigin(0.5, 0.6).setDepth(y + 2000);
+      const full = COMBAT.bombRadius * 2.1 / img.width;
+      img.setScale(full * 0.3);
+      this.scene.tweens.add({ targets: img, scale: full, duration: 140, ease: 'Back.easeOut' });
+      this.scene.tweens.add({ targets: img, alpha: 0, delay: 170, duration: 220, onComplete: () => img.destroy() });
+    }
+    this.fx.burst(x, y - 18, 14, 0xffa63a, true);
+    sfx.crush();
   }
 
   private die() {
@@ -319,11 +291,6 @@ export class Soldier implements Combatant {
     this.y = this.home.y;
     this.setVisible(true);
     this.fx.burst(this.x, this.y, 8, 0xffffff);
-    // caiu em combate: o poder volta a carregar do zero
-    if (this.spec.special) {
-      if (this.special) this.clearSpecial();
-      else if (this.rechargeT <= 0) this.rechargeT = this.spec.recharge ?? 20;
-    }
   }
 
   /** Tira o soldado do mapa de vez (cabana destruída). */
@@ -331,6 +298,7 @@ export class Soldier implements Combatant {
     this.state = 'dead';
     this.respawnT = Infinity;
     this.fx.burst(this.x, this.y - SOLDIER_H * 0.5, 8, 0xffffff);
+    Soldier.all.delete(this);
     this.sprite.destroy();
     this.shadow.destroy();
     this.aura.destroy();
@@ -370,14 +338,10 @@ export class Soldier implements Combatant {
       if (this.respawnT <= 0) this.revive();
       return;
     }
-    if (this.giantT > 0) { this.giantT -= dt; if (this.giantT <= 0) { this.fx.burst(this.x, this.y - SOLDIER_H, 16, 0xffd84a, true); this.clearSpecial(); } }
-    if (this.rechargeT > 0 && this.state !== 'held' && this.state !== 'fly') {
-      this.rechargeT -= dt;
-      if (this.rechargeT <= 0 && this.spec.special) { this.rechargeT = 0; this.armSpecial(); }
-    }
     this.cdT -= dt;
     this.hitCd -= dt;
     this.hitT = Math.max(0, this.hitT - dt);
+    this.evadeT = Math.max(0, this.evadeT - dt);
     this.rx *= Math.pow(0.001, dt);
     this.ry *= Math.pow(0.001, dt);
 
@@ -443,13 +407,11 @@ export class Soldier implements Combatant {
             this.timer = 0.7;
             this.rot = 0;
             this.vz = 0;
-            this.justLanded = !this.gentle;
             this.fx.burst(this.x, this.y, 9, 0xb7d08a);
           }
         }
         break;
       }
-      case 'bounce': this.rot += dt * 14; break;
       case 'dizzy': {
         this.timer -= dt;
         this.z = 0;
@@ -488,7 +450,10 @@ export class Soldier implements Combatant {
       this.atkT += dt / ATTACK_TIME;
       if (prev < 0.5 && this.atkT >= 0.5 && !this.atkHit) {
         this.atkHit = true;
-        if (this.range > 0) {
+        if (this.spec.special === 'bomba') {
+          // bombardeiro (de perto ou de longe): cada ataque é uma bomba que explode em área
+          this.bombBlast(tg, foes);
+        } else if (this.range > 0) {
           // arqueiro: solta uma flecha em direção ao inimigo
           const aim = () => ({ x: tg.x, y: tg.y - tg.stats.height * 0.5 });
           if (this.bolt) this.castSpell(tg, foes, proj, aim);
@@ -543,7 +508,9 @@ export class Soldier implements Combatant {
     }
 
     const px = this.x + this.ox + this.rx, py = this.y + this.oy + this.ry;
-    const k = Math.max(0.4, 1 - this.z / 160);
+    // pulo de esquiva: sobe e desce em arco
+    const jz = this.evadeT > 0 ? Math.sin((1 - this.evadeT / COMBAT.evadeSeconds) * Math.PI) * COMBAT.dodgeHeight : 0;
+    const k = Math.max(0.4, 1 - (this.z + jz) / 160);
     this.shadow.setPosition(px, py).setScale(this.shadowBase[0] * k, this.shadowBase[1] * k).setDepth(py - 1);
     if (this.aura.visible) {
       const pulse = k * (1 + Math.sin(this.t * 6) * 0.12);
@@ -551,7 +518,7 @@ export class Soldier implements Combatant {
     }
 
     const lean = (hopping || running) ? Math.sin(this.phase) * 0.12 * this.face : 0;
-    this.sprite.setPosition(px, py - this.z + 2)
+    this.sprite.setPosition(px, py - this.z - jz + 2)
       .setScale(this.baseScale * this.size * sx * this.face, this.baseScale * this.size * sy)
       .setRotation(this.rot + lean)
       .setDepth(this.state === 'held' ? 500_000 : py);
