@@ -14,6 +14,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('espada', 'assets/espada.png');
     this.load.image('espada_2', 'assets/espada_2.png');
     this.load.image('espada_3', 'assets/espada_3.png');
+    this.load.image('espada_4', 'assets/espada_4.png');
     this.load.image('orc', 'assets/orc.png');
     this.load.image('orc2', 'assets/orc2.png');
     this.load.image('orc3', 'assets/orc3.png');
