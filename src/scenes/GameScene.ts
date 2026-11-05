@@ -38,6 +38,7 @@ export class GameScene extends Phaser.Scene {
   private moving: { def: HutDef; level: number; x: number; y: number; cost: number } | null = null;
   /** desenho (e largura) da cabana no cursor: o nível 1 ao construir, o nível dela ao mover */
   private ghostLv: { art: string; width: number } | null = null;
+  private overFoe = false;
   private calmShown = true;
   /** baús que caem dos orcs: clique para abrir antes que sumam */
   private chests: { img: Phaser.GameObjects.Image; life: number; boss: boolean; open: boolean }[] = [];
@@ -1053,6 +1054,8 @@ export class GameScene extends Phaser.Scene {
     this.rig.update(dt);
     const mw = this.rig.mouseWorld();
     this.mouse.set(mw.x, mw.y);
+    const overFoe = this.orcsNear(mw.x, mw.y, 0).length > 0;
+    if (overFoe !== this.overFoe) { this.overFoe = overFoe; bus.emit(Evt.OverEnemy, overFoe); }
     if (this.held) {
       this.samples.push({ x: mw.x, y: mw.y, t: performance.now() });
       if (this.samples.length > 8) this.samples.shift();

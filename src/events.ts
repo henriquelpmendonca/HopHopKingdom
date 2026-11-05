@@ -26,6 +26,8 @@ export const Evt = {
   Income: 'income',
   /** jogo -> UI: nível da espada do clique mudou */
   Sword: 'sword',
+  /** jogo -> UI: o mouse está em cima de um inimigo (o cursor vira espada) */
+  OverEnemy: 'overEnemy',
   /** UI -> jogo: clicou na carta de evoluir a espada */
   UpgradeSword: 'upgradeSword',
   /** jogo -> UI: onde (na tela) fica o botão de upgrade; muda quando a câmera anda */

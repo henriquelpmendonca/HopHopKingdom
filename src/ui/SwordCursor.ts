@@ -26,6 +26,24 @@ export function setupSwordCursor() {
   wrap.appendChild(img);
   document.body.appendChild(wrap);
 
+  // luva: o cursor de sempre; a espada só aparece em cima de um inimigo (onde o clique ataca)
+  const glove = document.createElement('img');
+  glove.src = 'assets/luva.png';
+  glove.draggable = false;
+  Object.assign(glove.style, {
+    position: 'fixed', left: '-3px', top: '-2px', width: '79px', height: '88px', pointerEvents: 'none', zIndex: '1000',
+    display: 'none', willChange: 'transform', transformOrigin: '3px 2px',
+    filter: 'drop-shadow(0 3px 2px rgba(0,0,0,.35))',
+  });
+  document.body.appendChild(glove);
+  let overFoe = false, onCanvas = false, visible = false;
+  const mode = () => {
+    const sword = overFoe && onCanvas;
+    wrap.style.display = visible && sword ? 'block' : 'none';
+    glove.style.display = visible && !sword ? 'block' : 'none';
+  };
+  bus.on(Evt.OverEnemy, (v: boolean) => { overFoe = v; mode(); });
+
   function apply(level: number) {
     const t = swordTier(level);
     H = t.height;
@@ -41,20 +59,25 @@ export function setupSwordCursor() {
   apply(1);
   bus.on(Evt.Sword, (level: number) => apply(level));
 
-  let lastX = 0, lastY = 0;
+  let lastX = 0, lastY = 0, pressed = false;
   const place = () => { wrap.style.transform = `translate(${lastX + offset}px, ${lastY + offset}px)`; };
   const move = (e: PointerEvent) => {
     // no celular não existe cursor: o golpe aparece direto no mapa
-    if (e.pointerType === 'touch') { wrap.style.display = 'none'; return; }
-    wrap.style.display = 'block';
+    if (e.pointerType === 'touch') { visible = false; mode(); return; }
+    visible = true;
+    onCanvas = (e.target as HTMLElement | null)?.tagName === 'CANVAS';
     lastX = e.clientX;
     lastY = e.clientY;
     place();
+    glove.style.transform = `translate(${lastX}px, ${lastY}px) ${pressed ? 'scale(.86) rotate(-8deg)' : ''}`;
+    mode();
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerdown', e => {
     move(e);
     if (e.pointerType === 'touch') return;
+    pressed = true;
+    glove.style.transform = `translate(${lastX}px, ${lastY}px) scale(.86) rotate(-8deg)`;
     // golpe: a espada gira em volta do cabo, passando por cima do ponto do clique
     img.animate([
       { transform: `rotate(${REST}deg)` },
@@ -64,5 +87,6 @@ export function setupSwordCursor() {
       { transform: `rotate(${REST}deg)` },
     ], { duration: 280, easing: 'ease-out' });
   });
-  document.documentElement.addEventListener('mouseleave', () => { wrap.style.display = 'none'; });
+  window.addEventListener('pointerup', () => { pressed = false; glove.style.transform = `translate(${lastX}px, ${lastY}px)`; });
+  document.documentElement.addEventListener('mouseleave', () => { visible = false; mode(); });
 }
