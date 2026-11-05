@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { t } from '../i18n';
 import { sfx } from '../audio';
 import { Structure } from './Building';
 import { Soldier } from './Soldier';
@@ -133,7 +134,7 @@ export class Hut implements Structure {
     this.w = lv.width;
     this.h = lv.width * tex.height / tex.width;
     this.sprite.setTexture(lv.art).setDisplaySize(this.w, this.h);
-    this.badge.setText('Nv ' + (this.level + 1)).setPosition(this.x, this.y - this.h - 4);
+    this.badge.setText(t('ui.level', { n: this.level + 1 })).setPosition(this.x, this.y - this.h - 4);
 
     // boing exagerado ao construir / evoluir
     const sx = this.sprite.scaleX, sy = this.sprite.scaleY;
