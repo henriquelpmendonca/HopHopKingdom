@@ -259,8 +259,9 @@ export class Orc implements Combatant {
     const radius = r.radius ?? 100;
     sfx.strikeCharge(r.delay ?? 1);
     const p = 'nearestPoint' in tg ? (tg as Structure).nearestPoint(this.x, this.y) : { x: tg.x, y: tg.y };
-    this.fx.burst(this.x + this.face * 22, this.y - this.stats.height * 0.62, 10, 0xd070ff);
-    proj.strike(p.x, p.y, radius, r.delay ?? 1, (x, y, rad) => {
+    const teal = r.tone === 'teal';
+    this.fx.burst(this.x + this.face * 22, this.y - this.stats.height * 0.62, teal ? 18 : 10, teal ? 0x22e0f0 : 0xd070ff);
+    const impact = (x: number, y: number, rad: number) => {
       for (const s of soldiers) {
         if (s.attackable && Math.hypot(s.x - x, (s.y - y) * 2) < rad) s.takeDamage(this.dmg, x, y);
       }
@@ -268,7 +269,12 @@ export class Orc implements Combatant {
         const q = st.nearestPoint(x, y);
         if (st.alive && Math.hypot(q.x - x, (q.y - y) * 2) < rad) st.takeDamage(Math.round(this.dmg * 0.7), x, y);
       }
-    });
+    };
+    // chefe: salva de 3 raios (o alvo e mais dois por perto, um depois do outro)
+    const spots = this.stats.boss
+      ? [p, { x: p.x + 150 + Math.random() * 90, y: p.y + (Math.random() - 0.5) * 120 }, { x: p.x - 150 - Math.random() * 90, y: p.y + (Math.random() - 0.5) * 120 }]
+      : [p];
+    spots.forEach((q, i) => proj.strike(q.x, q.y, radius, (r.delay ?? 1) + i * 0.22, impact, teal ? 'teal' : false));
   }
 
   /** Mago: solta uma bola de magia roxa em direção ao alvo. */

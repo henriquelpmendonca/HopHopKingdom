@@ -26,7 +26,7 @@ export class BootScene extends Phaser.Scene {
     // desenhos opcionais: se o arquivo ainda não existir, o jogo usa o soldado de espada
     this.load.on('loaderror', () => {});
     // soldados especiais, baú e explosão
-    for (const n of ['cabana_estudo_1', 'cabana_gigante_1', 'cabana_bomba_1', 'cabana_quicador_1', 'soldado_gelo', 'cabana_gelo_1', 'castelo_6', 'soldado_bomba', 'soldado_gigante', 'soldado_quicador', 'bau', 'bau_aberto', 'explosao']) this.load.image(n, `assets/${n}.png`);
+    for (const n of ['cabana_estudo_1', 'cabana_gigante_1', 'cabana_bomba_1', 'cabana_quicador_1', 'boss2', 'soldado_gelo', 'cabana_gelo_1', 'castelo_6', 'soldado_bomba', 'soldado_gigante', 'soldado_quicador', 'bau', 'bau_aberto', 'explosao']) this.load.image(n, `assets/${n}.png`);
     this.load.image('soldado_lanca', 'assets/soldado_lanca.png');
     this.load.image('soldado_alabarda', 'assets/soldado_alabarda.png');
     this.load.image('cabana_arqueiro_1', 'assets/cabana_arqueiro_1.png');

@@ -30,6 +30,13 @@ export const FIRE: Palette = { trailA: 0xd9410f, trailB: 0xffc04a, glow: 0xff7a1
 export const ICE: Palette = { trailA: 0x2a8fd8, trailB: 0xb8ecff, glow: 0x6ccaff, core: 0xbfefff, hi: 0xffffff, spark: 0x8fdcff };
 export const BLUE: Palette = { trailA: 0x1f7ad1, trailB: 0x70c0ff, glow: 0x4aa8ff, core: 0x70c0ff, hi: 0xdcf0ff, spark: 0x309bff };
 
+/** cores dos raios: sombrio (roxo), fogo (meteoros) e turquesa (Esqueleto Supremo) */
+const STRIKE_TONES = {
+  purple: { fill: 0x8a2be2, line: 0xd070ff, ring: 0xf6dcff, burst: 0xb04cff, burst2: 0xf6dcff, col: 0x9b30ff, col2: 0xf6dcff },
+  fire: { fill: 0xff5a1f, line: 0xffb347, ring: 0xf6dcff, burst: 0xff7a1f, burst2: 0xfff0b0, col: 0xff4a00, col2: 0xfff2c0 },
+  teal: { fill: 0x12c4d6, line: 0x6ff0ff, ring: 0xd8ffff, burst: 0x22e0f0, burst2: 0xe8ffff, col: 0x14c8e0, col2: 0xe8ffff },
+} as const;
+
 interface Strike {
   x: number;
   y: number;
@@ -40,7 +47,7 @@ interface Strike {
   flash: number;
   onImpact: (x: number, y: number, r: number) => void;
   /** meteoro: cores de fogo em vez de roxo */
-  fire: boolean;
+  tone: 'purple' | 'fire' | 'teal';
 }
 
 const FLASH_TIME = 0.4;
@@ -115,8 +122,8 @@ export class Projectiles {
   }
 
   /** Raio sombrio: avisa no chão e, depois de `delay` segundos, cai com dano em área. */
-  strike(x: number, y: number, r: number, delay: number, onImpact: (x: number, y: number, r: number) => void, fire = false) {
-    this.strikes.push({ x, y, r, t: 0, delay, hit: false, flash: 0, onImpact, fire });
+  strike(x: number, y: number, r: number, delay: number, onImpact: (x: number, y: number, r: number) => void, fire: boolean | 'teal' = false) {
+    this.strikes.push({ x, y, r, t: 0, delay, hit: false, flash: 0, onImpact, tone: fire === 'teal' ? 'teal' : fire ? 'fire' : 'purple' });
   }
 
   private updateStrikes(dt: number) {
@@ -124,30 +131,31 @@ export class Projectiles {
     gr.clear();
     for (let i = this.strikes.length - 1; i >= 0; i--) {
       const s = this.strikes[i];
+      const c = STRIKE_TONES[s.tone];
       if (!s.hit) {
         s.t += dt;
         const p = Math.min(1, s.t / s.delay);
         // aviso: círculo que enche e anel que fecha
-        gr.fillStyle(s.fire ? 0xff5a1f : 0x8a2be2, 0.12 + 0.2 * p).fillEllipse(s.x, s.y, s.r * 2, s.r);
-        gr.lineStyle(3, s.fire ? 0xffb347 : 0xd070ff, 0.9).strokeEllipse(s.x, s.y, s.r * 2, s.r);
-        gr.lineStyle(3, 0xf6dcff, 0.9).strokeEllipse(s.x, s.y, s.r * 2 * (1 - p * 0.8), s.r * (1 - p * 0.8));
+        gr.fillStyle(c.fill, 0.12 + 0.2 * p).fillEllipse(s.x, s.y, s.r * 2, s.r);
+        gr.lineStyle(3, c.line, 0.9).strokeEllipse(s.x, s.y, s.r * 2, s.r);
+        gr.lineStyle(3, c.ring, 0.9).strokeEllipse(s.x, s.y, s.r * 2 * (1 - p * 0.8), s.r * (1 - p * 0.8));
         if (s.t >= s.delay) {
           s.hit = true;
           s.onImpact(s.x, s.y, s.r);
           sfx.strikeImpact();
-          this.fx.burst(s.x, s.y, 26, s.fire ? 0xff7a1f : 0xb04cff, true);
-          this.fx.burst(s.x, s.y, 10, s.fire ? 0xfff0b0 : 0xf6dcff, true);
+          this.fx.burst(s.x, s.y, 26, c.burst, true);
+          this.fx.burst(s.x, s.y, 10, c.burst2, true);
           this.scene.cameras.main.shake(110, 0.005);
         }
       } else {
         s.flash += dt;
         const k = 1 - s.flash / FLASH_TIME;
         if (k <= 0) { this.strikes.splice(i, 1); continue; }
-        gr.fillStyle(s.fire ? 0xff7a1f : 0xb04cff, 0.35 * k).fillEllipse(s.x, s.y, s.r * 2 * (2 - k), s.r * (2 - k));
+        gr.fillStyle(c.burst, 0.35 * k).fillEllipse(s.x, s.y, s.r * 2 * (2 - k), s.r * (2 - k));
         // coluna de energia caindo do céu
         const w = s.r * 0.9 * k + 6;
-        this.g.fillStyle(s.fire ? 0xff4a00 : 0x9b30ff, 0.55 * k).fillRect(s.x - w * 0.8, s.y - 520, w * 1.6, 520);
-        this.g.fillStyle(s.fire ? 0xfff2c0 : 0xf6dcff, 0.9 * k).fillRect(s.x - w * 0.35, s.y - 520, w * 0.7, 520);
+        this.g.fillStyle(c.col, 0.55 * k).fillRect(s.x - w * 0.8, s.y - 520, w * 1.6, 520);
+        this.g.fillStyle(c.col2, 0.9 * k).fillRect(s.x - w * 0.35, s.y - 520, w * 0.7, 520);
       }
     }
   }

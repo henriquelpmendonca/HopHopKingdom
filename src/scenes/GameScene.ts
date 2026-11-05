@@ -14,7 +14,7 @@ import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
 import { BUILDABLES, buildCost, EVOLVABLE, evolvedDef, HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
-import { isBossWave, pickOrcKind, WAVE } from '../data/units';
+import { bossKindFor, isBossWave, pickOrcKind, WAVE } from '../data/units';
 import { Bars, floatText, Particles } from '../fx';
 import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
@@ -907,10 +907,16 @@ export class GameScene extends Phaser.Scene {
     }
     if (boss) {
       const bp = around(1300);
-      this.orcs.push(new Orc(this, bp.x, bp.y, 'boss', this.wave, this.fx, o => this.onOrcDie(o)));
+      const kind = bossKindFor(this.wave);
+      this.orcs.push(new Orc(this, bp.x, bp.y, kind, this.wave, this.fx, o => this.onOrcDie(o)));
       this.cameras.main.shake(600, 0.01);
-      bus.emit(Evt.Hint, t('hint.boss', { w: this.wave }));
-      bus.emit(Evt.Banner, { title: t('banner.boss'), sub: t('banner.boss_sub', { w: this.wave }), kind: 'boss' });
+      if (kind === 'boss2') {
+        bus.emit(Evt.Hint, t('hint.boss2', { w: this.wave }));
+        bus.emit(Evt.Banner, { title: t('banner.boss2'), sub: t('banner.boss2_sub', { w: this.wave }), kind: 'boss' });
+      } else {
+        bus.emit(Evt.Hint, t('hint.boss', { w: this.wave }));
+        bus.emit(Evt.Banner, { title: t('banner.boss'), sub: t('banner.boss_sub', { w: this.wave }), kind: 'boss' });
+      }
     } else {
       bus.emit(Evt.Hint, t('hint.wave', { w: this.wave, n }) + (this.wave === 1 ? t('hint.click_them') : ''));
       bus.emit(Evt.Banner, { title: t('banner.wave', { w: this.wave }), sub: t('banner.orcs', { n }), kind: 'wave' });
@@ -938,7 +944,7 @@ export class GameScene extends Phaser.Scene {
     addCoins(reward);
     // estrelas reais: uma a cada 10 orcs, e o Rei Orc vale mais
     noteKill();
-    if (o.stats.boss) addStars(STARS_BOSS_KILL);
+    if (o.stats.boss) addStars(STARS_BOSS_KILL * (o.kind === 'boss2' ? 2 : 1));
     const elite = o.stats.boss || o.stats.coins >= 60;
     if (!tuto.on && Math.random() < (o.stats.boss ? 1 : elite ? CHEST.chanceElite : CHEST.chance)) this.spawnChest(o.x, o.y, !!o.stats.boss);
     sfx.coin();
