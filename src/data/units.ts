@@ -104,7 +104,7 @@ export const ORCS: Record<OrcKind, OrcStats> = {
   boss: { art: 'boss', hp: 2600, dmg: 85, reach: 70, cd: 1.9, speed: 38, height: 200, coins: 400, boss: true, aoe: { radius: 130, mult: 0.6 } },
   // Esqueleto Supremo: bem mais forte que o Rei Orc, devagar, invoca magos das trevas e solta raios azuis em salva
   boss2: {
-    art: 'boss2', hp: 32000, dmg: 330, reach: 0, cd: 3, , speed: 32, height: 240, coins: 1000, boss: true,
+    art: 'boss2', hp: 32000, dmg: 330, reach: 0, cd: 3, speed: 32, height: 240, coins: 1000, boss: true,
     ranged: { range: 440, projSpeed: 0, spell: 'strike', radius: 150, delay: 0.9, tone: 'teal' },
     summon: { kind: 'mago2', count: 3, every: 8, max: 6 },
   },
