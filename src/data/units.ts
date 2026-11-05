@@ -1,4 +1,5 @@
 import { SoldierUnit } from './cabanas';
+import { waveGrowth } from './growth';
 
 export interface UnitStats {
   hp: number;
@@ -111,8 +112,9 @@ export function orcForWave(kind: OrcKind, wave: number) {
   const o = ORCS[kind];
   return {
     // crescem em ritmo composto (8% e 4% por onda): sem isso a economia do jogador ultrapassa os inimigos
-    hp: Math.round(o.hp * Math.pow(1.08, wave)),
-    dmg: Math.round(o.dmg * Math.pow(1.04, wave)),
+    // até a onda 30: 8% de vida e 4% de dano por onda; depois: 4,5% e 2% (veja data/growth.ts)
+    hp: Math.round(o.hp * waveGrowth(wave, 0.08, 0.045)),
+    dmg: Math.round(o.dmg * waveGrowth(wave, 0.04, 0.02)),
     speed: Math.min(o.speed + wave * 1.5, o.speed + 30),
   };
 }

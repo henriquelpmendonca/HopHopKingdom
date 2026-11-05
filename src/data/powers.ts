@@ -1,3 +1,4 @@
+import { waveGrowth } from './growth';
 /** Poderes que o jogador ativa gastando mana. Liberados com o Centro da Vila nível 4. */
 export interface PowerDef {
   id: 'meteoros' | 'congelar' | 'curar';
@@ -20,7 +21,7 @@ export const POWERS: PowerDef[] = [
 export const POWER_FREEZE_SECONDS = 5;
 export const POWER_METEOR_COUNT = 6;
 /** dano de cada meteoro: base + por onda */
-export const meteorDamage = (wave: number) => Math.round(80 * Math.pow(1.07, wave));
+export const meteorDamage = (wave: number) => Math.round(80 * waveGrowth(wave, 0.07, 0.045));
 /** mana que o Centro da Vila nível 4 dá de presente, para comprar a primeira mina de mana */
 export const MANA_GIFT = 120;
 /** mana por segundo que o Centro da Vila nível 4 gera sozinho (para nunca ficar sem saída) */

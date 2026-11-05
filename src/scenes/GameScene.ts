@@ -73,7 +73,7 @@ export class GameScene extends Phaser.Scene {
   private over = false;
   isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
-  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
+  private persist = !['onda', 'moedas', 'magos', 'espada', 'mana', 'especiais'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
   /** atalho de teste: ?onda=5 começa na onda 5 */
   private debugWave = Number(new URLSearchParams(import.meta.env.DEV ? location.search : '').get('onda')) || 0;
 
@@ -132,6 +132,7 @@ export class GameScene extends Phaser.Scene {
       bus.off(Evt.Upgrade, this.upgradeSelected, this);
     });
     this.loadProgress();
+    if (import.meta.env.DEV && new URLSearchParams(location.search).has('especiais')) this.debugSpecials();
     // os orcs vêm mesmo sem nenhuma construção: senão dava para juntar moedas sem risco, para sempre
     const fresh = this.huts.length === 0;
     this.waveTimer = this.debugWave ? 4 : fresh ? WAVE.firstDelay : 10;
@@ -166,6 +167,39 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
+  }
+
+  /** atalho de teste (?especiais=1): Centro da Vila 6, Casa de Estudo e 53 casas especiais no nível 30 em volta do castelo */
+  private debugSpecials() {
+    this.castle.restore(5);
+    const place = (id: string, x: number, y: number, level: number) => {
+      const def = hutDef(id);
+      const h = new Hut(this, def, x, y, this.fx, q => this.onHutDestroyed(q));
+      h.restore(level);
+      this.huts.push(h);
+    };
+    const cx = this.castle.x, cy = this.castle.y;
+    place('casa_estudo', cx - 2050, cy, 0);
+    // 53 casas especiais em três anéis colados no castelo (10, 18 e 25), misturando os 4 tipos e as 3 cabanas de origem
+    const kinds: SpecialKind[] = ['gigante', 'bomba', 'quicador', 'gelo'];
+    const bases = ['cabana_soldado', 'cabana_arqueiro', 'cabana_mago'];
+    const ring = (n: number, rx: number, ry: number, start: number, from: number) => {
+      for (let i = 0; i < n; i++) {
+        const k = from + i;
+        const a = start + (i / n) * Math.PI * 2;
+        const def = evolvedDef(kinds[k % kinds.length], hutDef(bases[Math.floor(k / kinds.length) % bases.length]));
+        const h = new Hut(this, def, cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, this.fx, q => this.onHutDestroyed(q));
+        h.restore(29);
+        this.huts.push(h);
+      }
+    };
+    // ?especiais=N escolhe quantas casas (padrão 53): enche o anel de dentro primeiro
+    const want = Number(new URLSearchParams(location.search).get('especiais')) || 53;
+    ring(Math.min(10, want), 640, 470, Math.PI / 10, 0);
+    if (want > 10) ring(Math.min(18, want - 10), 1060, 800, 0, 10);
+    if (want > 28) ring(Math.min(25, want - 28), 1480, 1130, Math.PI / 25, 28);
+    this.magos = true;
+    this.waveTimer = 6;
   }
 
   /* ---------- salvar / carregar ---------- */
