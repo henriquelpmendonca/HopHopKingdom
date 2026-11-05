@@ -134,7 +134,7 @@ export class Soldier implements Combatant {
     this.spells = st.spells ?? [];
     this.aggro = st.aggro ?? AGGRO_RANGE;
     this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
-    this.cd = st.cd * (f ? FURIA.cd : 1);
+    this.cd = st.cd * (f ? FURIA.cd : 1) / perkMult('haste');
     this.runSpeed = SOLDIER_RUN_SPEED * (f ? FURIA.speed : 1);
     if (kind === 'bomba') this.cd *= COMBAT.bombCdMult;
     if (kind === 'gigante') { this.cd *= COMBAT.giantCdMult; this.reach = Math.round(this.reach * COMBAT.giantReach); }

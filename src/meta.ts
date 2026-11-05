@@ -6,7 +6,7 @@ import { store } from './store';
  * Ganha-se jogando (derrotando orcs, batendo o recorde de onda e vencendo o Rei Orc) e gasta-se na Forja Real
  * em melhorias que valem em qualquer cidade, mesmo depois de recomeçar do zero.
  */
-export type PerkId = 'treasure' | 'strong' | 'wall' | 'sword' | 'start';
+export type PerkId = 'treasure' | 'strong' | 'wall' | 'sword' | 'start' | 'haste' | 'crit' | 'mana' | 'recall' | 'chest' | 'scholar';
 
 export interface Perk {
   id: PerkId;
@@ -17,14 +17,22 @@ export interface Perk {
   base: number;
   /** bônus por nível: fração (+8%) ou, em `start`, moedas */
   per: number;
+  /** o bônus é um número puro (moedas, estrelas) e não uma porcentagem */
+  raw?: boolean;
 }
 
 export const PERKS: Perk[] = [
-  { id: 'treasure', icon: '💰', max: 5, base: 6, per: 0.08 },
-  { id: 'strong', icon: '🛡️', max: 5, base: 8, per: 0.06 },
-  { id: 'wall', icon: '🏰', max: 5, base: 6, per: 0.08 },
-  { id: 'sword', icon: '⚔️', max: 5, base: 8, per: 0.08 },
-  { id: 'start', icon: '🏠', max: 5, base: 5, per: 60 },
+  { id: 'treasure', icon: '💰', max: 8, base: 6, per: 0.08 },
+  { id: 'strong', icon: '🛡️', max: 8, base: 8, per: 0.06 },
+  { id: 'wall', icon: '🏰', max: 8, base: 6, per: 0.08 },
+  { id: 'sword', icon: '⚔️', max: 8, base: 8, per: 0.08 },
+  { id: 'crit', icon: '💥', max: 6, base: 10, per: 0.05 },
+  { id: 'haste', icon: '⚡', max: 6, base: 10, per: 0.04 },
+  { id: 'mana', icon: '🔮', max: 6, base: 8, per: 0.1 },
+  { id: 'recall', icon: '⏳', max: 5, base: 10, per: 0.08 },
+  { id: 'chest', icon: '🎁', max: 5, base: 8, per: 0.15 },
+  { id: 'start', icon: '🏠', max: 8, base: 5, per: 60, raw: true },
+  { id: 'scholar', icon: '🌟', max: 4, base: 25, per: 1, raw: true },
 ];
 
 /** quantos orcs derrotados valem uma estrela */
@@ -64,6 +72,12 @@ export function perkMult(id: PerkId): number {
   const p = PERKS.find(x => x.id === id)!;
   return 1 + p.per * perkLevel(id);
 }
+
+/** estrelas extras ao derrotar um chefe */
+export const scholarBonus = () => perkLevel('scholar');
+
+/** chance (0 a 1) de o clique da espada causar golpe crítico (dano dobrado) */
+export const critChance = () => PERKS.find(x => x.id === 'crit')!.per * perkLevel('crit');
 
 /** moedas extras ao começar uma cidade nova */
 export function startBonus(): number {

@@ -7,7 +7,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 /** valor do bônus no nível dado, já como texto ("+16%" ou "+120") */
 function bonusText(p: Perk, lv: number): string {
-  return p.id === 'start' ? '+' + p.per * lv : '+' + Math.round(p.per * lv * 100) + '%';
+  return p.raw ? '+' + p.per * lv : '+' + Math.round(p.per * lv * 100) + '%';
 }
 
 /**

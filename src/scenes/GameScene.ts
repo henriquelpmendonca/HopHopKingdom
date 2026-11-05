@@ -20,7 +20,7 @@ import { loadGame, saveGame } from '../save';
 import { addCoins, addMana, spend, spendMana, state, tuto } from '../state';
 import { store } from '../store';
 import { CHEST, chestCoins, EVOLVE_COST, EVOLVE_LEVEL, SPECIAL_ART, SPECIAL_KINDS, type SpecialKind } from '../data/special';
-import { addStars, noteKill, perkMult, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
+import { addStars, critChance, noteKill, perkMult, scholarBonus, setMetaEnabled, startBonus, STARS_BOSS_KILL, STARS_RECORD_BOSS_WAVE, STARS_RECORD_WAVE } from '../meta';
 import { CASTLE_LEVELS, MAGIC_CASTLE_LEVEL } from '../data/castle';
 import type { Key } from '../i18n';
 import { CASTLE_MANA_INCOME, MANA_GIFT, meteorDamage, POWER_FREEZE_SECONDS, POWER_METEOR_COUNT, POWERS } from '../data/powers';
@@ -304,8 +304,9 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
       return;
     }
-    this.powerReady[id] = now + def.cd * 1000;
-    bus.emit(Evt.PowerCd, id, def.cd);
+    const cd = def.cd / perkMult('recall');
+    this.powerReady[id] = now + cd * 1000;
+    bus.emit(Evt.PowerCd, id, cd);
     this.emitMana();
 
     if (id === 'meteoros') {
@@ -749,12 +750,14 @@ export class GameScene extends Phaser.Scene {
 
   /** Golpe do clique: o mais perto leva o dano inteiro, os outros dentro da área levam uma parte. */
   private clickHit(targets: Orc[], x: number, y: number, touch: boolean) {
-    const dmg = Math.round(swordDamage(state.sword) * perkMult('sword'));
+    const crit = Math.random() < critChance();
+    const dmg = Math.round(swordDamage(state.sword) * perkMult('sword') * (crit ? 2 : 1));
     const radius = swordRadius(state.sword);
     targets.forEach((o, i) => {
       o.takeDamage(i === 0 ? dmg : Math.max(1, Math.round(dmg * CLICK_AOE_MULT)), x, y);
     });
-    this.fx.burst(x, y, 7, 0xffe28a);
+    this.fx.burst(x, y, crit ? 14 : 7, crit ? 0xff7a3a : 0xffe28a);
+    if (crit && targets.length) floatText(this, x, y - 50, t('fl.crit'), '#ff9a3a');
     sfx.swordHit();
     bus.emit(Evt.Tuto, 'hit');
     const ring = this.add.ellipse(x, y, radius * 0.8, radius * 0.5)
@@ -945,9 +948,9 @@ export class GameScene extends Phaser.Scene {
     addCoins(reward);
     // estrelas reais: uma a cada 10 orcs, e o Rei Orc vale mais
     noteKill();
-    if (o.stats.boss) addStars(STARS_BOSS_KILL * (o.kind === 'boss2' ? 2 : 1));
+    if (o.stats.boss) addStars(STARS_BOSS_KILL * (o.kind === 'boss2' ? 2 : 1) + scholarBonus());
     const elite = o.stats.boss || o.stats.coins >= 60;
-    if (!tuto.on && Math.random() < (o.stats.boss ? 1 : elite ? CHEST.chanceElite : CHEST.chance)) this.spawnChest(o.x, o.y, !!o.stats.boss);
+    if (!tuto.on && Math.random() < (o.stats.boss ? 1 : (elite ? CHEST.chanceElite : CHEST.chance) * perkMult('chest'))) this.spawnChest(o.x, o.y, !!o.stats.boss);
     sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
     this.kills++;
@@ -1083,6 +1086,7 @@ export class GameScene extends Phaser.Scene {
       if (this.castle.level + 1 >= MAGIC_CASTLE_LEVEL) {
         let mana = CASTLE_MANA_INCOME;
         for (const h of this.huts) mana += h.manaIncome;
+        mana *= perkMult('mana');
         addMana(mana);
         this.emitMana(mana);
       }
