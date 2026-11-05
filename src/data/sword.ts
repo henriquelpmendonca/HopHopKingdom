@@ -31,12 +31,16 @@ export function swordTier(level: number): SwordTier {
   return t;
 }
 
-/** do nível 15 em diante o crescimento fica mais suave: o dano sobe 9% e o preço 20% por nível */
+/** do nível 15 em diante o crescimento fica mais suave: o preço sobe 20% por nível */
 const SWORD_KNEE = 15;
-/** dano de cada clique */
-export const swordDamage = (level: number) => level <= SWORD_KNEE
-  ? 8 + (level - 1) * 3
-  : Math.round((8 + (SWORD_KNEE - 1) * 3) * Math.pow(1.09, level - SWORD_KNEE));
+/** a espada real (nível 20 em diante) ganha um salto de dano e depois cresce mais rápido */
+const SWORD_REAL = { from: 20, base: 130, growth: 1.12 };
+/** dano de cada clique: +3 por nível até o 15; 9% por nível até o 19; e a espada real a partir do 20 */
+export const swordDamage = (level: number) => {
+  if (level <= SWORD_KNEE) return 8 + (level - 1) * 3;
+  if (level < SWORD_REAL.from) return Math.round((8 + (SWORD_KNEE - 1) * 3) * Math.pow(1.09, level - SWORD_KNEE));
+  return Math.round(SWORD_REAL.base * Math.pow(SWORD_REAL.growth, level - SWORD_REAL.from));
+};
 /** raio da área do clique (px do mapa): cresce a cada 5 níveis */
 export const swordRadius = (level: number) => 60 + Math.floor((level - 1) / 5) * 12;
 /** custo para ir deste nível ao próximo */
