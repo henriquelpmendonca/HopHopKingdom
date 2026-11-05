@@ -16,6 +16,8 @@ function bonusText(p: Perk, lv: number): string {
  */
 export function setupForge() {
   const box = $('forge'), list = $('forgeList'), starsN = $('forgeStars'), btn = $('forgeBtn'), badge = $('forgeBadge');
+  const PER_PAGE = 4, pages = Math.ceil(PERKS.length / PER_PAGE);
+  let page = 0;
   let open = false;
   let pausedByUs = false;
 
@@ -35,7 +37,17 @@ export function setupForge() {
     rows.set(p.id, { row, lv: row.querySelector('.pips') as HTMLElement, eff: row.querySelector('.pe') as HTMLElement, buy });
   }
 
+  function showPage() {
+    PERKS.forEach((p, i) => { rows.get(p.id)!.row.hidden = Math.floor(i / PER_PAGE) !== page; });
+    $('fPage').textContent = `${page + 1} / ${pages}`;
+    ($('fPrev') as HTMLButtonElement).disabled = page === 0;
+    ($('fNext') as HTMLButtonElement).disabled = page === pages - 1;
+  }
+  $('fPrev').addEventListener('click', () => { sfx.ui(); page = Math.max(0, page - 1); showPage(); });
+  $('fNext').addEventListener('click', () => { sfx.ui(); page = Math.min(pages - 1, page + 1); showPage(); });
+
   function paint() {
+    showPage();
     starsN.textContent = String(getStars());
     for (const p of PERKS) {
       const r = rows.get(p.id)!;
@@ -55,7 +67,7 @@ export function setupForge() {
     open = on;
     box.hidden = !on;
     btn.classList.toggle('open', on);
-    if (on) paint();
+    if (on) { page = 0; paint(); }
     // o jogo fica parado enquanto a Forja está aberta (a pausa normal, se já estiver pausado, não é mexida)
     const paused = $('pause').hidden === false;
     if (on && !paused) { pausedByUs = true; bus.emit(Evt.Pause, true); }

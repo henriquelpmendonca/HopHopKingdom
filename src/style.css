@@ -342,3 +342,9 @@ body.tuto #hint{display:none}
 @media (max-width:640px){.slot.green.ringbtn.evo{width:58px;height:58px}}
 
 .slot.gone{display:none}
+
+#forgeNav{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 2px}
+#forgeNav button{width:44px;height:36px;border:4px solid #5a3418;border-radius:14px;background:linear-gradient(#fff6dc,#ffd98a);color:#5a3418;font:900 16px "Trebuchet MS",Verdana,sans-serif;box-shadow:0 4px 0 #5a3418;cursor:pointer}
+#forgeNav button:disabled{opacity:.35;box-shadow:none}
+#forgeNav span{min-width:56px;text-align:center;font:900 18px "Trebuchet MS",Verdana,sans-serif;color:#5a3418}
+.perk[hidden]{display:none}
