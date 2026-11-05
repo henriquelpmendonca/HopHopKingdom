@@ -35,6 +35,8 @@ export class Orc implements Combatant {
   private summonT = Infinity;
   /** segundos de gelo que faltam (parado, sem atacar) */
   private frozen = 0;
+  /** segundos em que ainda não pode ser congelado de novo */
+  private freezeImmune = 0;
   /** queimadura: dano por segundo e quanto tempo falta */
   private burnDps = 0;
   private burnT = 0;
@@ -86,10 +88,19 @@ export class Orc implements Combatant {
     if (this.frozen <= 0) this.sprite.setTint(0xffa060);
   }
 
-  /** Poder de congelar: fica parado e azulado por `sec` segundos. */
-  freeze(sec: number) {
+  /**
+   * Congelar: fica parado e azulado. Para ninguém ficar preso para sempre (várias bolas de gelo seguidas renovavam o
+   * gelo antes de ele acabar), depois de congelado o inimigo fica um tempo sem poder congelar de novo: um pouco
+   * para os comuns e bastante para os chefes, que também congelam por bem menos tempo. O poder do jogador
+   * (`manual`) ignora essa pausa e congela o chefe por até 2,5 s.
+   */
+  freeze(sec: number, manual = false) {
     if (!this.alive) return;
-    this.frozen = Math.max(this.frozen, sec);
+    const boss = !!this.stats.boss;
+    if (!manual && this.freezeImmune > 0) return;
+    const dur = boss ? Math.min(sec * (manual ? 0.5 : 0.35), manual ? 2.5 : 0.8) : sec;
+    this.frozen = Math.max(this.frozen, dur);
+    this.freezeImmune = Math.max(this.freezeImmune, dur + (boss ? 8 : 2));
     this.sprite.setTint(0x9fd8ff);
     this.fx.burst(this.x, this.y - this.stats.height * 0.5, 8, 0xbfe9ff);
   }
@@ -179,6 +190,7 @@ export class Orc implements Combatant {
     }
 
     this.age += dt;
+    this.freezeImmune = Math.max(0, this.freezeImmune - dt);
     if (this.burnT > 0) {
       this.burnT -= dt;
       this.burnTick -= dt;

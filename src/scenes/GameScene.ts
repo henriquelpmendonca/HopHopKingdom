@@ -323,7 +323,7 @@ export class GameScene extends Phaser.Scene {
       sfx.strikeCharge(0.8);
       bus.emit(Evt.Hint, t('hint.meteors'));
     } else if (id === 'congelar') {
-      for (const o of alive) o.freeze(POWER_FREEZE_SECONDS);
+      for (const o of alive) o.freeze(POWER_FREEZE_SECONDS, true);
       sfx.magic();
       bus.emit(Evt.Hint, t('hint.frozen', { n: POWER_FREEZE_SECONDS }));
     } else {
