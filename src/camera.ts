@@ -48,18 +48,24 @@ export class CameraRig {
     window.addEventListener('blur', () => this.keysDown.clear());
 
     const move = (e: PointerEvent) => {
-      this.touch = e.pointerType === 'touch';
+      this.touch = e.pointerType !== 'mouse';
       this.sx = e.clientX;
       this.sy = e.clientY;
       // a rolagem pela borda é coisa de mouse
       this.inside = !this.touch;
     };
     window.addEventListener('pointermove', move);
-    window.addEventListener('pointerdown', e => { if (uiPointers.has(e)) return; move(e); this.down = true; });
+    window.addEventListener('pointerdown', e => {
+      // o toque num botão já diz que o aparelho é de toque, mesmo sem contar como clique no mapa
+      if (uiPointers.has(e)) { this.touch = e.pointerType !== 'mouse'; return; }
+      move(e);
+      this.down = true;
+    });
     window.addEventListener('pointerup', () => { this.down = false; });
     window.addEventListener('pointercancel', () => { this.down = false; });
+    // só um pointermove de mouse de verdade liga a rolagem: depois de um toque o navegador simula
+    // eventos de mouse (mouseenter), e a posição ainda seria 0,0, levando a câmera para o canto
     document.documentElement.addEventListener('mouseleave', () => { this.inside = false; });
-    document.documentElement.addEventListener('mouseenter', () => { this.inside = !this.touch; });
 
     const host = document.getElementById('game')!;
     host.addEventListener('wheel', e => { e.preventDefault(); this.zoomBy(e.deltaY, e.clientX, e.clientY); }, { passive: false });
