@@ -350,5 +350,5 @@ body.tuto #hint{display:none}
 .perk[hidden]{display:none}
 
 /* Poki: botão de recompensa precisa mostrar o ícone 🎬 */
-body.poki #gift::after{content:'🎬';position:absolute;right:-8px;bottom:-6px;font-size:16px;line-height:1;text-shadow:none}
+body.poki #gift::after{content:'🎬';position:absolute;right:-9px;bottom:-8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:2px solid #5a3418;border-radius:50%;background:#fff;font-size:14px;line-height:1;text-shadow:none}
 body.poki #rebuildFree::before{content:'🎬 '}
