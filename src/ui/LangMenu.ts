@@ -1,3 +1,4 @@
+import { markUiPointer } from '../camera';
 import { sfx } from '../audio';
 import { chooseLang, lang, LANGS } from '../i18n';
 
@@ -22,5 +23,5 @@ export function setupLangMenu() {
   // clicar fora (ou Esc) fecha
   document.addEventListener('pointerdown', e => { if (menu.hidden === false && !menu.contains(e.target as Node)) toggle(false); });
   window.addEventListener('keydown', e => { if (e.code === 'Escape') toggle(false); });
-  menu.addEventListener('pointerdown', e => e.stopPropagation());
+  menu.addEventListener('pointerdown', markUiPointer);
 }

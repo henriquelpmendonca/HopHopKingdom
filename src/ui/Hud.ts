@@ -1,6 +1,7 @@
 import { audio, sfx } from '../audio';
 import { t, type Key } from '../i18n';
 import { sdk } from '../sdk';
+import { markUiPointer } from '../camera';
 import { REBUILD_COIN_KEEP, rebuildBack } from '../config';
 import { clearSave } from '../save';
 import { BUILDABLES } from '../data/cabanas';
@@ -386,6 +387,7 @@ export function setupHud() {
     if (performance.now() < noClickUntil) { e.stopPropagation(); e.preventDefault(); }
   }, true);
 
-  // clicar no botão não pode contar como clique no mapa
-  for (const el of [bar, up, mv, sl, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', e => e.stopPropagation());
+  // clicar no botão não pode contar como clique no mapa (a câmera ignora), mas o clique tem de chegar à janela:
+  // é lá que o SDK da Poki percebe que o jogador interagiu
+  for (const el of [bar, up, mv, sl, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', markUiPointer);
 }

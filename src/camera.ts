@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import { barH, EDGE_SCROLL_PX, SCROLL_SPEED, WORLD_H, WORLD_W, ZOOM_MAX } from './config';
 
+/** cliques que começaram num botão da interface: não contam como clique no mapa */
+const uiPointers = new WeakSet<Event>();
+export const markUiPointer = (e: Event) => { uiPointers.add(e); };
+
 /**
  * Câmera estilo Warcraft 3: o mapa é maior que a tela.
  * Computador: roda do mouse = zoom (em direção ao mouse); mouse nas bordas ou setas/WASD = mover.
@@ -51,7 +55,7 @@ export class CameraRig {
       this.inside = !this.touch;
     };
     window.addEventListener('pointermove', move);
-    window.addEventListener('pointerdown', e => { move(e); this.down = true; });
+    window.addEventListener('pointerdown', e => { if (uiPointers.has(e)) return; move(e); this.down = true; });
     window.addEventListener('pointerup', () => { this.down = false; });
     window.addEventListener('pointercancel', () => { this.down = false; });
     document.documentElement.addEventListener('mouseleave', () => { this.inside = false; });
