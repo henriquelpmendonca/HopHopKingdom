@@ -148,11 +148,17 @@ export function setupHud() {
     if (on && ($('over').hidden === false || !pauseBox.hidden)) return;
     pauseBox.hidden = !on;
     $('pauseBtn').classList.toggle('paused', on);
-    bus.emit(Evt.Pause, on);
+    if (on) bus.emit(Evt.Pause, true);
+    else sdk.breakBeforeResume(() => bus.emit(Evt.Pause, false));
   };
   $('pauseBtn').addEventListener('click', () => { sfx.ui(); setPause(pauseBox.hidden !== false); });
   $('resume').addEventListener('click', () => { sfx.ui(); setPause(false); });
-  window.addEventListener('keydown', e => { if (e.code === 'KeyP' && !e.repeat) setPause(pauseBox.hidden !== false); });
+  window.addEventListener('keydown', e => {
+    if ((e.code !== 'KeyP' && e.code !== 'Space') || e.repeat) return;
+    // espaço num botão com foco também o apertaria
+    if (e.code === 'Space') { e.preventDefault(); (document.activeElement as HTMLElement | null)?.blur(); }
+    setPause(pauseBox.hidden !== false);
+  });
 
   bus.on(Evt.Wave, (n: number) => {
     const el = $('waveN');
@@ -309,7 +315,8 @@ export function setupHud() {
     sfx.ui();
     sdk.rewarded(() => { $('over').hidden = true; bus.emit(Evt.Rebuild, { free: true }); }, () => {
       $('rebuildFree').hidden = !sdk.adsAvailable;
-      if ($('over').hidden === false) { bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); }
+      // a Poki mostra as próprias mensagens quando não há vídeo
+      if ($('over').hidden === false && sdk.platform !== 'poki') { bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); }
     });
   });
   $('overForge').addEventListener('click', () => { sfx.ui(); bus.emit(Evt.OpenForge); });
@@ -328,9 +335,17 @@ export function setupHud() {
     gift.disabled = true;
     sdk.rewarded(() => {
       bus.emit(Evt.Gift);
+      // a Poki pede para não ter espera própria entre anúncios
+      if (sdk.platform === 'poki') { gift.disabled = false; return; }
       gift.classList.add('cooling');
       window.setTimeout(() => { gift.classList.remove('cooling'); gift.disabled = false; }, 180000);
-    }, () => { gift.disabled = false; gift.hidden = !sdk.adsAvailable; bus.emit(Evt.Hint, t('hint.ad_unavailable')); window.setTimeout(() => bus.emit(Evt.Hint, null), 3000); });
+    }, () => {
+      gift.disabled = false;
+      gift.hidden = !sdk.adsAvailable;
+      if (sdk.platform === 'poki') return;
+      bus.emit(Evt.Hint, t('hint.ad_unavailable'));
+      window.setTimeout(() => bus.emit(Evt.Hint, null), 3000);
+    });
   });
 
   up.addEventListener('click', () => {

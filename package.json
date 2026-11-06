@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:poki": "tsc --noEmit && vite build --mode poki",
+    "pack": "npm run build && npm run build:poki && python tools/pack.py",
     "preview": "vite preview"
   },
   "dependencies": {

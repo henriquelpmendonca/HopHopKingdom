@@ -348,3 +348,7 @@ body.tuto #hint{display:none}
 #forgeNav button:disabled{opacity:.35;box-shadow:none}
 #forgeNav span{min-width:56px;text-align:center;font:900 18px "Trebuchet MS",Verdana,sans-serif;color:#5a3418}
 .perk[hidden]{display:none}
+
+/* Poki: botão de recompensa precisa mostrar o ícone 🎬 */
+body.poki #gift::after{content:'🎬';position:absolute;right:-8px;bottom:-6px;font-size:16px;line-height:1;text-shadow:none}
+body.poki #rebuildFree::before{content:'🎬 '}
