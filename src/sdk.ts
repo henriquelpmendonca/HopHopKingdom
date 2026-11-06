@@ -4,7 +4,8 @@
  * (desenvolvimento, outro site, sem internet), o jogo funciona igual, só sem anúncios.
  *
  * Regras da Poki que isto cumpre:
- * - gameLoadingFinished ao terminar de carregar; gameplayStart só depois do primeiro toque ou tecla do jogador;
+ * - gameLoadingFinished ao terminar de carregar; todo gameplayStart sai logo depois de um toque ou tecla do jogador
+ *   (o SDK só aceita interação dos últimos 5 s; depois de anúncio ou de voltar à aba, espera a próxima ação);
  * - gameplayStop antes de cada anúncio; nada de chamar o SDK durante o anúncio;
  * - som e teclado desligados durante o anúncio; recompensa só se o vídeo foi exibido;
  * - sem temporizador próprio de anúncio (a Poki decide a frequência).
@@ -45,8 +46,8 @@ class Sdk {
   /** um SDK iniciou e estamos no portal dele (ou no modo de teste dele) */
   active = false;
   platform: Platform = 'none';
-  /** Poki: o gameplayStart só pode sair depois da primeira ação do jogador */
-  private pokiInput = false;
+  /** Poki: quando foi a última ação do jogador; o gameplayStart precisa de uma ação recente */
+  private pokiInputAt = -Infinity;
   private pokiPlaying = false;
   private playing = false;
   private inAd = false;
@@ -92,9 +93,9 @@ class Sdk {
     this.active = true;
     this.platform = 'poki';
     document.body.classList.add('poki');
-    // a primeira ação do jogador libera o gameplayStart
-    const first = () => { this.pokiInput = true; this.syncPoki(); };
-    for (const ev of ['pointerdown', 'keydown'] as const) window.addEventListener(ev, first, { once: true, capture: true });
+    // cada ação do jogador pode liberar um gameplayStart que estava esperando
+    const input = () => { this.pokiInputAt = performance.now(); this.syncPoki(); };
+    for (const ev of ['pointerdown', 'keydown'] as const) window.addEventListener(ev, input, { capture: true, passive: true });
     // durante o anúncio o teclado não chega ao jogo
     window.addEventListener('keydown', e => { if (this.inAd) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
     // a página não pode rolar junto com o jogo
@@ -104,7 +105,9 @@ class Sdk {
 
   /** Avisa a Poki só quando o estado muda (dois gameplayStart seguidos não são permitidos). */
   private syncPoki() {
-    if (!this.pokiInput || this.inAd || this.playing === this.pokiPlaying) return;
+    if (this.inAd || this.playing === this.pokiPlaying) return;
+    // parar avisa na hora; começar espera o jogador agir (o limite do SDK é 5 s; aqui, um pouco menos)
+    if (this.playing && performance.now() - this.pokiInputAt > 4500) return;
     this.pokiPlaying = this.playing;
     try { this.playing ? poki()?.gameplayStart() : poki()?.gameplayStop(); } catch { /* ignora */ }
   }
