@@ -44,7 +44,9 @@ export const Evt = {
   Rebuild: 'rebuild',
   /** UI -> jogo: o jogador assistiu a um anúncio e ganha moedas */
   Gift: 'gift',
-  /** jogo -> UI: o que o jogador fez, para o tutorial: start, placed, wave, grab, throw, hit, upgrade */
+  /** UI -> jogo: chamar a próxima onda agora, levando as moedas da espera */
+  CallWave: 'callWave',
+  /** jogo <-> tutorial: start, placed, wave, grab, throw, hit, upgrade; step:<passo> e end vêm do tutorial */
   Tuto: 'tuto',
   /** jogo -> UI: faixa grande no meio da tela (onda, chefe, combo): { title, sub?, kind } */
   Banner: 'banner',

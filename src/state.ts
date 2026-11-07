@@ -12,7 +12,15 @@ export const state = {
 };
 
 /** o tutorial dos primeiros minutos está rodando */
-export const tuto = { on: false };
+export const tuto = {
+  on: false,
+  /** passo atual: hit, throw, upgrade ou build */
+  step: '',
+  /** este passo precisa de inimigos na tela: se acabarem, a cena manda mais */
+  foes: false,
+  /** onde a mão do tutorial aponta na tela; com bx e by, ela arrasta de um ponto ao outro */
+  aim: null as { ax: number; ay: number; bx?: number; by?: number } | null,
+};
 
 export function addCoins(n: number) {
   state.coins += n;

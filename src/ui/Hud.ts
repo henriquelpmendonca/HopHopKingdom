@@ -8,6 +8,7 @@ import { BUILDABLES } from '../data/cabanas';
 import { MAGIC_CASTLE_LEVEL } from '../data/castle';
 import { POWERS, POWER_FREEZE_SECONDS } from '../data/powers';
 import { SWORD_MAX, swordCost, swordDamage, swordTier } from '../data/sword';
+import { isBossWave } from '../data/units';
 import { bus, Evt, SelectInfo } from '../events';
 import { anyAffordable, getStars } from '../meta';
 
@@ -139,9 +140,18 @@ export function setupHud() {
   });
 
   // próxima onda
+  const callBtn = $('callWave');
+  let incomeNow = 4;
+  let waveNow = 0;
   bus.on(Evt.Countdown, (n: number | null) => {
     $('nextN').textContent = n === null ? '' : t('ui.next_wave', { n });
+    // chamar a onda agora: mostra quantas moedas da espera vêm junto
+    const can = n !== null && n > 1;
+    callBtn.hidden = !can;
+    if (can) callBtn.textContent = '⏩ +' + n! * incomeNow;
+    callBtn.classList.toggle('pulse', can && waveNow <= 5);
   });
+  callBtn.addEventListener('click', () => { boing(callBtn); sfx.ui(); bus.emit(Evt.CallWave); });
 
   // pausa: botão, tecla P e tela de pausa
   const pauseBox = $('pause');
@@ -162,6 +172,11 @@ export function setupHud() {
   });
 
   bus.on(Evt.Wave, (n: number) => {
+    waveNow = n;
+    // a próxima conquista sempre à vista
+    let boss = n + 1;
+    while (!isBossWave(boss)) boss++;
+    $('goal').textContent = t('ui.next_boss', { n: boss });
     const el = $('waveN');
     if (el.textContent !== String(n)) boing($('wave'), 'bump');
     el.textContent = String(n);
@@ -251,7 +266,7 @@ export function setupHud() {
     bus.emit(Evt.Sell);
   });
 
-  bus.on(Evt.Income, (n: number) => { $('incomeN').textContent = '+' + n + '/s'; });
+  bus.on(Evt.Income, (n: number) => { incomeNow = n; $('incomeN').textContent = '+' + n + '/s'; });
 
   bus.on(Evt.Placing, (id: string | null) => {
     for (const [k, s] of slots) s.el.classList.toggle('active', k === id);
@@ -356,6 +371,21 @@ export function setupHud() {
     bus.emit(Evt.Upgrade);
   });
   syncBar();
+  // menu de 3 pontinhos: abre os outros botões para baixo. Ao lado dele fica só o presente, sempre à vista
+  const menuBtn = $('menuBtn'), menuList = $('menuList');
+  const setMenu = (on: boolean) => {
+    menuList.hidden = !on;
+    menuBtn.classList.toggle('open', on);
+    menuBtn.setAttribute('aria-expanded', String(on));
+  };
+  menuBtn.addEventListener('click', () => { sfx.ui(); setMenu(menuList.hidden !== false); });
+  // tocar fora fecha; a Forja e a pausa cobrem a tela, então fecham também
+  document.addEventListener('pointerdown', e => { if (menuList.hidden === false && !$('audio').contains(e.target as Node)) setMenu(false); });
+  for (const id of ['pauseBtn', 'forgeBtn']) $(id).addEventListener('click', () => setMenu(false));
+  // estrelas para gastar na Forja: os pontinhos avisam, porque o botão dela fica guardado
+  const forgeBtn = $('forgeBtn');
+  new MutationObserver(() => menuBtn.classList.toggle('alert', forgeBtn.classList.contains('ready'))).observe(forgeBtn, { attributes: true, attributeFilter: ['class'] });
+  menuBtn.classList.toggle('alert', forgeBtn.classList.contains('ready'));
   // botões de música e de efeitos sonoros
   const musicBtn = $('musicBtn'), sfxBtn = $('sfxBtn');
   const paintAudio = () => {
@@ -389,5 +419,5 @@ export function setupHud() {
 
   // clicar no botão não pode contar como clique no mapa (a câmera ignora), mas o clique tem de chegar à janela:
   // é lá que o SDK da Poki percebe que o jogador interagiu
-  for (const el of [bar, up, mv, sl, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', markUiPointer);
+  for (const el of [bar, up, mv, sl, callBtn, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', markUiPointer);
 }

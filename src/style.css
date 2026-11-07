@@ -352,3 +352,55 @@ body.tuto #hint{display:none}
 /* Poki: botão de recompensa precisa mostrar o ícone 🎬 */
 body.poki #gift::after{content:'🎬';position:absolute;right:-9px;bottom:-8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:2px solid #5a3418;border-radius:50%;background:#fff;font-size:14px;line-height:1;text-shadow:none}
 body.poki #rebuildFree::before{content:'🎬 '}
+
+/* carregando */
+#loading{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:#cfe8a8}
+body.loading #loading{display:flex}
+body.loading #stats,body.loading #audio,body.loading #bar{visibility:hidden}
+#loadLogo{width:min(420px,76vw);max-height:56vh;object-fit:contain}
+#loadTrack{width:min(320px,62vw);height:18px;border:4px solid #5a3418;border-radius:14px;background:#fff6dc;overflow:hidden}
+#loadBar{display:block;height:100%;width:0;background:linear-gradient(#ffd84a,#ff9a2a);transition:width .15s}
+
+/* chamar a próxima onda e próxima conquista */
+#callWave{margin-left:8px;padding:2px 9px;border:3px solid #1f5a18;border-radius:14px;background:linear-gradient(#b8ff8a,#3fc13a);color:#123d0e;font:800 14px "Trebuchet MS",Verdana,sans-serif;white-space:nowrap;cursor:pointer}
+#callWave[hidden]{display:none}
+#callWave:active{transform:scale(.92)}
+#callWave.pulse{animation:callpulse 1.3s ease-in-out infinite}
+@keyframes callpulse{0%,100%{box-shadow:0 0 0 0 rgba(63,193,58,.7)}50%{box-shadow:0 0 0 8px rgba(63,193,58,0)}}
+#goal{padding:2px 12px;border-radius:12px;background:rgba(90,52,24,.82);color:#fff6dc;font:800 13px "Trebuchet MS",Verdana,sans-serif;white-space:nowrap}
+#goal:empty{display:none}
+
+/* tutorial: só o que importa agora, e a mão mostrando o que fazer */
+body.tuto #gift,body.tuto #nextN,body.tuto #goal,body.tuto #callWave{display:none}
+body.tuto #bar .slot:not(.tuto-glow),body.tuto #bar .gap{opacity:.38;filter:grayscale(.55);pointer-events:none}
+#tutoHand{position:fixed;left:-3px;top:-2px;width:79px;height:88px;z-index:8;pointer-events:none;transform-origin:3px 2px;filter:drop-shadow(0 4px 3px rgba(0,0,0,.4))}
+#tutoHand[hidden]{display:none}
+
+/* celular deitado: o texto do tutorial sobe, para não cobrir o castelo */
+@media (max-height:520px){
+  #tuto{bottom:auto;top:6px;max-width:44vw;font-size:13px;padding:5px 8px 5px 12px;gap:6px}
+  #tutoSkip{font-size:11px;padding:3px 7px}
+  #goal{font-size:11px;padding:1px 9px}
+  #callWave{font-size:12px;padding:1px 6px}
+  #tutoHand{width:56px;height:62px}
+}
+
+/* canto de cima: o presente chamando atenção e os 3 pontinhos, que abrem o resto para baixo */
+#audio{align-items:flex-start;z-index:7}
+#audio #menuBtn.ic{background:linear-gradient(#fff6dc,#ffd98a);border:4px solid #5a3418;box-shadow:0 5px 0 #5a3418;box-sizing:border-box}
+#menuDots{display:block;font:900 15px/1 "Trebuchet MS",Verdana,sans-serif;letter-spacing:1px;color:#5a3418}
+#audio #menuBtn.ic.open{background:linear-gradient(#ffe9a8,#ffc75a)}
+#menuBtn.alert::after{content:"";position:absolute;right:-3px;top:-3px;width:14px;height:14px;border:3px solid #5a3418;border-radius:50%;background:#ff5a3a;animation:bump 1s ease-in-out infinite}
+#menuList{position:absolute;top:calc(100% + 12px);right:0;display:flex;flex-direction:column;gap:10px;animation:menuopen .16s ease-out;transform-origin:top right}
+#menuList[hidden]{display:none}
+@keyframes menuopen{from{opacity:0;transform:translateY(-10px) scale(.92)}to{opacity:1;transform:none}}
+#audio #gift:not(:disabled):not(.cooling){animation:giftcall 2.6s ease-in-out infinite;filter:drop-shadow(0 0 7px rgba(255,214,64,.95))}
+@keyframes giftcall{0%,62%,100%{transform:scale(1) rotate(0)}68%{transform:scale(1.2) rotate(-13deg)}74%{transform:scale(1.2) rotate(11deg)}80%{transform:scale(1.2) rotate(-8deg)}86%{transform:scale(1.14) rotate(6deg)}93%{transform:scale(1) rotate(0)}}
+/* o menu de idiomas abre ao lado da coluna de botões */
+#langMenu{top:14px;right:76px}
+@media (max-width:640px){#langMenu{top:10px;right:60px}}
+@media (max-height:520px){
+  #langMenu{top:6px;right:50px;max-width:calc(100vw - 66px)}
+  #menuList{gap:5px;top:calc(100% + 6px)}
+  #menuList button{width:30px!important;height:30px!important}
+}

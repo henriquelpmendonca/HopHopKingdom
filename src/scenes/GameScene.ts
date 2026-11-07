@@ -72,6 +72,7 @@ export class GameScene extends Phaser.Scene {
   private lastCount = -1;
   private comboAt = -1e9;
   private over = false;
+  private tickFailed = false;
   isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
   private persist = !['onda', 'moedas', 'magos', 'espada', 'mana', 'especiais'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
@@ -101,7 +102,8 @@ export class GameScene extends Phaser.Scene {
     this.rig = new CameraRig(this);
     this.radar = new Radar();
     this.rig.onMulti = () => this.cancelHeld();
-    this.rig.centerOn(this.castle.x, this.castle.y - this.castle.h * 0.4);
+    // a barra de baixo cobre parte da tela: o castelo fica no meio do que sobra
+    this.rig.centerOn(this.castle.x, this.castle.y - this.castle.h * 0.4 + barH() / 2 / this.rig.zoom);
     this.bars = new Bars(this);
     this.proj = new Projectiles(this, this.fx);
 
@@ -119,7 +121,11 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Evolve, this.evolveSelected, this);
     bus.on(Evt.Move, this.startMove, this);
     bus.on(Evt.Stars, this.onStars, this);
+    bus.on(Evt.Tuto, this.onTuto, this);
+    bus.on(Evt.CallWave, this.callWave, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.Tuto, this.onTuto, this);
+      bus.off(Evt.CallWave, this.callWave, this);
       bus.off(Evt.Perks, this.onPerk, this);
       bus.off(Evt.Sell, this.sellSelected, this);
       bus.off(Evt.Evolve, this.evolveSelected, this);
@@ -138,10 +144,8 @@ export class GameScene extends Phaser.Scene {
     const fresh = this.huts.length === 0;
     this.waveTimer = this.debugWave ? 4 : fresh ? WAVE.firstDelay : 10;
     // jogo novo: tutorial guiado (pulável); com atalhos de teste ele fica de fora
-    if (fresh && this.wave === 0 && this.persist && store.get('hhk_tuto') !== '1') {
-      tuto.on = true;
-      bus.emit(Evt.Tuto, 'start');
-    } else if (fresh) {
+    const firstVisit = fresh && this.wave === 0 && this.persist && store.get('hhk_tuto') !== '1';
+    if (!firstVisit && fresh) {
       bus.emit(Evt.Hint, t('hint.build_first'));
       this.time.delayedCall(9000, () => bus.emit(Evt.Hint, null));
     }
@@ -168,6 +172,100 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
+    if (firstVisit) this.startTutorial();
+    document.body.classList.remove('loading');
+  }
+
+  /* ---------- primeira visita ---------- */
+
+  /** O jogo já abre em ação: uma cabana pronta, soldados pulando e orcs entrando na tela. */
+  private startTutorial() {
+    tuto.on = true;
+    this.waveTimer = 999;
+    const c = this.castle;
+    // na tela larga a cabana fica ao lado do castelo; na tela em pé, acima dele
+    const wide = this.scale.width / this.rig.zoom > 1000;
+    const hut = new Hut(this, hutDef('cabana_soldado'), wide ? c.x - c.w * 0.5 - 120 : c.x, wide ? c.y - 40 : c.y - c.h - 30, this.fx, h => this.onHutDestroyed(h));
+    this.huts.push(hut);
+    this.fx.burst(hut.x, hut.y - 30, 24, 0xe8d9b8, true);
+    this.emitCosts();
+    bus.emit(Evt.Tuto, 'start');
+    this.spawnWave();
+  }
+
+  /** Um ponto na borda do que está à vista: o inimigo entra na tela e dá tempo de acertar nele. */
+  private tutoSpot() {
+    const w = this.scale.width, h = this.scale.height;
+    const a = this.rig.toWorld(50, 130), b = this.rig.toWorld(w - 50, h - barH() - 90);
+    const r = Math.random();
+    return w > h
+      ? { x: Math.random() < 0.5 ? a.x : b.x, y: a.y + (b.y - a.y) * r }
+      : { x: a.x + (b.x - a.x) * r, y: Math.random() < 0.5 ? a.y : b.y };
+  }
+
+  private onTuto(what: string) {
+    const topUp = (cost: number) => { if (state.coins < cost) addCoins(cost - state.coins); };
+    if (what === 'step:upgrade') {
+      const h = this.huts[0];
+      if (h?.next) topUp(h.next.cost);
+      this.select(h ?? null);
+    } else if (what === 'step:build') {
+      this.select(null);
+      topUp(this.costOf(hutDef('cabana_soldado')));
+    } else if (what === 'end') {
+      this.stopPlacing();
+      if (this.waveTimer > 12) this.waveTimer = 12;
+    }
+  }
+
+  /** A cada quadro do tutorial: nunca falta inimigo no passo que precisa dele, e a mão aponta para o alvo. */
+  private tutoTick(alive: Orc[], soldiers: Soldier[]) {
+    if (tuto.foes && alive.length === 0 && this.pending === 0) {
+      if (this.wave < 2) this.spawnWave();
+      else for (let i = 0; i < 2; i++) {
+        const { x, y } = this.tutoSpot();
+        this.orcs.push(new Orc(this, x, y, 'orc1', this.wave, this.fx, o => this.onOrcDie(o)));
+      }
+    }
+    // ninguém perde enquanto aprende
+    this.castle.hp = Math.max(this.castle.hp, this.castle.maxHp * 0.6);
+    for (const h of this.huts) h.hp = Math.max(h.hp, h.maxHp * 0.6);
+    if (tuto.step === 'upgrade' && !this.selected && this.huts[0]) this.select(this.huts[0]);
+    tuto.aim = null;
+    if (tuto.step !== 'hit' && tuto.step !== 'throw') return;
+    const w = this.scale.width, h = this.scale.height;
+    let foe: Orc | null = null, bd = Infinity;
+    for (const o of alive) {
+      const p = this.rig.toScreen(o.x, o.y - o.stats.height * 0.5);
+      if (p.x < 0 || p.y < 0 || p.x > w || p.y > h - barH()) continue;
+      const d = Math.hypot(p.x - w / 2, p.y - h / 2);
+      if (d < bd) { bd = d; foe = o; }
+    }
+    if (!foe) return;
+    const f = this.rig.toScreen(foe.x, foe.y - foe.stats.height * 0.5);
+    if (tuto.step === 'hit') { tuto.aim = { ax: f.x, ay: f.y }; return; }
+    let near: Soldier | null = null, sd = Infinity;
+    for (const s of soldiers) {
+      if (s.state === 'dead' || s.state === 'held' || s.state === 'fly') continue;
+      const d = Math.hypot(s.x - foe.x, s.y - foe.y);
+      if (d < sd) { sd = d; near = s; }
+    }
+    if (near) {
+      const p = this.rig.toScreen(near.x, near.y - near.z - SOLDIER_H / 2);
+      tuto.aim = { ax: p.x, ay: p.y, bx: f.x, by: f.y };
+    }
+  }
+
+  /** Chama a próxima onda antes da hora: as moedas que renderiam na espera vêm junto, então não se perde nada. */
+  private callWave() {
+    if (tuto.on || this.over || this.waveTimer <= 1 || this.pending > 0 || this.orcs.some(o => o.alive)) return;
+    let inc = this.castle.income;
+    for (const h of this.huts) inc += h.income;
+    const n = Math.ceil(this.waveTimer) * inc;
+    addCoins(n);
+    floatText(this, this.castle.x, this.castle.y - this.castle.h - 20, '+' + n);
+    sfx.coin();
+    this.waveTimer = 0;
   }
 
   /** atalho de teste (?especiais=1): Centro da Vila 6, Casa de Estudo e 53 casas especiais no nível 30 em volta do castelo */
@@ -429,9 +527,23 @@ export class GameScene extends Phaser.Scene {
     return !this.huts.some(h => overlaps(b, h));
   }
 
+  /** O lugar pedido ou, se estiver ocupado, o lugar livre mais perto dele. */
+  private spotFor(b: Building): Building | null {
+    if (this.canPlace(b)) return b;
+    for (let r = 40; r <= 640; r += 40) {
+      const n = Math.round(8 + r / 10);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const c = { ...b, x: b.x + Math.cos(a) * r, y: b.y + Math.sin(a) * r * 0.8 };
+        if (this.canPlace(c)) return c;
+      }
+    }
+    return null;
+  }
+
   private placeHut(def: HutDef) {
-    const b = this.ghostBuilding();
-    if (!this.canPlace(b)) { bus.emit(Evt.Hint, t('hint.no_room')); return; }
+    const b = this.spotFor(this.ghostBuilding());
+    if (!b) { bus.emit(Evt.Hint, t('hint.no_room')); return; }
     const mv = this.moving;
     const price = mv ? mv.cost : this.costOf(def);
     if (!(def.currency === 'mana' ? spendMana(price) : spend(price))) {
@@ -450,8 +562,6 @@ export class GameScene extends Phaser.Scene {
     this.save();
     if (mv) { floatText(this, b.x, b.y - hut.h - 10, t('hint.moved'), '#7CFF6B'); return; }
     bus.emit(Evt.Tuto, 'placed');
-    // no tutorial os orcs chegam logo depois da primeira cabana
-    if (tuto.on && this.waveTimer > 9) this.waveTimer = 9;
     if (tuto.on) { this.stopPlacing(); this.select(null); } else
     bus.emit(Evt.Hint, def.id === 'casa_estudo' ? t('hint.built_study') : def.levels[0].soldiers.length ? t('hint.built_troops') : (def.currency === 'mana' ? t('hint.built_mana_mine') : t('hint.built_mine')));
     this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
@@ -815,11 +925,17 @@ export class GameScene extends Phaser.Scene {
       if (p.rightButtonDown()) this.stopPlacing(); else if (!p.wasTouch) this.placeHut(this.placing);
       return;
     }
-    // soldado mais da frente sob o mouse
-    let best: Soldier | null = null;
-    for (const s of this.allSoldiers) {
-      if (s.state === 'dead') continue;
-      if (s.hitDistance(wp.x, wp.y) < SOLDIER_H * 0.7 && (!best || s.y > best.y)) best = s;
+    // soldado sob o ponteiro. No celular a área é maior (com o mapa afastado, ele fica pequeno para o dedo).
+    // Em cima de um orc, o golpe vale mais: só pega o soldado se tocar bem nele.
+    const generous = Math.max(SOLDIER_H * 0.7, (p.wasTouch ? 24 : 0) / this.rig.zoom);
+    const reach = tuto.step === 'throw' ? generous : this.orcsNear(wp.x, wp.y, 0).length ? SOLDIER_H * 0.4 : generous;
+    let best: Soldier | null = null, bestD = reach;
+    if (tuto.step !== 'hit') {
+      for (const s of this.allSoldiers) {
+        if (s.state === 'dead') continue;
+        const d = s.hitDistance(wp.x, wp.y);
+        if (d < bestD) { bestD = d; best = s; }
+      }
     }
     if (best) {
       this.held = best;
@@ -872,7 +988,8 @@ export class GameScene extends Phaser.Scene {
     const sp = Math.hypot(vx, vy);
     if (sp > MAX_THROW_SPEED) { vx *= MAX_THROW_SPEED / sp; vy *= MAX_THROW_SPEED / sp; }
     s.throwWith(vx, vy);
-    bus.emit(Evt.Tuto, 'throw');
+    // só um toque, sem arrastar, não é um arremesso
+    if (Math.hypot(vx, vy) > 200) bus.emit(Evt.Tuto, 'throw');
   }
 
   /* ---------- loop ---------- */
@@ -900,8 +1017,8 @@ export class GameScene extends Phaser.Scene {
     };
     this.pending += n;
     for (let i = 0; i < n; i++) {
-      // no tutorial os orcs entram bem perto, para dar para clicar neles logo
-      const { x, y } = around(tuto.on ? 620 + Math.random() * 120 : 1100 + Math.random() * 300);
+      // no tutorial os orcs entram à vista, para dar para acertar neles logo
+      const { x, y } = tuto.on ? this.tutoSpot() : around(1100 + Math.random() * 300);
       this.time.delayedCall(i * 450, () => {
         this.pending = Math.max(0, this.pending - 1);
         if (this.over) return;
@@ -1047,7 +1164,16 @@ export class GameScene extends Phaser.Scene {
     bus.emit(Evt.GameOver, { wave: this.wave, kills: this.kills, best });
   }
 
+  /** Um erro num quadro não pode congelar o jogo: sem isto o Phaser para de desenhar para sempre. */
   update(time: number, delta: number) {
+    try {
+      this.tick(time, delta);
+    } catch (e) {
+      if (!this.tickFailed) { this.tickFailed = true; console.error(e); }
+    }
+  }
+
+  private tick(time: number, delta: number) {
     const dt = Math.min(delta / 1000, 0.05);
     if (this.over) return;
 
@@ -1093,8 +1219,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.placing) {
-      const b = this.ghostBuilding();
-      const ok = this.canPlace(b);
+      // a sombra já mostra onde ela vai cair: se o lugar estiver ocupado, no espaço livre mais perto
+      const raw = this.ghostBuilding();
+      const spot = this.spotFor(raw);
+      const ok = !!spot;
+      const b = spot ?? raw;
       const bob = Math.abs(Math.sin(time / 1000 * 9)) * 10;
       const base = (this.ghostLv ?? this.placing.levels[0]).width / this.ghost.width;
       this.ghost.setPosition(b.x, b.y - bob)
@@ -1175,6 +1304,7 @@ export class GameScene extends Phaser.Scene {
     this.castle.drawBar(this.bars);
     for (const h of this.huts) h.drawBar(this.bars);
     if (!this.castle.alive) this.lose();
+    if (tuto.on) this.tutoTick(alive, soldiers);
 
     this.proj.update(dt);
     this.fx.update(dt);

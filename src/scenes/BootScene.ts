@@ -5,6 +5,8 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
   preload() {
+    const bar = document.getElementById('loadBar');
+    this.load.on('progress', (v: number) => { if (bar) bar.style.width = Math.round(v * 100) + '%'; });
     this.load.image('castelo', 'assets/castelo.png');
     this.load.image('castelo_2', 'assets/castelo_2.png');
     this.load.image('castelo_3', 'assets/castelo_3.png');
