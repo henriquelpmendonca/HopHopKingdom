@@ -13,6 +13,9 @@ import { bus, Evt } from './events';
 import { applyStaticTexts, savedLang, setLocale } from './i18n';
 
 async function start() {
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('novo')) {
+    for (const k of ['hophopkingdom_save', 'hhk_tuto']) localStorage.removeItem(k);
+  }
   (document.getElementById('loadLogo') as HTMLImageElement).src = 'assets/logo.png';
   await sdk.init();
   sdk.loadingStart();
@@ -56,7 +59,13 @@ async function start() {
   document.addEventListener('visibilitychange', () => { hidden = document.hidden; apply(); });
 
   // só no modo de desenvolvimento: ajuda a inspecionar o jogo pelo console
-  if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;
+  if (import.meta.env.DEV) {
+    (window as unknown as { __game: Phaser.Game }).__game = game;
+    // testes de balanceamento: os mesmos módulos que o jogo usa
+    void Promise.all([import('./data/cabanas'), import('./data/units'), import('./state'), import('./data/sword'), import('./data/castle')]).then(([cab, units, st, sword, castle]) => {
+      (window as unknown as { __dev: object }).__dev = { cab, units, st, sword, castle };
+    });
+  }
 }
 
 void start();

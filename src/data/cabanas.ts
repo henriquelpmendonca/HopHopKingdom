@@ -60,9 +60,14 @@ export interface HutDef {
   maxLevelByCastle?: (castleLevel: number) => number;
 }
 
+/** quanto cada construção que já existe (de qualquer tipo) encarece a próxima */
+export const BUILD_PRICE = { totalGrowth: 1.06 };
+
 /** Preço de construir mais uma deste tipo, sabendo quantas você já tem. */
-export function buildCost(def: HutDef, owned: number) {
-  return Math.round(def.levels[0].cost * Math.pow(def.costGrowth ?? 1, owned) / 5) * 5;
+export function buildCost(def: HutDef, owned: number, total = 0) {
+  // cada uma do mesmo tipo custa bem mais (costGrowth) e cada construção da cidade, de qualquer tipo, mais 6%:
+  // senão a tela lota de cabanas rápido demais
+  return Math.round(def.levels[0].cost * Math.pow(def.costGrowth ?? 1, owned) * Math.pow(BUILD_PRICE.totalGrowth, total) / 5) * 5;
 }
 
 /** Quantos níveis têm as cabanas e as minas. O visual muda de 5 em 5 níveis (1-4, 5-9, 10-14, 15...). Só o Centro da Vila nível 5 libera do 16 ao 25. */
@@ -119,7 +124,7 @@ export const CABANA_SOLDADO: HutDef = {
   id: 'cabana_soldado',
   nome: 'Cabana de Soldado',
   // cada cabana a mais custa 15% mais: um exército gigante não sai de graça
-  costGrowth: 1.15,
+  costGrowth: 1.4,
   levels: troopLevels(SOLDADO_TIERS, { first: 50, step: 60, hp0: 150, countBase: 4, countCap: 16 }),
 };
 
@@ -136,7 +141,7 @@ const ARQUEIRO_TIERS: (Tier & { unit: SoldierUnit })[] = [
 export const CABANA_ARQUEIRO: HutDef = {
   id: 'cabana_arqueiro',
   nome: 'Cabana de Arqueiros',
-  costGrowth: 1.15,
+  costGrowth: 1.4,
   levels: troopLevels(ARQUEIRO_TIERS, { first: 90, step: 70, hp0: 120, countBase: 3, countCap: 12 }),
 };
 
@@ -169,7 +174,7 @@ export const MINA_OURO: HutDef = {
   id: 'mina_ouro',
   nome: 'Mina de Ouro',
   // sem limite de minas: cada uma custa 22% mais que a anterior, então o dinheiro não foge do controle
-  costGrowth: 1.22,
+  costGrowth: 1.45,
   levels: minaLevels(),
 };
 
@@ -190,7 +195,7 @@ export const CABANA_MAGO: HutDef = {
   needCastle: MAGIC_CASTLE_LEVEL,
   // o terceiro visual (grão-mago, do nível 10 em diante) só com o Centro da Vila nível 5
   maxLevelByCastle: lv => (lv >= 5 ? MAX_LEVEL : 9),
-  costGrowth: 1.15,
+  costGrowth: 1.4,
   levels: troopLevels(MAGO_TIERS, { first: 90, step: 60, hp0: 170, countBase: 2, countCap: 10 }),
 };
 
@@ -225,7 +230,7 @@ export const MINA_MANA: HutDef = {
   nome: 'Mina de Mana',
   currency: 'mana',
   needCastle: MAGIC_CASTLE_LEVEL,
-  costGrowth: 1.15,
+  costGrowth: 1.4,
   levels: manaLevels(),
 };
 

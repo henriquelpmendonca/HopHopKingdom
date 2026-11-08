@@ -66,6 +66,22 @@ export function bakeTextures(scene: Phaser.Scene) {
       }
     });
   }
+  // escombros de uma cabana destruída: pedras e tábuas (voltam a ser cabana quando a onda acaba)
+  make(scene, 'ruina', 160, 84, ctx => {
+    ctx.lineJoin = 'round';
+    const stones: [number, number, number, number][] = [[34, 62, 26, 15], [70, 56, 30, 19], [108, 62, 26, 15], [54, 44, 20, 13], [92, 42, 22, 14], [128, 70, 18, 11], [20, 72, 16, 10]];
+    // tábuas quebradas
+    ctx.lineCap = 'round';
+    for (const [x1, y1, x2, y2] of [[28, 50, 72, 26], [96, 28, 138, 54], [60, 30, 104, 44]]) {
+      ctx.strokeStyle = '#5a3418'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.strokeStyle = '#b07a46'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+    for (const [x, y, rx, ry] of stones) {
+      ctx.fillStyle = '#5a5248'; ctx.beginPath(); ctx.ellipse(x, y, rx + 3, ry + 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b9b1a3'; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ddd6c8'; ctx.beginPath(); ctx.ellipse(x - rx * 0.3, y - ry * 0.35, rx * 0.35, ry * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  });
   // números de dano e moedas: um desenho de cada dígito, em vez de um texto novo a cada golpe
   digits(scene, 'dg_white', '#ffffff', '#7a1409');
   digits(scene, 'dg_red', '#ff5a4d', '#4a0d08');

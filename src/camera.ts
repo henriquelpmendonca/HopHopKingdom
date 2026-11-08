@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { barH, EDGE_SCROLL_PX, SCROLL_SPEED, WORLD_H, WORLD_W, ZOOM_MAX } from './config';
+import { barH, SCROLL_SPEED, WORLD_H, WORLD_W, ZOOM_MAX } from './config';
 
 /** cliques que começaram num botão da interface: não contam como clique no mapa */
 const uiPointers = new WeakSet<Event>();
@@ -7,7 +7,8 @@ export const markUiPointer = (e: Event) => { uiPointers.add(e); };
 
 /**
  * Câmera estilo Warcraft 3: o mapa é maior que a tela.
- * Computador: roda do mouse = zoom (em direção ao mouse); mouse nas bordas ou setas/WASD = mover.
+ * Computador: roda do mouse = zoom (em direção ao mouse); segurar e arrastar no chão vazio ou setas/WASD = mover.
+ * Sem rolagem pela borda: dentro do site do portal o mouse passa pela borda o tempo todo e a câmera fugia.
  * Celular: pinça = zoom, dois dedos = mover (e um dedo arrastando no chão vazio, ver GameScene).
  * Faz as contas de tela <-> mundo à mão, para não depender do estado do quadro anterior.
  */
@@ -18,7 +19,6 @@ export class CameraRig {
   /** posição do ponteiro na janela (px) */
   private sx = 0;
   private sy = 0;
-  private inside = false;
 
   /** o último toque foi de dedo (e não de mouse) */
   touch = false;
@@ -51,8 +51,6 @@ export class CameraRig {
       this.touch = e.pointerType !== 'mouse';
       this.sx = e.clientX;
       this.sy = e.clientY;
-      // a rolagem pela borda é coisa de mouse
-      this.inside = !this.touch;
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', e => {
@@ -63,9 +61,6 @@ export class CameraRig {
     });
     window.addEventListener('pointerup', () => { this.down = false; });
     window.addEventListener('pointercancel', () => { this.down = false; });
-    // só um pointermove de mouse de verdade liga a rolagem: depois de um toque o navegador simula
-    // eventos de mouse (mouseenter), e a posição ainda seria 0,0, levando a câmera para o canto
-    document.documentElement.addEventListener('mouseleave', () => { this.inside = false; });
 
     const host = document.getElementById('game')!;
     host.addEventListener('wheel', e => { e.preventDefault(); this.zoomBy(e.deltaY, e.clientX, e.clientY); }, { passive: false });
@@ -196,13 +191,6 @@ export class CameraRig {
     if (k.has('KeyD') || k.has('ArrowRight')) dx += 1;
     if (k.has('KeyW') || k.has('ArrowUp')) dy -= 1;
     if (k.has('KeyS') || k.has('ArrowDown')) dy += 1;
-    // mouse encostado na borda da janela
-    if (this.inside) {
-      if (this.sx <= EDGE_SCROLL_PX) dx -= 1;
-      if (this.sx >= this.w - EDGE_SCROLL_PX) dx += 1;
-      if (this.sy <= EDGE_SCROLL_PX) dy -= 1;
-      if (this.sy >= this.h - EDGE_SCROLL_PX) dy += 1;
-    }
     if (dx || dy) {
       const len = Math.hypot(dx, dy);
       const v = SCROLL_SPEED / this.cam.zoom * dt;

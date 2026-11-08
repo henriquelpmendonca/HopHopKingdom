@@ -78,7 +78,7 @@ export interface SelectInfo {
   x: number;
   y: number;
   /** próximo nível; null = já no máximo */
-  next: { art: string; cost: number; /** custa mana em vez de moedas */ mana?: boolean; /** motivo de estar bloqueado (ex.: nível do centro da vila) */ lock?: string } | null;
+  next: { art: string; cost: number; /** custa mana em vez de moedas */ mana?: boolean; /** motivo de estar bloqueado (ex.: nível do centro da vila) */ lock?: string; /** escombros: o botão reconstrói */ repair?: boolean } | null;
   /** só cabanas: quanto devolve ao vender, quanto custa mover e se dá para fazer isso agora (entre ondas) */
   tools?: { refund: number; move: number; mana: boolean; ok: boolean };
   /** só cabanas que podem evoluir (com a Casa de Estudo de pé): as casas novas possíveis */

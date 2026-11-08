@@ -42,23 +42,23 @@ export const UNIT_STATS: Record<SoldierUnit, UnitStats> = {
   lanca:    { hp: 60,  dmg: 11, reach: 42, cd: 1.0 },
   alabarda: { hp: 100, dmg: 18, reach: 48, cd: 1.1 },
   // frágil, mas bate de longe e sem se machucar
-  arqueiro: { hp: 38, dmg: 9, reach: 30, cd: 1.0, range: 300, aggro: 560 },
-  arqueiro2: { hp: 55, dmg: 13, reach: 30, cd: 0.95, range: 330, aggro: 600 },
-  arqueiro3: { hp: 80, dmg: 19, reach: 30, cd: 0.9, range: 360, aggro: 640 },
+  arqueiro: { hp: 38, dmg: 9, reach: 30, cd: 1.0, range: 300, aggro: 680 },
+  arqueiro2: { hp: 55, dmg: 13, reach: 30, cd: 0.95, range: 330, aggro: 720 },
+  arqueiro3: { hp: 80, dmg: 19, reach: 30, cd: 0.9, range: 360, aggro: 760 },
   // magos aliados: magia mais forte que a flecha, mas mais frágeis
   // 1-4: bola de fogo que queima; 5-9: fogo e gelo; 10-15: fogo, gelo e raio em cadeia
-  magoA1: { hp: 42, dmg: 17, reach: 30, cd: 1.5, range: 290, aggro: 540, bolt: true, spells: ['fire'] },
-  magoA2: { hp: 58, dmg: 26, reach: 30, cd: 1.4, range: 320, aggro: 580, bolt: true, spells: ['fire', 'ice'] },
-  magoA3: { hp: 80, dmg: 38, reach: 30, cd: 1.3, range: 350, aggro: 620, bolt: true, spells: ['fire', 'ice', 'lightning'] },
+  magoA1: { hp: 42, dmg: 17, reach: 30, cd: 1.5, range: 290, aggro: 660, bolt: true, spells: ['fire'] },
+  magoA2: { hp: 58, dmg: 26, reach: 30, cd: 1.4, range: 320, aggro: 700, bolt: true, spells: ['fire', 'ice'] },
+  magoA3: { hp: 80, dmg: 38, reach: 30, cd: 1.3, range: 350, aggro: 740, bolt: true, spells: ['fire', 'ice', 'lightning'] },
 };
 
 /** Fúria: mais vida, golpes mais fortes e mais rápidos. */
 export const FURIA = { hp: 1.3, dmg: 1.5, cd: 0.7, speed: 1.3 };
 
 /** Distância da cabana em que os soldados notam inimigos (px). */
-export const AGGRO_RANGE = 340;
+export const AGGRO_RANGE = 460;
 /** Se se afastarem tanto da cabana, voltam. */
-export const LEASH_RANGE = 460;
+export const LEASH_RANGE = 600;
 export const SOLDIER_RUN_SPEED = 170;
 /** Segundos até um soldado morto reaparecer na cabana. */
 export const RESPAWN_TIME = 7;
@@ -116,12 +116,19 @@ export const ORCS: Record<OrcKind, OrcStats> = {
 };
 
 /** Quanto o inimigo fica mais forte a cada onda. */
+/**
+ * Ajuste fino da dificuldade: multiplica a vida dos inimigos e a quantidade por onda.
+ * 0,9 na quantidade acompanha as casas mais caras e o raio de defesa maior (testado com um robô jogando 70 min:
+ * cerca de 27 casas na onda 30, perto de uma derrota por partida, sempre em onda de chefe a partir da 23).
+ */
+export const ENEMY = { hpMult: 1, countMult: 0.9 };
+
 export function orcForWave(kind: OrcKind, wave: number) {
   const o = ORCS[kind];
   return {
     // crescem em ritmo composto (8% e 4% por onda): sem isso a economia do jogador ultrapassa os inimigos
     // até a onda 30: 8% de vida e 4% de dano por onda; depois: 4,5% e 2% (veja data/growth.ts)
-    hp: Math.round(o.hp * waveGrowth(wave, 0.08, 0.045)),
+    hp: Math.round(o.hp * ENEMY.hpMult * waveGrowth(wave, 0.08, 0.045)),
     dmg: Math.round(o.dmg * waveGrowth(wave, 0.04, 0.02)),
     speed: Math.min(o.speed + wave * 1.5, o.speed + 30),
   };
@@ -169,5 +176,5 @@ export const WAVE = {
   interval: 55,
   /** se algum inimigo ficar preso e a onda durar mais que isto (s), a contagem corre mesmo assim */
   maxFight: 180,
-  count: (wave: number) => Math.min(2 + Math.floor(wave * 0.9), 22),
+  count: (wave: number) => Math.max(2, Math.min(Math.round((2 + Math.floor(wave * 0.9)) * ENEMY.countMult), 22)),
 };

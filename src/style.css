@@ -371,7 +371,7 @@ body.loading #stats,body.loading #audio,body.loading #bar{visibility:hidden}
 #goal:empty{display:none}
 
 /* tutorial: só o que importa agora, e a mão mostrando o que fazer */
-body.tuto #gift,body.tuto #nextN,body.tuto #goal,body.tuto #callWave{display:none}
+body.tuto #gift,body.tuto #forgeBtn,body.tuto #nextN,body.tuto #goal,body.tuto #callWave{display:none}
 body.tuto #bar .slot:not(.tuto-glow),body.tuto #bar .gap{opacity:.38;filter:grayscale(.55);pointer-events:none}
 #tutoHand{position:fixed;left:-3px;top:-2px;width:79px;height:88px;z-index:8;pointer-events:none;transform-origin:3px 2px;filter:drop-shadow(0 4px 3px rgba(0,0,0,.4))}
 #tutoHand[hidden]{display:none}
@@ -403,4 +403,89 @@ body.tuto #bar .slot:not(.tuto-glow),body.tuto #bar .gap{opacity:.38;filter:gray
   #langMenu{top:6px;right:50px;max-width:calc(100vw - 66px)}
   #menuList{gap:5px;top:calc(100% + 6px)}
   #menuList button{width:30px!important;height:30px!important}
+}
+
+/* ---------- tutorial mais visual ---------- */
+#tutoIco{flex:none;width:46px;height:46px;object-fit:contain;filter:drop-shadow(0 3px 2px rgba(90,52,24,.35))}
+#tutoIco[hidden]{display:none}
+#tutoIco.ico-hit{animation:icohit 1s ease-in-out infinite;transform-origin:70% 80%}
+#tutoIco.ico-throw{animation:icothrow 1.3s ease-in-out infinite}
+#tutoIco.ico-upgrade,#tutoIco.ico-done{animation:icoup 1.1s ease-in-out infinite}
+#tutoIco.ico-build{animation:icobuild 1.2s cubic-bezier(.3,1.6,.5,1) infinite}
+@keyframes icohit{0%,100%{transform:rotate(-30deg)}45%{transform:rotate(35deg)}55%{transform:rotate(30deg)}}
+@keyframes icothrow{0%{transform:translate(-6px,8px) rotate(-20deg)}50%{transform:translate(4px,-10px) rotate(25deg)}100%{transform:translate(-6px,8px) rotate(-20deg)}}
+@keyframes icoup{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(255,216,74,0))}50%{transform:scale(1.18);filter:drop-shadow(0 0 9px rgba(255,216,74,1))}}
+@keyframes icobuild{0%{transform:translateY(-14px) scale(.9)}40%{transform:translateY(0) scale(1.08,.9)}60%,100%{transform:translateY(0) scale(1)}}
+#tutoDots{position:absolute;left:50%;top:-12px;transform:translateX(-50%);display:flex;gap:6px;padding:4px 9px;border:3px solid #5a3418;border-radius:12px;background:#fff6dc}
+#tutoDots i{width:10px;height:10px;border-radius:50%;background:#e2cfa2}
+#tutoDots i.ok{background:#3fc13a}
+#tutoDots i.now{background:#ffb02a;animation:bump 1s ease-in-out infinite}
+
+#praise{position:fixed;inset:0;z-index:9;pointer-events:none;display:flex;align-items:center;justify-content:center}
+#praise[hidden]{display:none}
+#praise b{font:900 58px/1 "Trebuchet MS",Verdana,sans-serif;color:#ffd84a;-webkit-text-stroke:3px #5a3418;text-shadow:0 6px 0 #5a3418,0 10px 18px rgba(0,0,0,.35);opacity:0}
+#praise.go b{animation:praisepop 1.2s cubic-bezier(.2,1.8,.4,1) forwards}
+#praise i{position:absolute;left:50%;top:46%;width:11px;height:15px;border-radius:3px;opacity:0}
+#praise.go i{animation:confetti 1.2s cubic-bezier(.15,.7,.3,1) forwards}
+@keyframes praisepop{0%{opacity:0;transform:scale(.3) rotate(-8deg)}25%{opacity:1;transform:scale(1.15) rotate(3deg)}40%{transform:scale(1) rotate(0)}80%{opacity:1;transform:translateY(-10px)}100%{opacity:0;transform:translateY(-40px)}}
+@keyframes confetti{0%{opacity:1;transform:translate(0,0) rotate(0)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 90px)) rotate(var(--r))}}
+
+#intro{position:fixed;left:0;right:0;top:13%;z-index:9;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px}
+#intro img{width:min(460px,72vw);animation:introdrop 2.6s cubic-bezier(.25,1,.4,1) forwards;filter:drop-shadow(0 10px 14px rgba(60,30,0,.4))}
+#intro b{font:900 28px "Trebuchet MS",Verdana,sans-serif;color:#fff;-webkit-text-stroke:2px #5a3418;text-shadow:0 4px 0 #5a3418;opacity:0;animation:introtag 2.6s ease forwards}
+@keyframes introdrop{0%{transform:translateY(-70vh) scale(.8)}22%{transform:translateY(0) scale(1.06,.94)}30%{transform:scale(.97,1.03)}38%,75%{transform:scale(1);opacity:1}100%{transform:scale(1.12);opacity:0}}
+@keyframes introtag{0%,25%{opacity:0;transform:translateY(12px)}38%,75%{opacity:1;transform:none}100%{opacity:0}}
+
+#evoShow{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(40,20,5,.62);cursor:pointer}
+#evoShow[hidden]{display:none}
+#evoCard{box-sizing:border-box;width:min(640px,96vw);max-height:94vh;overflow:auto;padding:14px 18px 16px;border:6px solid #5a3418;border-radius:28px;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 10px 0 #5a3418;text-align:center;color:#5a3418;font-family:"Trebuchet MS",Verdana,sans-serif}
+#evoShow.go #evoCard{animation:popin .45s cubic-bezier(.2,2,.4,1)}
+#evoCard h2{margin:0 0 4px;font:900 26px/1.15 "Trebuchet MS",Verdana,sans-serif}
+.evoRow{margin-top:8px;padding:6px 8px 8px;border-radius:18px;background:rgba(255,255,255,.5);box-shadow:inset 0 0 0 2px rgba(201,161,95,.35)}
+.evoRow p{margin:0 0 4px;font:800 15px "Trebuchet MS",Verdana,sans-serif;color:#9a5a1a}
+.evoItems{display:flex;justify-content:center;align-items:flex-end;gap:6px;flex-wrap:wrap}
+.evoItems figure{margin:0;width:96px;opacity:0}
+#evoShow.go .evoItems figure,#evoShow.go .evoItems .arr{animation:evopop .5s var(--d) cubic-bezier(.2,2,.4,1) forwards}
+.evoItems .pic{position:relative;display:block;height:78px;isolation:isolate}
+.evoItems .pic img{width:100%;height:100%;object-fit:contain}
+.evoItems .pic img.unit{position:absolute;right:-8px;bottom:-4px;width:auto;height:36px;filter:drop-shadow(0 2px 1px rgba(0,0,0,.3))}
+.evoItems figure.sp .pic::before{content:"";position:absolute;inset:-8px;z-index:-1;border-radius:50%;background:conic-gradient(rgba(255,216,74,0),rgba(255,216,74,.9),rgba(255,216,74,0) 25%,rgba(255,216,74,.9) 50%,rgba(255,216,74,0) 75%,rgba(255,216,74,.9));filter:blur(3px);animation:spin 3.2s linear infinite}
+.evoItems figcaption{margin-top:2px;font:900 13px/1.1 "Trebuchet MS",Verdana,sans-serif;color:#7a4a1c;text-shadow:0 1px 0 #fff8e6}
+.evoItems figure.sp figcaption{color:#b5551a}
+.evoRow p{position:relative;z-index:1;margin-bottom:8px;text-shadow:0 0 4px #fffaf0,0 0 8px #fffaf0,0 1px 0 #fff}
+.evoItems figure.sp .pic::before{inset:-2px -6px}
+.evoItems .arr{align-self:center;margin-bottom:24px;font-style:normal;font-size:24px;color:#3fc13a;opacity:0}
+@keyframes evopop{0%{opacity:0;transform:scale(.2) translateY(20px)}100%{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+#evoGo{margin-top:12px;padding:9px 34px;border:4px solid #1f5a18;border-radius:18px;background:linear-gradient(#b8ff8a,#3fc13a);box-shadow:0 6px 0 #1f5a18;color:#fff;font:900 20px "Trebuchet MS",Verdana,sans-serif;text-shadow:0 2px 0 #1f5a18;cursor:pointer;opacity:0}
+#evoShow.go #evoGo{animation:evopop .5s 2.2s cubic-bezier(.2,2,.4,1) forwards,idle 1.6s 2.8s ease-in-out infinite}
+@media (max-width:640px){
+  #evoCard h2{font-size:21px}
+  .evoItems figure{width:70px}
+  .evoItems{gap:4px}
+  .evoRow{padding:5px 4px 7px}
+  .evoItems .pic{height:60px}
+  .evoItems .pic img.unit{height:28px}
+  .evoItems figcaption{font-size:11px}
+  .evoItems .arr{font-size:18px}
+  #tutoIco{width:38px;height:38px}
+}
+@media (max-height:520px){
+  #evoCard{padding:8px 12px 10px;width:min(760px,96vw)}
+  #evoCard h2{font-size:18px}
+  .evoRow p{margin:3px 0 1px;font-size:12px}
+  .evoItems .pic{height:44px}
+  .evoItems figure{width:66px}
+  .evoItems .pic img.unit{height:22px}
+  .evoItems figcaption{font-size:10px}
+  .evoRow{margin-top:4px;padding:3px 6px 4px}
+  .evoItems .arr{margin-bottom:16px}
+  #evoGo{margin-top:6px;padding:5px 24px;font-size:16px}
+  #tutoIco{width:30px;height:30px}
+  #tutoDots{top:auto;bottom:-11px;left:12px;transform:none;padding:3px 7px;gap:4px}
+  #tutoDots i{width:8px;height:8px}
+  #intro{top:20%}
+  #intro img{width:min(300px,46vw)}
+  #intro b{font-size:20px}
+  #praise b{font-size:40px}
 }

@@ -299,7 +299,7 @@ export function setupHud() {
       up.classList.remove('max');
       up.innerHTML = info.next.lock
         ? `<img src="assets/${info.next.art}.png" alt=""><b class="arrow lock">🔒</b><span class="cost">${info.next.lock}</span>`
-        : `<img src="assets/${info.next.art}.png" alt=""><b class="arrow">⬆</b><span class="cost">${info.next.mana ? gemHtml : coinHtml}${info.next.cost}</span>`;
+        : `<img src="assets/${info.next.art}.png" alt=""><b class="arrow">${info.next.repair ? '🔨' : '⬆'}</b><span class="cost">${info.next.mana ? gemHtml : coinHtml}${info.next.cost}</span>`;
     } else {
       up.classList.add('max');
       up.classList.remove('poor');
@@ -371,7 +371,7 @@ export function setupHud() {
     bus.emit(Evt.Upgrade);
   });
   syncBar();
-  // menu de 3 pontinhos: abre os outros botões para baixo. Ao lado dele fica só o presente, sempre à vista
+  // menu de 3 pontinhos: abre os outros botões para baixo. Ao lado dele ficam o presente e a estrela da Forja, sempre à vista
   const menuBtn = $('menuBtn'), menuList = $('menuList');
   const setMenu = (on: boolean) => {
     menuList.hidden = !on;
@@ -382,10 +382,6 @@ export function setupHud() {
   // tocar fora fecha; a Forja e a pausa cobrem a tela, então fecham também
   document.addEventListener('pointerdown', e => { if (menuList.hidden === false && !$('audio').contains(e.target as Node)) setMenu(false); });
   for (const id of ['pauseBtn', 'forgeBtn']) $(id).addEventListener('click', () => setMenu(false));
-  // estrelas para gastar na Forja: os pontinhos avisam, porque o botão dela fica guardado
-  const forgeBtn = $('forgeBtn');
-  new MutationObserver(() => menuBtn.classList.toggle('alert', forgeBtn.classList.contains('ready'))).observe(forgeBtn, { attributes: true, attributeFilter: ['class'] });
-  menuBtn.classList.toggle('alert', forgeBtn.classList.contains('ready'));
   // botões de música e de efeitos sonoros
   const musicBtn = $('musicBtn'), sfxBtn = $('sfxBtn');
   const paintAudio = () => {

@@ -4,11 +4,13 @@ import { t } from '../i18n';
 import { sdk } from '../sdk';
 import { CameraRig } from '../camera';
 import { Radar } from '../ui/Radar';
-import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_COIN_KEEP, REBUILD_HUT_WAVES, rebuildBack, SELL_REFUND, MOVE_COST, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
+import { Scenery } from '../scenery';
+import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_CALM, REBUILD_COIN_KEEP, rebuildBack, SELL_REFUND, MOVE_COST, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
 import { bus, Evt, SelectInfo } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
 import { Hut } from '../entities/Hut';
+import { Ruin } from '../entities/Ruin';
 import { Orc } from '../entities/Orc';
 import { Projectiles } from '../entities/Projectile';
 import { Soldier } from '../entities/Soldier';
@@ -42,7 +44,7 @@ export class GameScene extends Phaser.Scene {
   private calmShown = true;
   /** baús que caem dos orcs: clique para abrir antes que sumam */
   private chests: { img: Phaser.GameObjects.Image; life: number; boss: boolean; open: boolean }[] = [];
-  private selected: Hut | Castle | null = null;
+  private selected: Hut | Castle | Ruin | null = null;
   private held: Soldier | null = null;
   private samples: { x: number; y: number; t: number }[] = [];
   private mouse = new Phaser.Math.Vector2();
@@ -54,6 +56,7 @@ export class GameScene extends Phaser.Scene {
   /** há quanto tempo não há inimigos (para a música voltar à calma) */
   private calmT = 0;
   private bars!: Bars;
+  private scenery!: Scenery;
   private rig!: CameraRig;
   private radar!: Radar;
   private proj!: Projectiles;
@@ -66,7 +69,9 @@ export class GameScene extends Phaser.Scene {
   private waveAge = 0;
   private pending = 0;
   /** cabanas derrubadas (voltam quando a cidade é reerguida) */
-  private fallen: { id: string; x: number; y: number; level: number; wave: number }[] = [];
+  /** cabanas destruídas: viram escombros no lugar, guardam o nível e voltam quando a onda acaba */
+  private ruins: Ruin[] = [];
+  private ruinHintShown = false;
   private combo = 0;
   private kills = 0;
   private lastCount = -1;
@@ -99,6 +104,8 @@ export class GameScene extends Phaser.Scene {
     const tex = this.textures.get('castelo').getSourceImage();
     const ch = 420 * tex.height / tex.width;
     this.castle = new Castle(this, WORLD_W / 2, WORLD_H / 2 + ch / 2, this.fx);
+    // grama, flores e árvores em volta da cidade (o maior castelo ocupa uns 520 px)
+    this.scenery = new Scenery(this, this.castle.x, this.castle.y - ch / 2);
     this.rig = new CameraRig(this);
     this.radar = new Radar();
     this.rig.onMulti = () => this.cancelHeld();
@@ -176,6 +183,12 @@ export class GameScene extends Phaser.Scene {
     document.body.classList.remove('loading');
   }
 
+  /** Toda construção nova entra por aqui: tira a grama e as árvores que ficaram embaixo dela. */
+  private addHut(h: Hut) {
+    this.huts.push(h);
+    this.scenery.clearUnder(h);
+  }
+
   /* ---------- primeira visita ---------- */
 
   /** O jogo já abre em ação: uma cabana pronta, soldados pulando e orcs entrando na tela. */
@@ -186,7 +199,7 @@ export class GameScene extends Phaser.Scene {
     // na tela larga a cabana fica ao lado do castelo; na tela em pé, acima dele
     const wide = this.scale.width / this.rig.zoom > 1000;
     const hut = new Hut(this, hutDef('cabana_soldado'), wide ? c.x - c.w * 0.5 - 120 : c.x, wide ? c.y - 40 : c.y - c.h - 30, this.fx, h => this.onHutDestroyed(h));
-    this.huts.push(hut);
+    this.addHut(hut);
     this.fx.burst(hut.x, hut.y - 30, 24, 0xe8d9b8, true);
     this.emitCosts();
     bus.emit(Evt.Tuto, 'start');
@@ -275,7 +288,7 @@ export class GameScene extends Phaser.Scene {
       const def = hutDef(id);
       const h = new Hut(this, def, x, y, this.fx, q => this.onHutDestroyed(q));
       h.restore(level);
-      this.huts.push(h);
+      this.addHut(h);
     };
     const cx = this.castle.x, cy = this.castle.y;
     place('casa_estudo', cx - 2050, cy, 0);
@@ -289,7 +302,7 @@ export class GameScene extends Phaser.Scene {
         const def = evolvedDef(kinds[k % kinds.length], hutDef(bases[Math.floor(k / kinds.length) % bases.length]));
         const h = new Hut(this, def, cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, this.fx, q => this.onHutDestroyed(q));
         h.restore(29);
-        this.huts.push(h);
+        this.addHut(h);
       }
     };
     // ?especiais=N escolhe quantas casas (padrão 53): enche o anel de dentro primeiro
@@ -314,6 +327,8 @@ export class GameScene extends Phaser.Scene {
       mana: Math.floor(state.mana),
       huts: [
         ...this.huts.map(h => ({ id: h.def.id, dx: Math.round(h.x - this.castle.x), dy: Math.round(h.y - this.castle.y), level: h.level })),
+        // escombros também: voltam como cabana quando o jogo abrir de novo
+        ...this.ruins.map(r => ({ id: r.def.id, dx: Math.round(r.x - this.castle.x), dy: Math.round(r.y - this.castle.y), level: r.level })),
         // a cabana levantada para mudar de lugar não pode se perder se a página fechar
         ...(this.moving ? [{ id: this.moving.def.id, dx: Math.round(this.moving.x - this.castle.x), dy: Math.round(this.moving.y - this.castle.y), level: this.moving.level }] : []),
       ],
@@ -339,7 +354,7 @@ export class GameScene extends Phaser.Scene {
       const y = Phaser.Math.Clamp(this.castle.y + s.dy, 200, WORLD_H - 6);
       const hut = new Hut(this, hutDef(s.id), x, y, this.fx, h => this.onHutDestroyed(h));
       hut.restore(s.level);
-      this.huts.push(hut);
+      this.addHut(hut);
     }
     if (this.huts.length > 0) this.waveTimer = 10;
     bus.emit(Evt.Hint, t('hint.welcome_back'));
@@ -443,14 +458,19 @@ export class GameScene extends Phaser.Scene {
 
   /** Preço de construir mais uma deste tipo (sobe com quantas você já tem). */
   private costOf(def: HutDef) {
-    return buildCost(def, this.huts.filter(h => h.def === def).length);
+    return buildCost(def, this.ownedOf(def), this.huts.length + this.ruins.length);
+  }
+
+  /** quantas deste tipo você tem, contando as que estão em escombros (elas vão voltar) */
+  private ownedOf(def: HutDef) {
+    return this.huts.filter(h => h.def === def).length + this.ruins.filter(r => r.def === def).length;
   }
 
   private emitCosts() {
     const costs: Record<string, number> = {};
     for (const d of BUILDABLES) {
       // construção única (Casa de Estudo) já de pé: o preço vai como -1 e a carta some da barra
-      const owned = this.huts.filter(h => h.def === d).length;
+      const owned = this.ownedOf(d);
       costs[d.id] = d.maxCount && owned >= d.maxCount ? -1 : this.costOf(d);
     }
     bus.emit(Evt.BuildCosts, costs);
@@ -463,7 +483,7 @@ export class GameScene extends Phaser.Scene {
   private startPlacing(id: string) {
     if (this.moving) this.stopPlacing();
     const def = hutDef(id);
-    if (def.maxCount && this.huts.filter(h => h.def === def).length >= def.maxCount) {
+    if (def.maxCount && this.ownedOf(def) >= def.maxCount) {
       bus.emit(Evt.Broke, id);
       bus.emit(Evt.Hint, t('hint.limit', { n: def.maxCount, name: t(`name.${def.id}` as Key) }));
       this.time.delayedCall(2200, () => !this.placing && bus.emit(Evt.Hint, null));
@@ -524,6 +544,7 @@ export class GameScene extends Phaser.Scene {
     // não dá para construir por baixo da barra de construção
     if (this.rig.toScreen(b.x, b.y).y > this.scale.height - barH() - 4) return false;
     if (overlaps(b, this.castle)) return false;
+    if (this.ruins.some(r => overlaps(b, r))) return false;
     return !this.huts.some(h => overlaps(b, h));
   }
 
@@ -553,7 +574,7 @@ export class GameScene extends Phaser.Scene {
     this.emitMana();
     const hut = new Hut(this, def, b.x, b.y, this.fx, h => this.onHutDestroyed(h));
     if (mv) { hut.restore(mv.level); this.moving = null; }
-    this.huts.push(hut);
+    this.addHut(hut);
     this.fx.burst(b.x, b.y, 24, 0xe8d9b8, true);
     this.emitCosts();
     sfx.build();
@@ -651,7 +672,7 @@ export class GameScene extends Phaser.Scene {
     h.dismantle();
     const nh = new Hut(this, def, x, y, this.fx, q => this.onHutDestroyed(q));
     nh.restore(level);
-    this.huts.push(nh);
+    this.addHut(nh);
     this.select(nh);
     this.emitCosts();
     this.fx.burst(x, y - nh.h * 0.5, 36, 0xc9a0ff, true);
@@ -735,7 +756,7 @@ export class GameScene extends Phaser.Scene {
 
   /* ---------- selecionar / evoluir ---------- */
 
-  private select(item: Hut | Castle | null) {
+  private select(item: Hut | Castle | Ruin | null) {
     this.selected?.setSelected(false);
     this.selected = item;
     item?.setSelected(true);
@@ -759,6 +780,14 @@ export class GameScene extends Phaser.Scene {
   private emitSelect() {
     const h = this.selected;
     if (!h) { bus.emit(Evt.Select, null); return; }
+    if (h instanceof Ruin) {
+      bus.emit(Evt.Select, {
+        key: `r${h.x},${h.y}`, x: h.x, y: h.y - h.h - 26,
+        next: { art: h.def.levels[h.level].art, cost: this.repairCost(h), mana: h.def.currency === 'mana', repair: true },
+      } as SelectInfo);
+      this.emitSelPos();
+      return;
+    }
     const nx = h.next;
     // cabana: o próximo nível só abre se o centro da vila deixar
     let lock: string | undefined;
@@ -787,6 +816,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private upgradeSelected() {
+    if (this.selected instanceof Ruin) { this.repairRuin(this.selected); return; }
     const h = this.selected, nx = h?.next;
     if (!h || !nx) return;
     if (h instanceof Hut && h.level + 2 > this.hutCap(h.def)) {
@@ -904,7 +934,7 @@ export class GameScene extends Phaser.Scene {
     if (this.held) { this.held.throwWith(0, 0); this.held = null; }
   }
 
-  /** Dedo arrastando em chão vazio move o mapa. */
+  /** Dedo ou mouse arrastando em chão vazio move o mapa. */
   private onMove(p: Phaser.Input.Pointer) {
     if (!this.pan || !p.isDown || this.rig.multi) return;
     const dx = p.x - this.pan.x, dy = p.y - this.pan.y;
@@ -952,10 +982,11 @@ export class GameScene extends Phaser.Scene {
     // a área da espada é generosa: acerta quem estiver sob o clique ou bem pertinho
     const foes = this.orcsNear(wp.x, wp.y, swordRadius(state.sword) * 0.6);
     if (foes.length) { this.clickHit(foes, wp.x, wp.y, p.wasTouch); return; }
-    const hit: Hut | Castle | null = [...this.huts].reverse().find(h => h.contains(wp.x, wp.y))
-      ?? (this.castle.contains(wp.x, wp.y) ? this.castle : null);
-    // dedo em chão vazio: arrasta o mapa (e, se nem mexeu, é só um toque que desmarca)
-    if (p.wasTouch && !hit) { this.pan = { x: p.x, y: p.y, moved: false }; return; }
+    const hit: Hut | Castle | Ruin | null = [...this.huts].reverse().find(h => h.contains(wp.x, wp.y))
+      ?? (this.castle.contains(wp.x, wp.y) ? this.castle : null)
+      ?? this.ruins.find(r => r.contains(wp.x, wp.y)) ?? null;
+    // chão vazio: segurar e arrastar move o mapa, com o dedo ou com o mouse (sem mexer, é só um clique que desmarca)
+    if (!hit && (p.wasTouch || p.leftButtonDown())) { this.pan = { x: p.x, y: p.y, moved: false }; return; }
     this.select(hit === this.selected ? null : hit);
   }
 
@@ -1046,13 +1077,71 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onHutDestroyed(h: Hut) {
-    this.fallen.push({ id: h.def.id, x: h.x, y: h.y, level: h.level, wave: this.wave });
+    // fica um monte de escombros no lugar; a cabana volta, no mesmo nível, quando a onda acabar
+    this.ruins.push(new Ruin(this, h.def, h.x, h.y, h.level, h.w, h.h));
     this.huts = this.huts.filter(x => x !== h);
     this.emitCosts();
     this.save();
     if (this.selected === h) { this.selected = null; this.emitSelect(); }
     floatText(this, h.x, h.y - h.h * 0.6, t('fl.hut_destroyed'), '#ff5a4d');
     this.cameras.main.shake(180, 0.004);
+    if (!this.ruinHintShown) {
+      this.ruinHintShown = true;
+      bus.emit(Evt.Hint, t('hint.ruin_back'));
+      this.time.delayedCall(4500, () => bus.emit(Evt.Hint, null));
+    }
+  }
+
+  /** A onda acabou: os escombros viram cabana de novo, no mesmo nível, uma de cada vez. */
+  private raiseRuins(announce: boolean) {
+    const list = this.ruins;
+    this.ruins = [];
+    list.forEach((r, i) => {
+      const go = () => {
+        if (this.over) { this.ruins.push(r); return; }
+        if (this.selected === r) this.select(null);
+        r.destroy();
+        const hut = this.restoreHut({ id: r.def.id, x: r.x, y: r.y, level: r.level });
+        if (hut && announce) {
+          sfx.build();
+          floatText(this, r.x, r.y - hut.h - 10, t('fl.rebuilt'), '#7CFF6B');
+        }
+        this.emitCosts();
+        this.save();
+      };
+      if (announce) this.time.delayedCall(200 + i * 260, go); else go();
+    });
+  }
+
+  /** Preço de reconstruir agora, sem esperar a onda acabar: 35% do que a casa valia (sobe com o nível); casa especial, o dobro. */
+  private repairCost(r: Ruin) {
+    let v = 0;
+    for (let i = 0; i <= r.level; i++) v += r.def.levels[i].cost;
+    const special = r.def.id.startsWith('esp:') ? 2 : 1;
+    return Math.max(10, Math.round(v * 0.35 * special / 5) * 5);
+  }
+
+  /** Tocou nos escombros e apertou o martelo: a casa volta na hora, pagando. */
+  private repairRuin(r: Ruin) {
+    const cost = this.repairCost(r);
+    const mana = r.def.currency === 'mana';
+    if (!(mana ? spendMana(cost) : spend(cost))) {
+      bus.emit(Evt.Broke, 'upgrade');
+      bus.emit(Evt.Hint, mana ? t('hint.no_mana') : t('hint.no_coins'));
+      this.time.delayedCall(1800, () => bus.emit(Evt.Hint, null));
+      return;
+    }
+    if (mana) this.emitMana();
+    this.ruins = this.ruins.filter(x => x !== r);
+    this.select(null);
+    r.destroy();
+    const hut = this.restoreHut({ id: r.def.id, x: r.x, y: r.y, level: r.level });
+    if (!hut) { if (mana) addMana(cost); else addCoins(cost); return; }
+    sfx.upgrade(true);
+    floatText(this, r.x, r.y - hut.h - 10, t('fl.rebuilt'), '#7CFF6B');
+    this.select(hut);
+    this.emitCosts();
+    this.save();
   }
 
   private onOrcDie(o: Orc) {
@@ -1103,15 +1192,13 @@ export class GameScene extends Phaser.Scene {
     // com anúncio com recompensa, reerguer não custa nada
     if (!free) state.coins = Math.floor(state.coins * REBUILD_COIN_KEEP);
     bus.emit(Evt.Coins, state.coins);
-    // as cabanas derrubadas nas últimas ondas voltam do jeito que eram, onde não houver outra coisa no lugar
-    const lost = this.fallen.filter(f => f.wave >= this.wave - REBUILD_HUT_WAVES);
-    this.fallen = [];
-    for (const f of lost) this.restoreHut(f);
+    // todas as construções voltam do jeito que eram
+    this.raiseRuins(false);
     this.emitCosts();
     const back = free ? 0 : rebuildBack(this.wave);
     this.wave = Math.max(0, this.wave - back);
     bus.emit(Evt.Wave, this.wave);
-    this.waveTimer = 25;
+    this.waveTimer = REBUILD_CALM;
     this.waveAge = 0;
     this.castle.hp = this.castle.maxHp;
     for (const h of this.huts) {
@@ -1129,16 +1216,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Põe de volta uma cabana derrubada, a menos que já haja algo no lugar. */
-  private restoreHut(f: { id: string; x: number; y: number; level: number }) {
+  private restoreHut(f: { id: string; x: number; y: number; level: number }): Hut | null {
     const def = hutDef(f.id);
     const lv = def.levels[Math.min(f.level, def.levels.length - 1)];
     const tex = this.textures.get(lv.art).getSourceImage();
     const b: Building = { x: f.x, y: f.y, w: lv.width, h: lv.width * tex.height / tex.width };
-    if (overlaps(b, this.castle) || this.huts.some(h => overlaps(b, h))) return;
+    if (overlaps(b, this.castle) || this.huts.some(h => overlaps(b, h))) return null;
     const hut = new Hut(this, def, f.x, f.y, this.fx, h => this.onHutDestroyed(h));
     hut.restore(f.level);
-    this.huts.push(hut);
+    this.addHut(hut);
     this.fx.burst(f.x, f.y - 20, 18, 0xe8d9b8, true);
+    return hut;
   }
 
   /** guarda a melhor onda de todas as partidas e devolve o recorde */
@@ -1241,6 +1329,7 @@ export class GameScene extends Phaser.Scene {
       // a preparação só corre quando não resta nenhum inimigo da onda (ou se algum ficou preso há muito tempo)
       this.waveAge += dt;
       const fighting = this.pending > 0 || this.orcs.some(o => o.alive);
+      if (!fighting && this.ruins.length && !this.over) this.raiseRuins(true);
       const ticking = !fighting || this.waveAge > WAVE.maxFight;
       if (ticking) this.waveTimer -= dt;
       if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.interval; this.waveAge = 0; }
@@ -1308,5 +1397,6 @@ export class GameScene extends Phaser.Scene {
 
     this.proj.update(dt);
     this.fx.update(dt);
+    this.scenery.update(dt, this.cameras.main.worldView);
   }
 }

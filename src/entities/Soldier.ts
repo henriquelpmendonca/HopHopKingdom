@@ -143,7 +143,7 @@ export class Soldier implements Combatant {
       this.range = COMBAT.iceRange;
       this.bolt = true;
       this.spells = ['ice'];
-      this.aggro = Math.max(this.aggro, 620);
+      this.aggro = Math.max(this.aggro, 740);
       this.leash = Math.max(LEASH_RANGE, this.aggro + 120);
       this.cd = Math.max(this.cd, COMBAT.iceCdMin);
     }
