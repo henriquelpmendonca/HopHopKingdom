@@ -16,7 +16,6 @@ async function start() {
   if (import.meta.env.DEV && new URLSearchParams(location.search).has('novo')) {
     for (const k of ['hophopkingdom_save', 'hhk_tuto']) localStorage.removeItem(k);
   }
-  (document.getElementById('loadLogo') as HTMLImageElement).src = 'assets/logo.png';
   await sdk.init();
   sdk.loadingStart();
   // idioma do jogador pelo SDK do portal; fora deles (ou sem idioma) é inglês. ?lang=pt ou ?lang=en força um

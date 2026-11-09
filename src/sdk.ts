@@ -69,8 +69,10 @@ class Sdk {
     const s = raw();
     if (!s) return;
     try {
+      // o index.html já começou o init (para avisar o carregamento cedo); aqui só espera por ele
+      const boot = (window as unknown as { __cgBoot?: Promise<void> | null }).__cgBoot;
       // não deixa o jogo esperando para sempre se o SDK demorar
-      await Promise.race([s.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
+      await Promise.race([boot ?? s.init(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))]);
       this.active = s.environment === 'crazygames' || s.environment === 'local';
       if (this.active) {
         this.platform = 'crazygames';
@@ -124,7 +126,10 @@ class Sdk {
   get cloud() { return this.platform === 'crazygames' ? raw()?.data : undefined; }
 
   // fora dos portais o SDK não inicia: não chama nada dele (senão o console enche de erros)
-  loadingStart() { if (this.platform !== 'crazygames') return; try { raw()?.game.loadingStart(); } catch { /* ignora */ } }
+  loadingStart() {
+    if (this.platform !== 'crazygames' || (window as unknown as { __cgLoadingStarted?: boolean }).__cgLoadingStarted) return;
+    try { raw()?.game.loadingStart(); } catch { /* ignora */ }
+  }
   loadingStop() {
     try {
       if (this.platform === 'crazygames') raw()?.game.loadingStop();

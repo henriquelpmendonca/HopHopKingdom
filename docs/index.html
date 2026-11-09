@@ -6,11 +6,19 @@
 <title>Hop Hop Kingdom</title>
 <!-- SDK do CrazyGames: se não carregar (offline, outro site), o jogo funciona igual, sem anúncios -->
 <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
-  <script type="module" crossorigin src="./assets/index-CyVOQhLP.js"></script>
+  <script type="module" crossorigin src="./assets/index-BAPmRTrs.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-BM84GhoD.css">
 </head>
 <body class="loading">
-<div id="loading"><img id="loadLogo" alt="Hop Hop Kingdom"><div id="loadTrack"><i id="loadBar"></i></div></div>
+<script>
+// avisa o portal que o jogo começou a carregar logo de cara, antes do código do jogo (1,5 MB) terminar de baixar
+// (aqui no começo do body: o init do SDK mexe no document.body)
+window.__cgBoot = window.CrazyGames && window.CrazyGames.SDK ? window.CrazyGames.SDK.init().then(function () {
+  var s = window.CrazyGames.SDK;
+  if (s.environment === 'crazygames' || s.environment === 'local') { try { s.game.loadingStart(); window.__cgLoadingStarted = true; } catch (e) {} }
+}) : null;
+</script>
+<div id="loading"><img id="loadLogo" src="assets/logo.png" alt="Hop Hop Kingdom"><div id="loadTrack"><i id="loadBar"></i></div></div>
 <div id="game"></div>
 <div id="stats">
   <div id="coins"><i class="coin"></i><span id="coinN">0</span><small id="incomeN"></small></div>
