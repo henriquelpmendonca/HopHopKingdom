@@ -44,6 +44,18 @@ export const Evt = {
   Rebuild: 'rebuild',
   /** UI -> jogo: o jogador assistiu a um anúncio e ganha moedas */
   Gift: 'gift',
+  /** jogo -> UI: missão atual { text, now, goal } ou missão concluída { done: true, reward } */
+  Mission: 'mission',
+  /** UI -> jogo: abrir o painel de status da casa selecionada */
+  InfoOpen: 'infoOpen',
+  /** UI -> jogo: fechar o painel de status */
+  InfoClose: 'infoClose',
+  /** jogo -> UI: dados do painel de status (HutInfo) ou null quando fecha */
+  InfoData: 'infoData',
+  /** jogo -> UI: comemoração no meio da tela, uma frase depois da outra */
+  Celebrate: 'celebrate',
+  /** jogo -> UI: moedinhas voando de um ponto da tela (x, y) até o contador: quantas */
+  CoinFly: 'coinFly',
   /** UI -> jogo: chamar a próxima onda agora, levando as moedas da espera */
   CallWave: 'callWave',
   /** jogo <-> tutorial: start, placed, wave, grab, throw, hit, upgrade; step:<passo> e end vêm do tutorial */
@@ -71,9 +83,32 @@ export const Evt = {
 
 export interface BannerInfo { title: string; sub?: string; kind: 'wave' | 'boss' | 'combo' }
 
+/** uma linha do painel de status: quanto vale agora, no próximo nível e no nível máximo */
+export interface InfoRow {
+  key: 'soldiers' | 'damage' | 'health' | 'rate' | 'hut_hp' | 'income' | 'mana';
+  now: number;
+  next: number | null;
+  max: number;
+  /** casas decimais ao mostrar */
+  dec?: number;
+}
+
+export interface HutInfo {
+  name: string;
+  /** desenho da casa no nível atual */
+  art: string;
+  level: number;
+  maxLevel: number;
+  rows: InfoRow[];
+  /** evoluir: custo e, se bloqueado, o motivo; null = já no máximo */
+  next: { cost: number; mana: boolean; lock?: string } | null;
+}
+
 export interface SelectInfo {
   /** muda quando se seleciona outra construção (a roda de botões sai de novo do centro) */
   key: string;
+  /** só cabanas: o botão dos três pontinhos abre o painel de status */
+  info?: boolean;
   /** posição na tela do topo da cabana */
   x: number;
   y: number;

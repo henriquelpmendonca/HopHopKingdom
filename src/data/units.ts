@@ -65,7 +65,7 @@ export const RESPAWN_TIME = 7;
 
 export const CASTLE_HP = 800;
 
-export type OrcKind = 'orc1' | 'orc2' | 'orc3' | 'boss' | 'boss2' | 'mago' | 'mago2' | 'mago3' | 'esqueleto';
+export type OrcKind = 'orc1' | 'orc2' | 'orc3' | 'boss' | 'boss2' | 'mago' | 'mago2' | 'mago3' | 'esqueleto' | 'capitao' | 'dourado';
 
 export interface OrcStats {
   /** chave da imagem carregada no BootScene */
@@ -80,6 +80,10 @@ export interface OrcStats {
   coins: number;
   /** chefe: bate em área e esguicha mais sangue */
   boss?: boolean;
+  /** chefinho (Capitão Orc): entra com faixa e deixa um baú, mas não conta como chefe de verdade */
+  mini?: boolean;
+  /** orc dourado: não ataca, atravessa a tela correndo e some; quem acertar ganha muitas moedas */
+  runner?: boolean;
   /** invoca aliados de tempos em tempos (até `max` vivos de cada vez) */
   summon?: { kind: OrcKind; count: number; every: number; max: number };
   /** ataca de longe com projétil: alcance (px) e velocidade da bola (px/s) */
@@ -112,6 +116,9 @@ export const ORCS: Record<OrcKind, OrcStats> = {
   mago2: { art: 'mago2', hp: 200, dmg: 40, reach: 0, cd: 2.8, speed: 52, height: 100, coins: 60, ranged: { range: 340, projSpeed: 0, spell: 'strike', radius: 100, delay: 1.0 } },
   mago3: { art: 'mago3', hp: 420, dmg: 44, reach: 0, cd: 3.2, speed: 48, height: 145, coins: 120, ranged: { range: 350, projSpeed: 0, spell: 'strike', radius: 100, delay: 1.0 }, summon: { kind: 'esqueleto', count: 2, every: 12, max: 3 } },
   esqueleto: { art: 'esqueleto', hp: 55, dmg: 9, reach: 30, cd: 1.0, speed: 88, height: 58, coins: 3 },
+  // Capitão Orc: o primeiro grande desafio, na onda 5 (bem antes do Rei Orc, na 10)
+  capitao: { art: 'chefinho', hp: 900, dmg: 30, reach: 52, cd: 1.5, speed: 46, height: 140, coins: 150, mini: true, aoe: { radius: 90, mult: 0.5 } },
+  dourado: { art: 'orc_dourado', hp: 140, dmg: 0, reach: 0, cd: 99, speed: 150, height: 82, coins: 0, runner: true },
   orc3: { art: 'orc3', hp: 620, dmg: 38, reach: 46, cd: 1.6, speed: 48, height: 112, coins: 80 },
 };
 
@@ -174,6 +181,8 @@ export const WAVE = {
   firstDelay: 30,
   /** segundos de preparação: a contagem só corre depois que o último inimigo da onda morreu */
   interval: 55,
+  /** preparação depois da onda `wave`: curta no começo (sem ficar parado) e crescendo até `interval` */
+  gap: (wave: number) => Math.min(55, 18 + wave * 6),
   /** se algum inimigo ficar preso e a onda durar mais que isto (s), a contagem corre mesmo assim */
   maxFight: 180,
   count: (wave: number) => Math.max(2, Math.min(Math.round((2 + Math.floor(wave * 0.9)) * ENEMY.countMult), 22)),

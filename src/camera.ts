@@ -28,6 +28,10 @@ export class CameraRig {
   fingerOffset = 0;
   /** avisa a cena quando um segundo dedo entra (para largar o que o primeiro segurava) */
   onMulti?: () => void;
+  /** a câmera está presa (painel de status aberto): arrastar, zoom e teclas não mexem nela */
+  locked = false;
+  private saved: { x: number; y: number; z: number } | null = null;
+  private anim: { x0: number; y0: number; z0: number; x1: number; y1: number; z1: number; t: number; end: boolean } | null = null;
 
   private touches = new Map<number, { x: number; y: number }>();
   private pinchDist = 0;
@@ -122,8 +126,31 @@ export class CameraRig {
     this.clamp();
   }
 
+  /**
+   * Leva a câmera até um ponto: o ponto (wx, wy) do mapa vai parar na posição (fx, fy) da área visível (0 a 1),
+   * já com o zoom pedido. Guarda onde a câmera estava para `release()` devolver. Pode passar da borda do mapa.
+   */
+  focus(wx: number, wy: number, zoom: number, fx: number, fy: number) {
+    const cam = this.cam;
+    if (!this.saved) this.saved = { x: cam.scrollX, y: cam.scrollY, z: cam.zoom };
+    const z = Phaser.Math.Clamp(zoom, this.minZoom, ZOOM_MAX);
+    const sx = fx * this.w, sy = fy * (this.h - barH());
+    this.anim = { x0: cam.scrollX, y0: cam.scrollY, z0: cam.zoom, x1: wx - this.w / 2 - (sx - this.w / 2) / z, y1: wy - this.h / 2 - (sy - this.h / 2) / z, z1: z, t: 0, end: false };
+    this.locked = true;
+  }
+
+  /** Volta a câmera para onde estava antes do `focus`. */
+  release() {
+    const s = this.saved;
+    this.saved = null;
+    if (!s) { this.locked = false; return; }
+    const cam = this.cam;
+    this.anim = { x0: cam.scrollX, y0: cam.scrollY, z0: cam.zoom, x1: s.x, y1: s.y, z1: s.z, t: 0, end: true };
+  }
+
   /** Arrasta o mapa: (dx, dy) é quanto o dedo andou na tela. */
   panBy(dx: number, dy: number) {
+    if (this.locked) return;
     this.cam.scrollX -= dx / this.cam.zoom;
     this.cam.scrollY -= dy / this.cam.zoom;
     this.clamp();
@@ -135,6 +162,7 @@ export class CameraRig {
   }
 
   private zoomBy(deltaY: number, mx: number, my: number) {
+    if (this.locked) return;
     const before = this.toWorld(mx, my);
     this.setZoom(this.cam.zoom * Math.exp(-deltaY * 0.0012));
     const after = this.toWorld(mx, my);
@@ -152,6 +180,7 @@ export class CameraRig {
       return;
     }
     e.preventDefault();
+    if (this.locked) return;
     const a = e.touches[0], b = e.touches[1];
     const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     const mid = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
@@ -185,6 +214,17 @@ export class CameraRig {
   }
 
   update(dt: number) {
+    const a = this.anim;
+    if (a) {
+      a.t = Math.min(1, a.t + dt / 0.55);
+      const k = a.t < 0.5 ? 4 * a.t ** 3 : 1 - Math.pow(-2 * a.t + 2, 3) / 2;
+      this.cam.setZoom(a.z0 + (a.z1 - a.z0) * k);
+      this.cam.scrollX = a.x0 + (a.x1 - a.x0) * k;
+      this.cam.scrollY = a.y0 + (a.y1 - a.y0) * k;
+      if (a.t >= 1) { this.anim = null; if (a.end) { this.locked = false; this.clamp(); } }
+      return;
+    }
+    if (this.locked) return;
     let dx = 0, dy = 0;
     const k = this.keysDown;
     if (k.has('KeyA') || k.has('ArrowLeft')) dx -= 1;

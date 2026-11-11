@@ -5,15 +5,16 @@ import { sdk } from '../sdk';
 import { CameraRig } from '../camera';
 import { Radar } from '../ui/Radar';
 import { Scenery } from '../scenery';
+import { dailyBonus, loadMission, missionAt, progressOf, saveMission, type Stats } from '../missions';
 import { barH, CLICK_AOE_MULT, KILL_COIN_MULT, REBUILD_CALM, REBUILD_COIN_KEEP, rebuildBack, SELL_REFUND, MOVE_COST, COLORS, MAX_THROW_SPEED, SOLDIER_H, WORLD_H, WORLD_W } from '../config';
-import { bus, Evt, SelectInfo } from '../events';
+import { bus, Evt, SelectInfo, type HutInfo, type InfoRow } from '../events';
 import { Building, overlaps, Structure } from '../entities/Building';
 import { Castle } from '../entities/Castle';
 import { Hut } from '../entities/Hut';
 import { Ruin } from '../entities/Ruin';
 import { Orc } from '../entities/Orc';
 import { Projectiles } from '../entities/Projectile';
-import { Soldier } from '../entities/Soldier';
+import { Soldier, specStats } from '../entities/Soldier';
 import { BUILDABLES, buildCost, EVOLVABLE, evolvedDef, HutDef, hutDef } from '../data/cabanas';
 import { SWORD_MAX, swordCost, swordDamage, swordRadius, swordTier } from '../data/sword';
 import { bossKindFor, isBossWave, pickOrcKind, WAVE } from '../data/units';
@@ -72,12 +73,19 @@ export class GameScene extends Phaser.Scene {
   /** cabanas destruídas: viram escombros no lugar, guardam o nível e voltam quando a onda acaba */
   private ruins: Ruin[] = [];
   private ruinHintShown = false;
+  /** painel de status de uma casa aberto: a câmera está presa nela */
+  private infoOpen = false;
   private combo = 0;
   private kills = 0;
   private lastCount = -1;
   private comboAt = -1e9;
   private over = false;
   private tickFailed = false;
+  /** havia luta no quadro anterior: quando ela acaba, a onda foi vencida */
+  private wasFighting = false;
+  /** missões: qual é a atual e os contadores que elas usam */
+  private mission = loadMission();
+  private missionKey = '';
   isOver() { return this.over; }
   /** com atalhos de teste na barra de endereço, não lê nem grava o progresso */
   private persist = !['onda', 'moedas', 'magos', 'espada', 'mana', 'especiais'].some(k => new URLSearchParams(import.meta.env.DEV ? location.search : '').has(k));
@@ -130,7 +138,11 @@ export class GameScene extends Phaser.Scene {
     bus.on(Evt.Stars, this.onStars, this);
     bus.on(Evt.Tuto, this.onTuto, this);
     bus.on(Evt.CallWave, this.callWave, this);
+    bus.on(Evt.InfoOpen, this.openInfo, this);
+    bus.on(Evt.InfoClose, this.closeInfo, this);
     this.events.once('shutdown', () => {
+      bus.off(Evt.InfoOpen, this.openInfo, this);
+      bus.off(Evt.InfoClose, this.closeInfo, this);
       bus.off(Evt.Tuto, this.onTuto, this);
       bus.off(Evt.CallWave, this.callWave, this);
       bus.off(Evt.Perks, this.onPerk, this);
@@ -164,6 +176,17 @@ export class GameScene extends Phaser.Scene {
     bus.emit(Evt.Wave, this.wave);
     bus.emit(Evt.Sword, state.sword);
     this.time.addEvent({ delay: 5000, loop: true, callback: () => this.save() });
+    this.time.addEvent({ delay: 400, loop: true, callback: () => this.checkMission() });
+    // prêmio por voltar no dia seguinte (a partir do segundo dia)
+    if (this.persist) {
+      const daily = dailyBonus();
+      if (daily.coins > 0) this.time.delayedCall(1600, () => {
+        addCoins(daily.coins);
+        this.coinFly(this.castle.x, this.castle.y - this.castle.h * 0.6, 12);
+        sfx.upgrade(true);
+        bus.emit(Evt.Celebrate, [t('cel.daily', { n: daily.streak }), '+' + daily.coins + ' 🪙']);
+      });
+    }
     const flush = () => this.save();
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
@@ -187,6 +210,150 @@ export class GameScene extends Phaser.Scene {
   private addHut(h: Hut) {
     this.huts.push(h);
     this.scenery.clearUnder(h);
+  }
+
+  /** moedinhas saindo de um ponto do mapa e voando até o contador */
+  private coinFly(wx: number, wy: number, n: number) {
+    const p = this.rig.toScreen(wx, wy);
+    if (p.x < -40 || p.y < -40 || p.x > this.scale.width + 40 || p.y > this.scale.height) return;
+    bus.emit(Evt.CoinFly, p.x, p.y, n);
+  }
+
+  /** Efeito desenhado no estilo do jogo (impacto, poeira, brilho, corte): aparece, cresce e some. */
+  private pop(key: string, x: number, y: number, size: number, o: { rot?: number; spin?: number; ms?: number; depth?: number; delay?: number } = {}) {
+    if (!this.textures.exists(key)) return;
+    const img = this.add.image(x, y, key).setDepth(o.depth ?? 900_002).setRotation(o.rot ?? 0).setAlpha(0);
+    const s = size / Math.max(img.width, img.height);
+    img.setScale(s * 0.35);
+    this.tweens.add({ targets: img, alpha: 1, duration: 60, delay: o.delay ?? 0 });
+    this.tweens.add({
+      targets: img, scale: s, rotation: (o.rot ?? 0) + (o.spin ?? 0), duration: (o.ms ?? 260) * 0.45, delay: o.delay ?? 0, ease: 'Back.easeOut',
+      onComplete: () => this.tweens.add({ targets: img, alpha: 0, scale: s * 1.15, duration: (o.ms ?? 260) * 0.55, onComplete: () => img.destroy() }),
+    });
+  }
+
+  /** brilhinhos espalhados em volta de um ponto */
+  private sparkles(x: number, y: number, n: number, spread: number) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, d = spread * (0.4 + Math.random() * 0.6);
+      this.pop('fx_spark', x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, 26 + Math.random() * 22, { delay: i * 45, spin: 1.2, ms: 420 });
+    }
+  }
+
+  /** luz dourada que cresce e some (evoluir, reconstruir) */
+  private glowBurst(x: number, y: number, size: number, color = 0xffe28a) {
+    const g = this.add.image(x, y, 'soft').setTint(color).setDepth(899_000).setAlpha(0.95).setScale(size / 64 * 0.3);
+    this.tweens.add({ targets: g, scale: size / 64 * 1.6, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+  }
+
+  /** Onda vencida: confete em cada casa, soldadinhos dançando e "Onda N concluída!" + "Parabéns!" na tela. */
+  private celebrateWave() {
+    const colors = [0xffd84a, 0xff6f91, 0x7ad0ff, 0x7cff6b, 0xd6a8ff];
+    const spots = [this.castle, ...this.huts];
+    spots.forEach((b, i) => {
+      this.time.delayedCall(i * 60, () => {
+        for (const c of colors) this.fx.burst(b.x, b.y - b.h * 0.8, 3, c, true);
+      });
+    });
+    for (const h of this.huts) for (const s of h.soldiers) s.cheer(2.4);
+    this.sparkles(this.castle.x, this.castle.y - this.castle.h * 0.6, 8, this.castle.w * 0.55);
+    sfx.upgrade(true);
+    bus.emit(Evt.Celebrate, [t('cel.wave_clear', { w: this.wave }), t('cel.congrats')]);
+  }
+
+  /* ---------- painel de status da casa ---------- */
+
+  /** Números de um nível da casa: soldados, dano, vida, golpes por segundo, vida da casa e renda. */
+  private levelStats(def: HutDef, i: number) {
+    const L = def.levels[i], g = L.soldiers[0];
+    const sp = g ? specStats(g) : null;
+    return { count: L.soldiers.reduce((n, q) => n + q.count, 0), dmg: sp?.dmg ?? 0, shp: sp?.hp ?? 0, rate: sp ? 1 / sp.cd : 0, hut: Math.round(L.hp * perkMult('wall')), income: L.income ?? 0, mana: L.mana ?? 0 };
+  }
+
+  private hutInfo(h: Hut): HutInfo {
+    const def = h.def, last = def.levels.length - 1;
+    const cur = this.levelStats(def, h.level), mx = this.levelStats(def, last);
+    const nx = h.level < last ? this.levelStats(def, h.level + 1) : null;
+    const rows: InfoRow[] = [];
+    const add = (key: InfoRow['key'], k: keyof typeof cur, dec = 0) => { if (mx[k] > 0) rows.push({ key, now: cur[k], next: nx ? nx[k] : null, max: mx[k], dec }); };
+    add('soldiers', 'count'); add('damage', 'dmg'); add('health', 'shp'); add('rate', 'rate', 1); add('income', 'income'); add('mana', 'mana'); add('hut_hp', 'hut');
+    const nextLv = h.next;
+    const lock = nextLv && h.level + 2 > this.hutCap(def) ? t('ui.lock_castle', { n: this.castleNeeded(def, h.level + 2) }) : undefined;
+    const kind = def.id.startsWith('esp:') ? def.id.split(':')[1] : '';
+    return {
+      name: t((kind ? `name.cabana_${kind}` : `name.${def.id}`) as Key),
+      art: def.levels[h.level].art,
+      level: h.level + 1,
+      maxLevel: def.levels.length,
+      rows,
+      next: nextLv ? { cost: nextLv.cost, mana: def.currency === 'mana', lock } : null,
+    };
+  }
+
+  /** Aproxima a casa para o lado esquerdo da tela e abre o painel de status ao lado dela. */
+  private openInfo() {
+    const h = this.selected;
+    if (!(h instanceof Hut) || this.over) return;
+    this.infoOpen = true;
+    const w = this.scale.width, sh = this.scale.height;
+    const wide = w > sh * 1.05;
+    const z = wide ? Phaser.Math.Clamp(0.36 * sh / h.h, 0.6, 1.5) : Phaser.Math.Clamp(0.19 * sh / h.h, 0.5, 1.4);
+    this.rig.focus(h.x, h.y - h.h * 0.5, z, wide ? 0.26 : 0.5, wide ? 0.55 : 0.3);
+    bus.emit(Evt.InfoData, this.hutInfo(h));
+    bus.emit(Evt.Tuto, 'info');
+  }
+
+  private closeInfo() {
+    if (!this.infoOpen) return;
+    this.infoOpen = false;
+    this.rig.release();
+    bus.emit(Evt.InfoData, null);
+    bus.emit(Evt.Tuto, 'infoclosed');
+  }
+
+  /** Orc dourado: entra por um lado da tela e atravessa correndo até sumir. */
+  private spawnGolden() {
+    if (this.over) return;
+    const v = this.cameras.main.worldView;
+    const left = Math.random() < 0.5;
+    const y = v.y + v.height * (0.3 + Math.random() * 0.4);
+    const x = left ? v.x - 40 : v.right + 40;
+    const o = new Orc(this, x, y, 'dourado', this.wave, this.fx, q => this.onOrcDie(q));
+    o.runAway(left ? 1 : -1, (Math.random() - 0.5) * 0.4, (v.width + 160) / 150);
+    this.orcs.push(o);
+    sfx.coin();
+    bus.emit(Evt.Hint, t('hint.golden'));
+    this.time.delayedCall(3500, () => bus.emit(Evt.Hint, null));
+  }
+
+  /* ---------- missões ---------- */
+
+  private missionStats(): Stats {
+    const st = this.mission.stats;
+    return { ...st, wave: this.wave, sword: state.sword, huts: this.huts.length + this.ruins.length, hutLevel: this.huts.reduce((m, h) => Math.max(m, h.level + 1), 0) };
+  }
+
+  /** Confere a missão atual: se cumpriu, paga e passa para a próxima; avisa a tela quando o progresso muda. */
+  private checkMission() {
+    if (tuto.on || !this.persist) return;
+    const s = this.missionStats();
+    const m = missionAt(this.mission.index, s);
+    const now = progressOf(m, s);
+    if (now >= m.goal) {
+      addCoins(m.reward);
+      this.coinFly(this.castle.x, this.castle.y - this.castle.h * 0.6, 8);
+      sfx.upgrade(true);
+      bus.emit(Evt.Mission, { done: true, reward: m.reward });
+      this.mission.index++;
+      saveMission(this.mission.index, this.mission.stats);
+      this.missionKey = '';
+      return;
+    }
+    const key = `${this.mission.index}:${now}`;
+    if (key === this.missionKey) return;
+    this.missionKey = key;
+    bus.emit(Evt.Mission, { text: t(`mission.${m.kind}` as Key, { n: m.goal }), now, goal: m.goal });
+    saveMission(this.mission.index, this.mission.stats);
   }
 
   /* ---------- primeira visita ---------- */
@@ -218,7 +385,7 @@ export class GameScene extends Phaser.Scene {
 
   private onTuto(what: string) {
     const topUp = (cost: number) => { if (state.coins < cost) addCoins(cost - state.coins); };
-    if (what === 'step:upgrade') {
+    if (what === 'step:upgrade' || what === 'step:info') {
       const h = this.huts[0];
       if (h?.next) topUp(h.next.cost);
       this.select(h ?? null);
@@ -243,7 +410,7 @@ export class GameScene extends Phaser.Scene {
     // ninguém perde enquanto aprende
     this.castle.hp = Math.max(this.castle.hp, this.castle.maxHp * 0.6);
     for (const h of this.huts) h.hp = Math.max(h.hp, h.maxHp * 0.6);
-    if (tuto.step === 'upgrade' && !this.selected && this.huts[0]) this.select(this.huts[0]);
+    if ((tuto.step === 'upgrade' || tuto.step === 'info') && !this.selected && this.huts[0]) this.select(this.huts[0]);
     tuto.aim = null;
     if (tuto.step !== 'hit' && tuto.step !== 'throw') return;
     const w = this.scale.width, h = this.scale.height;
@@ -277,6 +444,7 @@ export class GameScene extends Phaser.Scene {
     const n = Math.ceil(this.waveTimer) * inc;
     addCoins(n);
     floatText(this, this.castle.x, this.castle.y - this.castle.h - 20, '+' + n);
+    this.coinFly(this.castle.x, this.castle.y - this.castle.h * 0.6, 6);
     sfx.coin();
     this.waveTimer = 0;
   }
@@ -602,12 +770,15 @@ export class GameScene extends Phaser.Scene {
 
   private openChest(c: { img: Phaser.GameObjects.Image; life: number; boss: boolean; open: boolean }) {
     c.open = true;
+    this.mission.stats.chests++;
     const n = chestCoins(this.wave, c.boss);
     addCoins(n);
     const x = c.img.x, y = c.img.y;
     const h = c.img.displayHeight;
     c.img.setTexture('bau_aberto').setScale(h / c.img.height);
     floatText(this, x, y - h - 10, t('fl.chest', { n }), '#ffd84a');
+    this.coinFly(x, y - h * 0.6, c.boss ? 12 : 7);
+    this.sparkles(x, y - h * 0.6, 6, h * 0.9);
     this.fx.burst(x, y - h * 0.6, 30, 0xffd84a, true);
     sfx.upgrade(true);
     sfx.coin();
@@ -757,6 +928,7 @@ export class GameScene extends Phaser.Scene {
   /* ---------- selecionar / evoluir ---------- */
 
   private select(item: Hut | Castle | Ruin | null) {
+    if (this.infoOpen && item !== this.selected) this.closeInfo();
     this.selected?.setSelected(false);
     this.selected = item;
     item?.setSelected(true);
@@ -800,8 +972,10 @@ export class GameScene extends Phaser.Scene {
       next: nx ? { art: nx.art, cost: nx.cost, lock, mana: h instanceof Hut && h.def.currency === 'mana' } : null,
       tools: h instanceof Hut ? { refund: this.refundOf(h), move: this.moveCostOf(h), mana: h.def.currency === 'mana', ok: this.calm() } : undefined,
       evolve: h instanceof Hut ? this.evolveOptions(h) : undefined,
+      info: h instanceof Hut,
     };
     bus.emit(Evt.Select, info);
+    if (this.infoOpen && h instanceof Hut) bus.emit(Evt.InfoData, this.hutInfo(h));
     this.emitSelPos();
   }
 
@@ -839,6 +1013,8 @@ export class GameScene extends Phaser.Scene {
     // quando o visual da construção muda (de 5 em 5 níveis) a comemoração é maior
     const novoVisual = h instanceof Hut && h.def.levels[h.level].art !== artBefore;
     floatText(this, h.x, h.y - h.h - 10, novoVisual ? t('fl.new_look') : t('fl.upgraded'), '#7CFF6B');
+    this.glowBurst(h.x, h.y - h.h * 0.5, Math.max(h.w, h.h) * (novoVisual ? 2.2 : 1.4));
+    this.sparkles(h.x, h.y - h.h * 0.55, novoVisual ? 9 : 5, Math.max(h.w, h.h) * 0.6);
     if (novoVisual) { this.fx.burst(h.x, h.y - h.h * 0.5, 36, 0xffd84a, true); this.cameras.main.shake(200, 0.005); }
     sfx.upgrade(h instanceof Castle);
     bus.emit(Evt.Tuto, 'upgrade');
@@ -898,6 +1074,10 @@ export class GameScene extends Phaser.Scene {
     });
     this.fx.burst(x, y, crit ? 14 : 7, crit ? 0xff7a3a : 0xffe28a);
     if (crit && targets.length) floatText(this, x, y - 50, t('fl.crit'), '#ff9a3a');
+    this.cameras.main.shake(crit ? 140 : 70, crit ? 0.006 : 0.0025);
+    const z = this.rig.zoom;
+    this.pop('fx_impact', x, y - 10, (crit ? 150 : 100) / Math.max(z, 0.6), { rot: Math.random() * 6, spin: 0.4, ms: crit ? 320 : 240 });
+    if (!touch) this.pop('fx_slash', x, y - 10, 120 / Math.max(z, 0.6), { rot: -0.6 + Math.random() * 0.4, ms: 220, depth: 900_003 });
     sfx.swordHit();
     bus.emit(Evt.Tuto, 'hit');
     const ring = this.add.ellipse(x, y, radius * 0.8, radius * 0.5)
@@ -914,6 +1094,7 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 0.92).setDepth(900_001).setAlpha(0)
       .setScale(0.45 / z).setRotation(-1.15);
     // rastro branco do corte
+    if (this.textures.exists('fx_slash')) this.pop('fx_slash', x, y, 150 / Math.max(z, 0.6), { rot: -0.5, ms: 260, depth: 900_003, delay: 120 });
     const slash = this.add.graphics().setDepth(900_000).setPosition(x, y).setAlpha(0);
     const r = 70 / z;
     slash.lineStyle(7 / z, 0xffffff, 0.9).beginPath().arc(0, 0, r, Phaser.Math.DegToRad(200), Phaser.Math.DegToRad(330)).strokePath();
@@ -947,6 +1128,8 @@ export class GameScene extends Phaser.Scene {
 
   private onDown(p: Phaser.Input.Pointer) {
     if (this.rig.multi) return;
+    // com o painel de status aberto, tocar no mapa só fecha o painel
+    if (this.infoOpen) { this.closeInfo(); return; }
     this.rig.setMouse(p.x, p.y);
     const wp = this.rig.toWorld(p.x, p.y);
     this.mouse.set(wp.x, wp.y);
@@ -1020,7 +1203,7 @@ export class GameScene extends Phaser.Scene {
     if (sp > MAX_THROW_SPEED) { vx *= MAX_THROW_SPEED / sp; vy *= MAX_THROW_SPEED / sp; }
     s.throwWith(vx, vy);
     // só um toque, sem arrastar, não é um arremesso
-    if (Math.hypot(vx, vy) > 200) bus.emit(Evt.Tuto, 'throw');
+    if (Math.hypot(vx, vy) > 200) { bus.emit(Evt.Tuto, 'throw'); this.mission.stats.throws++; }
   }
 
   /* ---------- loop ---------- */
@@ -1057,6 +1240,16 @@ export class GameScene extends Phaser.Scene {
         this.orcs.push(new Orc(this, x, y, kind, this.wave, this.fx, o => this.onOrcDie(o)));
       });
     }
+    // Capitão Orc: o chefinho da onda 5
+    if (this.wave === 5) {
+      const bp = around(1200);
+      this.orcs.push(new Orc(this, bp.x, bp.y, 'capitao', this.wave, this.fx, o => this.onOrcDie(o)));
+      this.cameras.main.shake(400, 0.008);
+      sfx.bossRoar();
+      bus.emit(Evt.Banner, { title: t('banner.captain'), sub: t('banner.captain_sub'), kind: 'boss' });
+    }
+    // orc dourado: às vezes atravessa a tela correndo
+    if (!tuto.on && this.wave >= 2 && Math.random() < 0.35) this.time.delayedCall(3000 + Math.random() * 6000, () => this.spawnGolden());
     if (boss) {
       const bp = around(1300);
       const kind = bossKindFor(this.wave);
@@ -1071,12 +1264,13 @@ export class GameScene extends Phaser.Scene {
       }
     } else {
       bus.emit(Evt.Hint, t('hint.wave', { w: this.wave, n }) + (this.wave === 1 ? t('hint.click_them') : ''));
-      bus.emit(Evt.Banner, { title: t('banner.wave', { w: this.wave }), sub: t('banner.orcs', { n }), kind: 'wave' });
+      if (this.wave !== 5) bus.emit(Evt.Banner, { title: t('banner.wave', { w: this.wave }), sub: t('banner.orcs', { n }), kind: 'wave' });
     }
     this.time.delayedCall(4500, () => bus.emit(Evt.Hint, null));
   }
 
   private onHutDestroyed(h: Hut) {
+    if (this.infoOpen && this.selected === h) this.closeInfo();
     // fica um monte de escombros no lugar; a cabana volta, no mesmo nível, quando a onda acabar
     this.ruins.push(new Ruin(this, h.def, h.x, h.y, h.level, h.w, h.h));
     this.huts = this.huts.filter(x => x !== h);
@@ -1150,16 +1344,24 @@ export class GameScene extends Phaser.Scene {
       bus.emit(Evt.Hint, t('hint.boss_dead'));
       this.time.delayedCall(5000, () => bus.emit(Evt.Hint, null));
     }
-    const reward = Math.max(1, Math.round(o.stats.coins * KILL_COIN_MULT * perkMult('treasure')));
+    // orc dourado: um bom punhado de moedas (cresce com a cidade)
+    const golden = o.kind === 'dourado';
+    let inc = this.castle.income;
+    for (const h of this.huts) inc += h.income;
+    const reward = golden ? Math.max(120, Math.round(inc * 25)) : Math.max(1, Math.round(o.stats.coins * KILL_COIN_MULT * perkMult('treasure')));
+    if (golden) { floatText(this, o.x, o.y - o.stats.height - 60, t('fl.golden'), '#ffe45a'); this.coinFly(o.x, o.y - o.stats.height * 0.5, 10); }
+    if (o.stats.mini) { this.spawnChest(o.x, o.y, true); bus.emit(Evt.Celebrate, [t('cel.captain')]); }
     addCoins(reward);
     // estrelas reais: uma a cada 10 orcs, e o Rei Orc vale mais
     noteKill();
     if (o.stats.boss) addStars(STARS_BOSS_KILL * (o.kind === 'boss2' ? 2 : 1) + scholarBonus());
     const elite = o.stats.boss || o.stats.coins >= 60;
-    if (!tuto.on && Math.random() < (o.stats.boss ? 1 : (elite ? CHEST.chanceElite : CHEST.chance) * perkMult('chest'))) this.spawnChest(o.x, o.y, !!o.stats.boss);
+    if (!tuto.on && !o.stats.mini && !golden && Math.random() < (o.stats.boss ? 1 : (elite ? CHEST.chanceElite : CHEST.chance) * perkMult('chest'))) this.spawnChest(o.x, o.y, !!o.stats.boss);
     sfx.coin();
     floatText(this, o.x, o.y - o.stats.height - 30, '+' + reward);
+    this.coinFly(o.x, o.y - o.stats.height * 0.5, o.stats.boss ? 10 : Math.min(4, 1 + Math.floor(reward / 15)));
     this.kills++;
+    this.mission.stats.kills++;
     // vários orcs derrotados em seguida viram um combo
     const now = this.time.now;
     this.combo = now - this.comboAt < 2500 ? this.combo + 1 : 1;
@@ -1175,6 +1377,7 @@ export class GameScene extends Phaser.Scene {
     addCoins(n);
     sfx.upgrade(true);
     this.fx.burst(this.castle.x, this.castle.y - this.castle.h * 0.5, 30, 0xffd84a, true);
+    this.coinFly(this.castle.x, this.castle.y - this.castle.h * 0.5, 12);
     bus.emit(Evt.Hint, t('hint.ad_reward', { n }));
     this.time.delayedCall(4000, () => bus.emit(Evt.Hint, null));
     this.save();
@@ -1330,9 +1533,11 @@ export class GameScene extends Phaser.Scene {
       this.waveAge += dt;
       const fighting = this.pending > 0 || this.orcs.some(o => o.alive);
       if (!fighting && this.ruins.length && !this.over) this.raiseRuins(true);
+      if (this.wasFighting && !fighting && !this.over && this.wave > 0 && !tuto.on) this.celebrateWave();
+      this.wasFighting = fighting;
       const ticking = !fighting || this.waveAge > WAVE.maxFight;
       if (ticking) this.waveTimer -= dt;
-      if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.interval; this.waveAge = 0; }
+      if (this.waveTimer <= 0) { this.spawnWave(); this.waveTimer = WAVE.gap(this.wave); this.waveAge = 0; }
       const left = ticking && this.waveTimer >= 0 && this.waveTimer < 600 ? Math.ceil(this.waveTimer) : -1;
       if (left !== this.lastCount) { this.lastCount = left; bus.emit(Evt.Countdown, left >= 0 ? left : null); }
     }
@@ -1390,6 +1595,10 @@ export class GameScene extends Phaser.Scene {
       const p = this.rig.toScreen(o.x, o.y - o.stats.height * 0.5);
       return { x: p.x, y: p.y, hot: o.hittingBuilding, boss: !!o.stats.boss };
     }), this.scale.width, this.scale.height, barH());
+    // as construções respiram e dão pulinhos (o castelo, bem maior, mexe menos)
+    const now = time / 1000;
+    this.castle.idle(now, 0.6);
+    for (const h of this.huts) h.idle(now);
     this.castle.drawBar(this.bars);
     for (const h of this.huts) h.drawBar(this.bars);
     if (!this.castle.alive) this.lose();

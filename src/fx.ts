@@ -30,7 +30,7 @@ export function floatText(scene: Phaser.Scene, x: number, y: number, text: strin
     return;
   }
   const t = scene.add.text(x, y, text, {
-    fontFamily: 'Trebuchet MS, Verdana, sans-serif', fontSize: '22px', fontStyle: 'bold',
+    fontFamily: '"Lilita One", Rubik, "Trebuchet MS", sans-serif', fontSize: '24px',
     color, stroke: '#5a3418', strokeThickness: 5,
   }).setOrigin(0.5).setDepth(1_000_001).setScale(0.3);
   scene.tweens.add({ targets: t, scale: 1, duration: 180, ease: 'Back.easeOut' });

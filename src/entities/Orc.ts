@@ -134,8 +134,14 @@ export class Orc implements Combatant {
   }
   get gone() { return this.deadT >= 1; }
 
+  /** orc dourado: direção da corrida e quanto tempo ainda fica na tela */
+  private run: { dx: number; dy: number; life: number } | null = null;
+  runAway(dx: number, dy: number, life: number) { const d = Math.hypot(dx, dy) || 1; this.run = { dx: dx / d, dy: dy / d, life }; this.face = dx >= 0 ? 1 : -1; }
+
   takeDamage(n: number, fromX: number, fromY: number, fromFire = false) {
     if (!this.alive) return;
+    // orc dourado: cai com 3 golpes, seja qual for a espada
+    if (this.stats.runner) n = Math.max(n, Math.ceil(this.maxHp / 3));
     this.hp = Math.max(0, this.hp - n);
     this.hitT = 0.2;
     popDamage(this.scene, this.x, this.y - this.stats.height - 6, n, false);
@@ -154,6 +160,15 @@ export class Orc implements Combatant {
       this.deadT = 0;
       sfx.orcDie(!!this.stats.boss);
       this.fx.burst(this.x, this.y - this.stats.height * 0.5, 18, 0x9bb84a, true);
+      // nuvem de poeira e estrelinhas: a derrota do orc fica bem visível
+      const h = this.stats.height;
+      const hasDust = this.scene.textures.exists('fx_dust');
+      const puff = this.scene.add.image(this.x, this.y - h * 0.45, hasDust ? 'fx_dust' : 'soft').setAlpha(0.95).setDepth(this.y + 5);
+      if (!hasDust) puff.setTint(0xf4ecd8);
+      const ps = h * 1.3 / Math.max(puff.width, puff.height);
+      puff.setScale(ps * 0.3);
+      this.scene.tweens.add({ targets: puff, scale: ps, alpha: 0, duration: 520, ease: 'Cubic.easeOut', onComplete: () => puff.destroy() });
+      this.fx.burst(this.x, this.y - h * 0.7, 10, 0xffe45a, true);
       this.fx.blood(this.x, this.y - this.stats.height * 0.5, this.y, this.stats.boss ? 90 : 26);
       if (this.stats.boss) this.scene.cameras.main.shake(500, 0.012);
       this.onDie(this);
@@ -204,6 +219,17 @@ export class Orc implements Combatant {
     if (this.frozen > 0) {
       this.frozen -= dt;
       if (this.frozen <= 0) { if (this.burnT > 0) this.sprite.setTint(0xffa060); else this.sprite.clearTint(); }
+      this.render(bars);
+      return;
+    }
+    // orc dourado: só corre (com zigue-zague) e, se ninguém pegar, some sem dar nada
+    if (this.run) {
+      this.run.life -= dt;
+      this.phase += dt * 11;
+      this.x += (this.run.dx * this.speed + Math.sin(this.age * 5) * 40 * -this.run.dy) * dt;
+      this.y += (this.run.dy * this.speed * 0.7 + Math.sin(this.age * 5) * 40 * this.run.dx) * dt;
+      if (Math.random() < dt * 6) this.fx.burst(this.x, this.y - this.stats.height * 0.5, 1, 0xffe45a);
+      if (this.run.life <= 0) { this.hp = 0; this.deadT = 0; }
       this.render(bars);
       return;
     }

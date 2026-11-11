@@ -183,10 +183,12 @@ export function setupHud() {
   });
 
   // roda de botões ao redor da cabana: evoluir em cima, mover e vender embaixo dos lados
-  const mv = $('moveBtn'), sl = $('sellBtn');
+  const mv = $('moveBtn'), sl = $('sellBtn'), inf = $('infoBtn');
+  inf.innerHTML = '<b class="ico">•••</b>';
+  inf.title = t('ui.info');
   const evoBtns = ['evoA', 'evoB', 'evoC', 'evoD'].map(id => $(id));
   // [botão, ângulo, fator do raio]: os de evoluir ficam num arco mais afastado, em cima
-  const ringItems: [HTMLElement, number, number][] = [[up, -90, 1], [mv, 150, 1], [sl, 30, 1], ...evoBtns.map((b, i): [HTMLElement, number, number] => [b, -150 + i * 40, 1.55])];
+  const ringItems: [HTMLElement, number, number][] = [[up, -90, 1], [mv, 150, 1], [sl, 30, 1], [inf, 90, 1], ...evoBtns.map((b, i): [HTMLElement, number, number] => [b, -150 + i * 40, 1.55])];
   let evo: SelectInfo['evolve'];
   let ring = { x: 0, y: 0, r: 90 };
   let selKey = '';
@@ -254,6 +256,7 @@ export function setupHud() {
     const e = evo?.[i];
     if (e) bus.emit(Evt.Evolve, e.id);
   }));
+  inf.addEventListener('click', () => { sfx.ui(); boing(inf); bus.emit(Evt.InfoOpen); });
   function disarm() { window.clearTimeout(sellArmed); sellArmed = 0; drawTools(); }
   mv.addEventListener('click', () => { sfx.ui(); boing(mv); disarm(); bus.emit(Evt.Move); });
   sl.addEventListener('click', () => {
@@ -286,10 +289,11 @@ export function setupHud() {
 
   bus.on(Evt.Select, (info: SelectInfo | null) => {
     sel = info;
-    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; evoBtns.forEach(b => { b.hidden = true; }); tools = undefined; evo = undefined; selKey = ''; disarm(); return; }
+    if (!info) { up.hidden = true; mv.hidden = true; sl.hidden = true; inf.hidden = true; evoBtns.forEach(b => { b.hidden = true; }); tools = undefined; evo = undefined; selKey = ''; disarm(); return; }
     if (info.key !== selKey) { selKey = info.key; emerge = true; disarm(); }
     tools = info.tools;
     mv.hidden = sl.hidden = !tools;
+    inf.hidden = !info.info;
     drawTools();
     evo = info.evolve;
     drawEvo();
@@ -371,6 +375,27 @@ export function setupHud() {
     bus.emit(Evt.Upgrade);
   });
   syncBar();
+  // missão atual: um quadrinho embaixo do próximo chefe, com barra de progresso
+  const mis = document.createElement('div');
+  mis.id = 'mission';
+  mis.hidden = true;
+  mis.innerHTML = '<img src="assets/missao.png" alt=""><span><b id="misTxt"></b><i id="misBar"><u></u></i></span>';
+  $('stats').appendChild(mis);
+  bus.on(Evt.Mission, (m: { text?: string; now?: number; goal?: number; done?: boolean; reward?: number }) => {
+    if (m.done) {
+      ($('misTxt') as HTMLElement).textContent = t('mission.done', { n: m.reward ?? 0 });
+      (mis.querySelector('u') as HTMLElement).style.width = '100%';
+      mis.classList.add('ok');
+      boing(mis, 'pop-in');
+      return;
+    }
+    mis.hidden = false;
+    mis.classList.remove('ok');
+    ($('misTxt') as HTMLElement).textContent = `${m.text} ${m.now}/${m.goal}`;
+    (mis.querySelector('u') as HTMLElement).style.width = Math.round((m.now ?? 0) / (m.goal || 1) * 100) + '%';
+    boing(mis, 'bump');
+  });
+
   // menu de 3 pontinhos: abre os outros botões para baixo. Ao lado dele ficam o presente e a estrela da Forja, sempre à vista
   const menuBtn = $('menuBtn'), menuList = $('menuList');
   const setMenu = (on: boolean) => {
@@ -415,5 +440,5 @@ export function setupHud() {
 
   // clicar no botão não pode contar como clique no mapa (a câmera ignora), mas o clique tem de chegar à janela:
   // é lá que o SDK da Poki percebe que o jogador interagiu
-  for (const el of [bar, up, mv, sl, callBtn, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', markUiPointer);
+  for (const el of [bar, up, mv, sl, inf, callBtn, ...evoBtns, $('audio')]) el.addEventListener('pointerdown', markUiPointer);
 }

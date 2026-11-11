@@ -15,6 +15,9 @@ export function setupBanner() {
     if (b.kind !== 'combo') bigUntil = now + ms;
     window.clearTimeout(timer);
     title.textContent = b.title;
+    // letreiro no estilo do logo: o texto vai também num atributo, que desenha o recheio em degradê por cima do contorno
+    title.dataset.t = b.title;
+    title.className = 'toon' + (b.kind === 'boss' ? ' r' : '');
     sub.textContent = b.sub ?? '';
     sub.hidden = !b.sub;
     box.className = b.kind;

@@ -51,6 +51,24 @@ export class Castle implements Structure {
     this.scene.cameras.main.shake(250, 0.006);
   }
 
+  /** fase própria: as construções não pulam todas juntas */
+  private idlePhase = Math.random() * Math.PI * 2;
+
+  /**
+   * Mundo vivo: a construção respira (estica e achata bem de leve) e de vez em quando dá um pulinho.
+   * Fica parada enquanto outra animação (evoluir, levar golpe) mexe no tamanho.
+   */
+  idle(t: number, strength = 1) {
+    if (!this.alive || this.scene.tweens.isTweening(this.sprite)) return;
+    const k = t * 2.4 + this.idlePhase;
+    const breath = Math.sin(k);
+    // pulinho a cada ~5 s: sobe, estica, cai e achata
+    const hop = Math.pow(Math.max(0, Math.sin(k * 0.5)), 14);
+    const a = 0.014 * strength, j = 0.035 * strength;
+    this.sprite.setScale(this.base.sx * (1 + a * breath * 0.7 - j * hop * 0.5), this.base.sy * (1 - a * breath + j * hop));
+    this.sprite.y = this.y - hop * 7 * strength;
+  }
+
   /** Uma melhoria da Forja Real foi comprada: a vida máxima muda, a proporção fica. */
   rescale() {
     const ratio = this.hp / this.maxHp;

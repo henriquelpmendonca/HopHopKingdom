@@ -114,6 +114,26 @@ function bake(scene: Phaser.Scene) {
   });
 }
 
+/** borboleta: duas asas brancas (a cor vem do tint) e o corpinho */
+function bakeButterfly(scene: Phaser.Scene) {
+  tex(scene, 'dc_fly', 30, 24, c => {
+    for (const side of [-1, 1]) {
+      c.fillStyle = 'rgba(90,60,40,.75)';
+      c.beginPath(); c.ellipse(15 + side * 7, 9, 8, 7, side * 0.5, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(15 + side * 5, 17, 5.5, 4.5, -side * 0.4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffffff';
+      c.beginPath(); c.ellipse(15 + side * 7, 9, 6.5, 5.5, side * 0.5, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(15 + side * 5, 17, 4, 3.2, -side * 0.4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.55)';
+      c.beginPath(); c.arc(15 + side * 8, 8, 2, 0, Math.PI * 2); c.fill();
+    }
+    c.fillStyle = '#5a3418';
+    c.beginPath(); c.ellipse(15, 13, 1.8, 7, 0, 0, Math.PI * 2); c.fill();
+  });
+}
+
+interface Fly { img: Phaser.GameObjects.Image; x: number; y: number; dir: number; t: number; speed: number }
+
 /** sorteio fixo: o cenário é sempre o mesmo */
 function rng(seed: number) {
   return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
@@ -121,6 +141,7 @@ function rng(seed: number) {
 
 export class Scenery {
   private items: Item[] = [];
+  private flies: Fly[] = [];
   private t = 0;
 
   constructor(private scene: Phaser.Scene, cx: number, cy: number) {
@@ -154,6 +175,13 @@ export class Scenery {
     put('stone', 40, 420, () => 'dc_stone', () => 0.6 + r() * 0.7);
     put('bush', 50, 520, () => 'dc_bush', () => 0.8 + r() * 0.5);
     put('tree', 70, 640, () => 'dc_tree' + (r() < 0.6 ? 0 : 1), () => 0.85 + r() * 0.5);
+    // borboletas em tons pastel, voando por cima de tudo perto da câmera
+    bakeButterfly(scene);
+    const colors = [0xffb3c7, 0xfff0a0, 0xb8e0ff, 0xd9c2ff, 0xffd2a8, 0xc8f5b0];
+    for (let i = 0; i < 12; i++) {
+      const img = scene.add.image(cx, cy, 'dc_fly').setTint(colors[i % colors.length]).setDepth(950_000).setScale(1.1);
+      this.flies.push({ img, x: cx + (Math.random() - 0.5) * 1400, y: cy + (Math.random() - 0.5) * 900, dir: Math.random() * Math.PI * 2, t: Math.random() * 10, speed: 35 + Math.random() * 30 });
+    }
   }
 
   /** tira o cenário que ficou embaixo de uma construção */
@@ -176,6 +204,21 @@ export class Scenery {
     this.t += dt;
     const gust = 0.75 + 0.35 * Math.sin(this.t * 0.45) + 0.2 * Math.sin(this.t * 1.3);
     const l = view.x - 120, r = view.right + 120, top = view.y - 40, bottom = view.bottom + 200;
+    // borboletas: passeiam em curvas suaves; se saírem de vista, reaparecem num canto da tela
+    for (const f of this.flies) {
+      f.t += dt;
+      f.dir += Math.sin(f.t * 0.9 + f.speed) * 1.4 * dt;
+      f.x += Math.cos(f.dir) * f.speed * dt;
+      f.y += Math.sin(f.dir) * f.speed * 0.6 * dt;
+      if (f.x < view.x - 300 || f.x > view.right + 300 || f.y < view.y - 300 || f.y > view.bottom + 300) {
+        f.x = view.x + Math.random() * view.width;
+        f.y = Math.random() < 0.5 ? view.y - 20 : view.bottom + 20;
+        f.dir = Math.atan2(view.centerY - f.y, view.centerX - f.x);
+      }
+      // bate as asas (largura) e sobe e desce de leve
+      const flap = 0.25 + 0.75 * Math.abs(Math.sin(f.t * 11));
+      f.img.setPosition(f.x, f.y + Math.sin(f.t * 3) * 6).setScale(0.6 * flap, 0.6).setRotation(Math.cos(f.dir) * 0.25);
+    }
     for (const it of this.items) {
       if (!it.amp) continue;
       const { img } = it;

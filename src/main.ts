@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+// letras grossas no estilo do logo (a Rubik cobre o russo, que a Lilita One não tem)
+import '@fontsource/lilita-one/latin-400.css';
+import '@fontsource/lilita-one/latin-ext-400.css';
+import '@fontsource/rubik/cyrillic-900.css';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { audio, unlockAudio } from './audio';
@@ -8,6 +12,9 @@ import { setupForge } from './ui/Forge';
 import { setupLangMenu } from './ui/LangMenu';
 import { setupBanner } from './ui/Banner';
 import { setupSwordCursor } from './ui/SwordCursor';
+import { setupCoinFly } from './ui/CoinFly';
+import { setupCelebrate } from './ui/Celebrate';
+import { setupInfoPanel } from './ui/InfoPanel';
 import { sdk } from './sdk';
 import { bus, Evt } from './events';
 import { applyStaticTexts, savedLang, setLocale } from './i18n';
@@ -23,6 +30,9 @@ async function start() {
   applyStaticTexts();
   audio.loadPrefs();
 
+  // os textos que sobem no mapa usam a fonte nova: espera ela carregar (no máximo 1,5 s)
+  await Promise.race([document.fonts.load('32px "Lilita One"').catch(() => null), new Promise(r => setTimeout(r, 1500))]);
+
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
@@ -37,6 +47,9 @@ async function start() {
   setupLangMenu();
   setupBanner();
   setupSwordCursor();
+  setupCoinFly();
+  setupCelebrate();
+  setupInfoPanel();
   unlockAudio();
 
   // pausa o jogo (e o som) durante anúncios e quando a aba fica escondida

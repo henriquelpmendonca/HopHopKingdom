@@ -11,14 +11,14 @@ import { markUiPointer } from '../camera';
  * Cada passo tem ícone animado e bolinhas de progresso; cada acerto ganha uma comemoração.
  * A cena avisa o que o jogador fez pelo evento Evt.Tuto e, a cada passo, recebe step:<passo> para preparar a tela.
  */
-type Step = 'off' | 'hit' | 'throw' | 'upgrade' | 'show' | 'build' | 'done';
+type Step = 'off' | 'hit' | 'throw' | 'upgrade' | 'info' | 'show' | 'build' | 'done';
 
 const KEY = 'hhk_tuto';
 /** segundos até o passo avançar sozinho, para ninguém ficar preso */
-const LIMIT: Partial<Record<Step, number>> = { hit: 18, throw: 20, upgrade: 18, build: 25 };
+const LIMIT: Partial<Record<Step, number>> = { hit: 18, throw: 20, upgrade: 18, info: 25, build: 25 };
 const HITS = 3;
-const ORDER: Step[] = ['hit', 'throw', 'upgrade', 'build'];
-const ICON: Partial<Record<Step, string>> = { hit: 'espada_2', throw: 'soldado', upgrade: 'cabana_soldado_2', build: 'cabana_soldado_1', done: 'castelo_3' };
+const ORDER: Step[] = ['hit', 'throw', 'upgrade', 'info', 'build'];
+const ICON: Partial<Record<Step, string>> = { hit: 'espada_2', throw: 'soldado', upgrade: 'cabana_soldado_2', info: 'st_dano', build: 'cabana_soldado_1', done: 'castelo_3' };
 
 export function setupTutorial() {
   const box = document.getElementById('tuto') as HTMLElement;
@@ -61,6 +61,7 @@ export function setupTutorial() {
   const glow = (el: Element | null, on: boolean) => el?.classList.toggle('tuto-glow', on);
   const firstSlot = () => document.querySelector('#bar .slot');
   const upBtn = () => document.getElementById('upgrade');
+  const infoBtn = () => document.getElementById('infoBtn');
 
   function say(key: Key) {
     txt.textContent = t(key);
@@ -78,7 +79,8 @@ export function setupTutorial() {
 
   function cheer() {
     const words: Key[] = ['tuto.nice1', 'tuto.nice2', 'tuto.nice3'];
-    praise.innerHTML = `<b>${t(words[niceN++ % words.length])}</b>` +
+    const word = t(words[niceN++ % words.length]);
+    praise.innerHTML = `<b class="toon" data-t="${word}">${word}</b>` +
       Array.from({ length: 26 }, (_, i) => {
         const a = (i / 26) * Math.PI * 2, d = 90 + Math.random() * 110;
         const c = ['#ffd84a', '#ff6f91', '#7ad0ff', '#7CFF6B', '#ff9a2a'][i % 5];
@@ -100,12 +102,15 @@ export function setupTutorial() {
     tuto.foes = next === 'hit' || next === 'throw';
     glow(firstSlot(), step === 'build');
     glow(upBtn(), step === 'upgrade');
+    glow(infoBtn(), step === 'info');
     document.body.classList.add('tuto');
     switch (step) {
       case 'hit': hits = 0; say(touch ? 'tuto.hit_touch' : 'tuto.hit_mouse'); break;
       case 'throw': say(touch ? 'tuto.throw_touch' : 'tuto.throw_mouse'); break;
       case 'upgrade': say('tuto.upgrade'); break;
+      case 'info': say('tuto.info'); break;
       case 'show':
+        bus.emit(Evt.InfoClose);
         box.hidden = true;
         evo.open(() => go('build'));
         return;
@@ -123,7 +128,8 @@ export function setupTutorial() {
   function advance() {
     if (step === 'hit') go('throw');
     else if (step === 'throw') go('upgrade');
-    else if (step === 'upgrade') go('show');
+    else if (step === 'upgrade') go('info');
+    else if (step === 'info') go('show');
     else if (step === 'build') go('done');
   }
 
@@ -136,6 +142,8 @@ export function setupTutorial() {
     tuto.aim = null;
     glow(firstSlot(), false);
     glow(upBtn(), false);
+    glow(infoBtn(), false);
+    bus.emit(Evt.InfoClose);
     document.body.classList.remove('tuto');
     hand.hidden = true;
     evo.close(false);
@@ -148,7 +156,7 @@ export function setupTutorial() {
   function drawHand(now: number) {
     if (step === 'off' || step === 'done') { hand.hidden = true; return; }
     let a = tuto.aim;
-    const dom = step === 'build' && !placing ? firstSlot() : step === 'upgrade' ? upBtn() : null;
+    const dom = step === 'build' && !placing ? firstSlot() : step === 'upgrade' ? upBtn() : step === 'info' ? infoBtn() : null;
     if (dom) {
       const r = dom.getBoundingClientRect();
       a = r.width ? { ax: r.x + r.width * 0.55, ay: r.y + r.height * 0.5 } : null;
@@ -176,7 +184,9 @@ export function setupTutorial() {
     if (what === 'start') { showIntro(); go('hit'); requestAnimationFrame(drawHand); return; }
     if (what === 'hit' && step === 'hit' && ++hits >= HITS) go('throw', true);
     else if (what === 'throw' && step === 'throw') go('upgrade', true);
-    else if (what === 'upgrade' && step === 'upgrade') { cheer(); window.clearTimeout(timer); timer = window.setTimeout(() => go('show'), 900); }
+    else if (what === 'upgrade' && step === 'upgrade') { cheer(); window.clearTimeout(timer); timer = window.setTimeout(() => go('info'), 900); }
+    else if (what === 'info' && step === 'info') { say('tuto.info2'); window.clearTimeout(timer); timer = window.setTimeout(() => go('show'), 14000); }
+    else if (what === 'infoclosed' && step === 'info') go('show');
     else if (what === 'placed' && step === 'build') go('done', true);
   });
 
@@ -193,7 +203,7 @@ export function setupTutorial() {
 function showIntro() {
   const el = document.createElement('div');
   el.id = 'intro';
-  el.innerHTML = `<img src="assets/logo.png" alt="Hop Hop Kingdom"><b>${t('intro.tag')}</b>`;
+  el.innerHTML = `<img src="assets/logo.png" alt="Hop Hop Kingdom"><b class="toon" data-t="${t('intro.tag')}">${t('intro.tag')}</b>`;
   document.body.appendChild(el);
   window.setTimeout(() => el.remove(), 2600);
 }

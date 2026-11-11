@@ -489,3 +489,110 @@ body.tuto #bar .slot:not(.tuto-glow),body.tuto #bar .gap{opacity:.38;filter:gray
   #intro b{font-size:20px}
   #praise b{font-size:40px}
 }
+
+/* moedinhas voando até o contador */
+.flycoin{position:fixed;left:-11px;top:-11px;z-index:9;pointer-events:none;will-change:transform}
+
+/* comemoração de onda vencida (um pouco menor que a do tutorial) */
+#cheer{position:fixed;left:0;right:0;top:24%;z-index:9;pointer-events:none;display:flex;align-items:center;justify-content:center}
+#cheer[hidden]{display:none}
+#cheer b{font:900 46px/1 "Trebuchet MS",Verdana,sans-serif;color:#7CFF6B;-webkit-text-stroke:3px #1f5a18;text-shadow:0 5px 0 #1f5a18,0 9px 16px rgba(0,0,0,.3);white-space:nowrap;opacity:0}
+#cheer.big b{color:#ffd84a;-webkit-text-stroke-color:#5a3418;text-shadow:0 5px 0 #5a3418,0 9px 16px rgba(0,0,0,.3);font-size:54px}
+#cheer.go b{animation:praisepop 1.25s cubic-bezier(.2,1.8,.4,1) forwards}
+#cheer i{position:absolute;left:50%;top:50%;width:9px;height:13px;border-radius:3px;opacity:0}
+#cheer.go i{animation:confetti 1.1s cubic-bezier(.15,.7,.3,1) forwards}
+@media (max-width:640px){#cheer b{font-size:32px}#cheer.big b{font-size:40px}}
+@media (max-height:520px){#cheer{top:18%}#cheer b{font-size:28px}#cheer.big b{font-size:34px}}
+
+/* ---------- letreiros no estilo do logo: recheio em degradê, contorno marrom grosso e sombra embaixo ---------- */
+.toon{position:relative;display:inline-block;font-family:"Lilita One","Rubik","Trebuchet MS",sans-serif!important;font-weight:400!important;letter-spacing:.03em;
+  color:#5a2a0c!important;-webkit-text-stroke:.18em #5a2a0c!important;text-shadow:0 .1em 0 #3d1a06,0 .17em .25em rgba(0,0,0,.35)!important}
+.toon::after{content:attr(data-t);position:absolute;left:0;top:0;right:0;-webkit-text-stroke:0;text-shadow:none;color:transparent;white-space:nowrap;
+  background:linear-gradient(180deg,#fffbe0 0%,#ffe866 30%,#ffc22a 62%,#ff8a12 100%);-webkit-background-clip:text;background-clip:text}
+.toon.g{color:#1c4a10!important;-webkit-text-stroke-color:#1c4a10!important;text-shadow:0 .1em 0 #12330a,0 .17em .25em rgba(0,0,0,.35)!important}
+.toon.g::after{background:linear-gradient(180deg,#f4ffe0 0%,#b8ff7a 35%,#5fd63a 70%,#2f9a22 100%);-webkit-background-clip:text;background-clip:text}
+.toon.r{color:#4a0d08!important;-webkit-text-stroke-color:#4a0d08!important;text-shadow:0 .1em 0 #2e0704,0 .17em .25em rgba(0,0,0,.35)!important}
+.toon.r::after{background:linear-gradient(180deg,#fff0d8 0%,#ffb27a 30%,#ff5a3a 65%,#c81e14 100%);-webkit-background-clip:text;background-clip:text}
+#banner span{font-family:"Lilita One","Rubik","Trebuchet MS",sans-serif;font-weight:400;letter-spacing:.04em}
+#cheer b.toon,#praise b.toon{white-space:nowrap}
+
+/* missão atual */
+#mission{display:flex;align-items:center;gap:6px;max-width:250px;padding:4px 10px 4px 4px;border:3px solid #5a3418;border-radius:16px;background:#fff6dc;box-shadow:0 4px 0 #5a3418}
+#mission[hidden]{display:none}
+#mission img{width:34px;height:34px;flex:none}
+#mission span{display:flex;flex-direction:column;gap:3px;min-width:0}
+#mission b{font:400 14px/1.15 "Lilita One","Rubik","Trebuchet MS",sans-serif;color:#5a3418;letter-spacing:.02em}
+#mission i{display:block;height:7px;border-radius:5px;background:#e8d6ac;overflow:hidden}
+#mission u{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd84a,#ff9a2a);transition:width .35s}
+#mission.ok{background:linear-gradient(#d8ffb8,#8be07a);border-color:#1f5a18}
+#mission.ok u{background:#3fc13a}
+@media (max-width:640px){#mission{max-width:200px}#mission b{font-size:12px}#mission img{width:28px;height:28px}}
+@media (max-height:520px){#mission{max-width:220px;padding:2px 8px 2px 3px}#mission b{font-size:11px}#mission img{width:22px;height:22px}}
+body.tuto #mission{display:none}
+
+/* ---------- botão dos três pontinhos na roda da casa ---------- */
+.slot.green.ringbtn.info .ico{font-size:26px;letter-spacing:-3px;margin-top:-4px}
+body.info #upgrade,body.info .slot.green.ringbtn{display:none!important}
+
+/* ---------- painel de status da casa ---------- */
+#info{position:fixed;z-index:12;right:max(14px,2vw);top:calc(50% - var(--bar,130px) / 2);transform:translateY(-50%);width:min(430px,46vw);max-height:calc(100vh - var(--bar,130px) - 24px);overflow:visible;box-sizing:border-box;padding:14px 16px 16px;
+  border:6px solid #5a3418;border-radius:26px;background:linear-gradient(#fff6dc,#ffd98a);box-shadow:0 10px 0 #5a3418,0 18px 30px rgba(0,0,0,.3);color:#5a3418;font-family:"Lilita One","Rubik","Trebuchet MS",sans-serif}
+#info[hidden]{display:none}
+#info.in{animation:infoin .45s cubic-bezier(.2,1.5,.4,1)}
+@keyframes infoin{from{opacity:0;transform:translate(70px,-50%) scale(.9)}to{opacity:1;transform:translateY(-50%)}}
+@keyframes infoup{from{opacity:0;transform:translateY(70px) scale(.95)}to{opacity:1;transform:none}}
+#infoX{position:absolute;top:-16px;right:-14px;z-index:2;width:40px;height:40px;border:4px solid #5a3418;border-radius:50%;background:#fff6dc;color:#5a3418;font:900 18px/1 "Trebuchet MS",sans-serif;box-shadow:0 4px 0 #5a3418;cursor:pointer}
+#infoX:active{transform:translateY(3px);box-shadow:0 1px 0 #5a3418}
+.ihead{display:flex;align-items:center;gap:12px;padding-bottom:8px}
+.iart{width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 5px 3px rgba(0,0,0,.3));animation:infoart 2.6s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes infoart{0%,100%{transform:scale(1,1)}50%{transform:scale(1.03,.97)}}
+.iname{margin:0;font-size:27px;font-weight:400;line-height:1.05}
+.ilv{display:inline-block;margin-top:5px;padding:2px 12px;border-radius:13px;background:#5a3418;color:#ffe27a;font-size:16px;letter-spacing:.03em}
+.ilvbar{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.ilvbar img{width:30px;height:30px;object-fit:contain}
+.ilvbar i{flex:1;display:block;height:12px;border:3px solid #5a3418;border-radius:9px;background:#f1dfb0;overflow:hidden}
+.ilvbar u{display:block;height:100%;width:0;background:linear-gradient(#b8ff8a,#3fc13a);transition:width .6s cubic-bezier(.2,1.2,.4,1)}
+.irow{display:flex;align-items:center;gap:10px;margin-top:10px}
+.irow>img,.irow>i{flex:none;width:40px;height:40px;object-fit:contain}
+.irow>i.gem{width:30px;height:30px;margin:5px}
+.imid{flex:1;min-width:0}
+.itop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:16px}
+.ival{font-size:23px;font-weight:400}
+.ival em{margin-left:6px;font-style:normal;font-size:15px;color:#2f9a22}
+.ibar{position:relative;height:15px;margin-top:2px;border:3px solid #5a3418;border-radius:10px;background:#f1dfb0;overflow:hidden}
+.ibar u{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:6px;transition:width .65s cubic-bezier(.2,1.15,.4,1)}
+.ibar .nx{background:repeating-linear-gradient(45deg,#b8ff8a 0 6px,#7fdc6a 6px 12px)}
+.ibar .now{background:linear-gradient(#ffe866,#ff9a2a);box-shadow:inset 0 3px 0 rgba(255,255,255,.45)}
+.imax{display:block;margin-top:1px;font-size:11px;opacity:.65;text-align:right}
+#iup{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin-top:14px;padding:10px;border:4px solid #1f5a18;border-radius:18px;background:linear-gradient(#b8ff8a,#3fc13a);box-shadow:0 7px 0 #1f5a18;color:#fff;font:400 24px "Lilita One","Rubik",sans-serif;letter-spacing:.03em;text-shadow:0 3px 0 #1f5a18;cursor:pointer}
+#iup .c{display:inline-flex;align-items:center;gap:5px;padding:1px 12px;border-radius:14px;background:#fff6dc;color:#1f5a18;text-shadow:none;font-size:20px}
+#iup:active{transform:translateY(5px);box-shadow:0 2px 0 #1f5a18}
+#iup.poor{filter:saturate(.5) brightness(.96)}
+#iup.locked{background:linear-gradient(#d9d9d9,#8f8f8f);border-color:#4a4a4a;box-shadow:0 7px 0 #4a4a4a;font-size:20px}
+#iup.maxed{background:linear-gradient(#ffe27a,#ffb300);border-color:#7a4a00;box-shadow:0 7px 0 #7a4a00;color:#7a4a00;text-shadow:none;cursor:default}
+#iup.shake{animation:shake .4s}
+body.info #tuto{left:27%;max-width:46vw}
+
+/* celular em pé: o painel vira uma folha embaixo e a casa fica em cima */
+@media (max-aspect-ratio:1/1){
+  #info{left:10px;right:10px;width:auto;top:auto;bottom:calc(var(--bar,108px) + 10px);transform:none;max-height:54vh;overflow:auto;padding:12px 12px 12px}
+  #info.in{animation-name:infoup}
+  #infoX{top:6px;right:6px}
+  .iart{width:64px;height:64px}.iname{font-size:22px}
+  .irow{margin-top:6px}.irow>img,.irow>i{width:32px;height:32px}.irow>i.gem{width:24px;height:24px;margin:4px}
+  .ival{font-size:20px}.itop{font-size:14px}.imax{display:none}
+  #iup{font-size:20px;margin-top:10px;padding:8px}
+  body.info #stats,body.info #tuto{visibility:hidden}
+}
+/* celular deitado: duas colunas de números, bem compacto */
+@media (max-height:520px) and (min-aspect-ratio:1/1){
+  #info{width:min(470px,54vw);right:8px;padding:8px 12px 10px;border-width:5px;border-radius:20px;max-height:calc(100vh - var(--bar,80px) - 14px)}
+  .ihead{padding-bottom:2px;gap:8px}.iart{width:50px;height:50px}.iname{font-size:20px}.ilv{font-size:13px;padding:1px 9px;margin-top:2px}
+  .ilvbar,.imax{display:none}
+  #irows{display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
+  .irow{margin-top:5px;gap:6px}.irow>img,.irow>i{width:28px;height:28px}.irow>i.gem{width:20px;height:20px;margin:4px}
+  .ival{font-size:16px}.itop{font-size:12px}.ibar{height:11px;border-width:2px}
+  #iup{font-size:17px;padding:5px;margin-top:8px;border-width:3px;box-shadow:0 4px 0 #1f5a18}
+  #infoX{width:32px;height:32px;top:-12px;right:-10px;font-size:15px}
+  body.info #tuto{left:25%;max-width:44vw}
+}

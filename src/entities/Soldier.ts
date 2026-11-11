@@ -16,6 +16,18 @@ export type SoldierState = 'orbit' | 'held' | 'fly' | 'dizzy' | 'return' | 'figh
 
 const ATTACK_TIME = 0.35;
 
+/** Vida, dano e tempo entre golpes de um soldado da especificação `spec` (com as melhorias da Forja). */
+export function specStats(spec: SoldierSpec) {
+  const st = UNIT_STATS[spec.unit], kind = spec.special, f = spec.furia;
+  const pw = (spec.power ?? 1) * perkMult('strong');
+  const mh = kind ? SPECIAL_MIGHT[kind].hp : 1, md = kind ? SPECIAL_MIGHT[kind].dmg : 1;
+  let cd = st.cd * (f ? FURIA.cd : 1) / perkMult('haste');
+  if (kind === 'bomba') cd *= COMBAT.bombCdMult;
+  if (kind === 'gigante') cd *= COMBAT.giantCdMult;
+  if (kind === 'gelo') cd = Math.max(cd, COMBAT.iceCdMin);
+  return { hp: Math.round(st.hp * pw * (f ? FURIA.hp : 1) * mh), dmg: Math.round(st.dmg * pw * (f ? FURIA.dmg : 1) * md), cd };
+}
+
 export class Soldier implements Combatant {
   /** todos os soldados vivos no mapa (o quicador chama os aliados de perto para pular junto) */
   private static all = new Set<Soldier>();
@@ -58,6 +70,9 @@ export class Soldier implements Combatant {
   private face = 1;
   private timer = 0;
   private t = 0;
+  /** comemoração: segundos de dancinha que faltam (e um atraso, para não pularem todos juntos) */
+  private cheerT = 0;
+  private cheerDelay = 0;
   private size = 1;
 
   private target: Orc | null = null;
@@ -123,11 +138,10 @@ export class Soldier implements Combatant {
 
     const st = UNIT_STATS[spec.unit];
     const f = spec.furia;
-    const pw = (spec.power ?? 1) * perkMult('strong');
-    const mh = kind ? SPECIAL_MIGHT[kind].hp : 1, md = kind ? SPECIAL_MIGHT[kind].dmg : 1;
-    this.maxHp = Math.round(st.hp * pw * (f ? FURIA.hp : 1) * mh);
+    const ss = specStats(spec);
+    this.maxHp = ss.hp;
     this.hp = this.maxHp; // evoluir também cura
-    this.dmg = Math.round(st.dmg * pw * (f ? FURIA.dmg : 1) * md);
+    this.dmg = ss.dmg;
     this.reach = st.reach;
     this.range = st.range ?? 0;
     this.bolt = !!st.bolt;
@@ -333,6 +347,7 @@ export class Soldier implements Combatant {
   /** floor = limite de baixo da área jogável */
   update(dt: number, mouse: Phaser.Math.Vector2, w: number, floor: number, foes: Orc[], bars: Bars, proj: Projectiles) {
     this.t += dt;
+    if (this.cheerDelay > 0) this.cheerDelay -= dt; else if (this.cheerT > 0) this.cheerT -= dt;
     if (this.state === 'dead') {
       this.respawnT -= dt;
       if (this.respawnT <= 0) this.revive();
@@ -484,6 +499,12 @@ export class Soldier implements Combatant {
     }
   }
 
+  /** Dancinha de comemoração: pulos altos e balanço de um lado para o outro. */
+  cheer(seconds: number) {
+    this.cheerDelay = Math.random() * 0.35;
+    this.cheerT = seconds;
+  }
+
   private render(bars: Bars) {
     let sx = 1, sy = 1;
     const hopping = this.state === 'orbit' || this.state === 'return';
@@ -518,9 +539,16 @@ export class Soldier implements Combatant {
     }
 
     const lean = (hopping || running) ? Math.sin(this.phase) * 0.12 * this.face : 0;
-    this.sprite.setPosition(px, py - this.z - jz + 2)
+    // dancinha: pula mais alto e balança
+    let cz = 0, cr = 0;
+    if (this.cheerT > 0 && this.cheerDelay <= 0 && (hopping || this.state === 'fight')) {
+      const c = this.t * 9;
+      cz = Math.abs(Math.sin(c)) * 24;
+      cr = Math.sin(c * 0.5) * 0.3;
+    }
+    this.sprite.setPosition(px, py - this.z - jz - cz + 2)
       .setScale(this.baseScale * this.size * sx * this.face, this.baseScale * this.size * sy)
-      .setRotation(this.rot + lean)
+      .setRotation(this.rot + lean + cr)
       .setDepth(this.state === 'held' ? 500_000 : py);
 
     const dizzy = this.state === 'dizzy';
